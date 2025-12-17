@@ -74,15 +74,6 @@ def lectura_parametros_modelo() -> Dict[str, Any]:
         'ESCENARIOS': escenarios_dict
     }
 
-def estandariza_vencimiento(row, fecha_t):
-    fv = row['FECHA_VENCIMIENTO_CUOTA']
-
-    if fv < fecha_t:
-        raise ValueError(f"La fecha de vencimiento {fv} es anterior a la fecha de proceso {fecha_t}.")
-    elif fv.year == fecha_t.year and fv.month == fecha_t.month:
-        return fecha_t + pd.Timedelta(days=1)
-    else:
-        return fv.replace(day=5)
 
 def aplicar_modelo_prepago(
         capital_inicial: pd.Series,
@@ -221,8 +212,17 @@ def aplicar_modelo_prepago(
     }
 
 
-def lectura_interfaz_de_datos(fecha_t: datetime.datetime)-> pd.DataFrame:
-
+def lectura_interfaz_de_datos(fecha_t: datetime.datetime) -> pd.DataFrame:
+    """
+    Lee los datos de la interfaz desde la base de datos MS Access para una fecha específica.
+    
+    Args:
+        fecha_t (datetime.datetime): Fecha de proceso para filtrar los datos
+        
+    Returns:
+        pd.DataFrame: DataFrame con los datos de tarjetas de crédito CMR filtrados y renombrados
+    """
+    
     query="""
         SELECT  
             RF_BD_Gestion_RM.Fec_Pro,
@@ -269,6 +269,8 @@ def procesamiento_y_guardado(
         smm_modelo = parametros['SMM_MODELO']
         escenarios = parametros['ESCENARIOS']
     
+    # Mapeo de códigos de subproducto a categorías de modelo
+    # SAV: Super Avance, NO_SAV: Productos que no son Super Avance
     map_glosa_origen = {
         "AVANCE": "NO_SAV",
         "AVANCE RENEGOCIADO": "NO_SAV",
@@ -301,11 +303,11 @@ def procesamiento_y_guardado(
 
     }
 
-
+    # Procesamiento y limpieza de códigos de subproducto
+    print("      • Procesando y mapeando códigos de subproducto...")
     interfaz_de_datos_t["CODIGO_SUBPRODUCTO"] = interfaz_de_datos_t["CODIGO_SUBPRODUCTO"].astype(str).str.strip().str.upper()
 
     interfaz_de_datos_t["GLOSA_CODIGO_SUBPRODUCTO"] = interfaz_de_datos_t["CODIGO_SUBPRODUCTO"].map(map_glosa_origen)
-    # interfaz_de_datos_t['FECHA_VENCIMIENTO_AJUSTADA'] = interfaz_de_datos_t.apply(estandariza_vencimiento, axis=1, fecha_t=fecha_t)
 
     if interfaz_de_datos_t["GLOSA_CODIGO_SUBPRODUCTO"].isnull().any():
         productos_no_mapeados = interfaz_de_datos_t[interfaz_de_datos_t["GLOSA_CODIGO_SUBPRODUCTO"].isnull()]["CODIGO_SUBPRODUCTO"].unique()
@@ -313,12 +315,8 @@ def procesamiento_y_guardado(
 
     tabla_desarrollo = pd.DataFrame()
     
-
-    # interfaz_de_datos_t['FECHA_VENCIMIENTO_CUOTA'].dt.day.unique()
-    # interfaz_de_datos_t[interfaz_de_datos_t['FECHA_VENCIMIENTO_CUOTA'].dt.day == 28]
-    # interfaz_de_datos_t[interfaz_de_datos_t['FECHA_VENCIMIENTO_CUOTA']<= fecha_t]
-
-
+    # Validación de días de vencimiento permitidos para tarjetas CMR
+    # Se permiten días específicos de facturación según las reglas de negocio
     dias_permitidos = {(fecha_t + pd.Timedelta(days=1)).day, (fecha_t + pd.Timedelta(days=20)).day, 5, 10, 15, 20, 25,28 ,30}
     dias_vencimiento = set(interfaz_de_datos_t['FECHA_VENCIMIENTO_CUOTA'].dt.day.unique())
     if not dias_vencimiento.issubset(dias_permitidos):
@@ -326,7 +324,8 @@ def procesamiento_y_guardado(
     
     interfaz_de_datos_t['DIA_FACTURACION_AJUSTADO'] = interfaz_de_datos_t['FECHA_VENCIMIENTO_CUOTA'].dt.day
 
-    # Ajustar fechas para SAV en febrero
+    # Ajuste especial para productos SAV en febrero
+    # En febrero, se cambia el día 28 al 30 para estandarizar el procesamiento
     mask_sav_febrero = (
         (interfaz_de_datos_t['GLOSA_CODIGO_SUBPRODUCTO'] == 'SAV') & 
         (interfaz_de_datos_t['FECHA_VENCIMIENTO_CUOTA'].dt.month == 2)
@@ -335,39 +334,50 @@ def procesamiento_y_guardado(
     # Cambiar el día a 28 para SAV en febrero (o el día que necesites)
     interfaz_de_datos_t.loc[mask_sav_febrero, 'DIA_FACTURACION_AJUSTADO'] = interfaz_de_datos_t.loc[mask_sav_febrero, 'DIA_FACTURACION_AJUSTADO'].replace({28:30})
 
+    # Procesamiento por cada tipo de subproducto (SAV / NO_SAV)
     for sub_producto in interfaz_de_datos_t["GLOSA_CODIGO_SUBPRODUCTO"].unique():
         df_filtrado_subproducto = interfaz_de_datos_t[interfaz_de_datos_t["GLOSA_CODIGO_SUBPRODUCTO"] == sub_producto]
         # print(f"\n    • Procesando producto: {sub_producto} - Registros: {len(df_filtrado_subproducto):,}")
+        # Procesamiento por cada día de facturación dentro del subproducto
         for fecha_facturacion in df_filtrado_subproducto['DIA_FACTURACION_AJUSTADO'].unique():
             if fecha_facturacion == 30 and sub_producto == 'SAV':
                 print(f"\n      • Procesando subproducto: {sub_producto} - Fecha Vencimiento Día: {fecha_facturacion} (incluye día 28)")
             else:
                 print(f"\n      • Procesando subproducto: {sub_producto} - Fecha Vencimiento Día: {fecha_facturacion}")
             
+            # Filtrar datos por día de facturación específico
             df_filtrado = df_filtrado_subproducto[df_filtrado_subproducto['DIA_FACTURACION_AJUSTADO'] == fecha_facturacion]
+            # Agrupar y sumarizar los datos por fecha de vencimiento
             df_filtrado = df_filtrado.groupby(["FECHA_PROCESO", 'FECHA_VENCIMIENTO_CUOTA', 'GLOSA_CODIGO_SUBPRODUCTO', 'DIA_FACTURACION_AJUSTADO'], as_index=False).agg({"AMORTIZACION": "sum",
                                                                                             "INTERES": "sum"})
 
 
+            # Construcción del vector de fechas del modelo
             fecha_ini = datetime.datetime(fecha_t.year,fecha_t.month,fecha_facturacion)
 
-            #Este calculo de fechas considera que siempre en febrero la fecha de facturacion es el 28 (caso años bisiestos)
+            # Este cálculo de fechas considera que siempre en febrero la fecha de facturación es el 28 (caso años bisiestos)
+            # Se generan 200 periodos mensuales para cubrir toda la vida útil potencial de las operaciones
             fechas_vector_smm = pd.DataFrame([
                     (fecha_ini + pd.DateOffset(months=i)).replace(day=min((fecha_ini + pd.DateOffset(months=i)).day, 28)) 
                     if (fecha_ini + pd.DateOffset(months=i)).month == 2 
                     else fecha_ini + pd.DateOffset(months=i) 
                     for i in range(200)
                 ], columns=["FECHA_VENCIMIENTO_CUOTA_MODELO"])
+            # Filtrar solo fechas futuras respecto a la fecha de proceso
             fechas_vector_smm = fechas_vector_smm[fechas_vector_smm['FECHA_VENCIMIENTO_CUOTA_MODELO'] > fecha_t]
+            # Hacer merge con los datos reales y completar con ceros donde no hay datos
             df_iter = fechas_vector_smm.merge(df_filtrado, left_on='FECHA_VENCIMIENTO_CUOTA_MODELO', right_on='FECHA_VENCIMIENTO_CUOTA', how='left')
             
+            # Rellenar valores faltantes con cero (para fechas sin operaciones)
             df_iter["AMORTIZACION"] = df_iter["AMORTIZACION"].fillna(0)
             df_iter["INTERES"] = df_iter["INTERES"].fillna(0)
 
+            # Agrupar por fecha en caso de duplicados y ordenar cronológicamente
             df_iter = df_iter.groupby(["FECHA_VENCIMIENTO_CUOTA_MODELO"], as_index=False).agg({"AMORTIZACION": "sum",
                                                                                             "INTERES": "sum"})
             df_iter = df_iter.sort_values("FECHA_VENCIMIENTO_CUOTA_MODELO", ascending=True).reset_index(drop=True)
 
+            # Limitar a 90 periodos máximo (consolidando exceso en el periodo 90)
             if len(df_iter) > 90:
                 extra = df_iter.iloc[90:]
                 suma_amort = extra["AMORTIZACION"].sum()
