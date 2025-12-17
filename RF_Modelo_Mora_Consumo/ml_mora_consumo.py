@@ -1,0 +1,374 @@
+import pandas as pd
+import numpy as np
+import os
+import datetime
+import yaml
+from pathlib import Path
+import sys
+import bfa_cl_utilidades as ut
+
+# # # Para una ejecucion directa del script
+BASE_DIR = Path(__file__).resolve().parent.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+# Importar configuraciones
+from config import config_rutas as cr
+
+# Cargar configuración de rutas externas
+with open(cr.CONFIG / 'config_rutas_ext_y_archivos.yaml', 'r') as file:
+    config_ext = yaml.safe_load(file)
+
+# Importar utilidades
+
+
+# Configuración de rutas
+RUTA_INTERFAZ_DE_DATOS = Path(config_ext['modelos']['ml_mora_consumo']['interfaz_datos_input'])
+RUTA_PARAMETOS_MORA_CONSUMO = Path(config_ext['modelos']['ml_mora_consumo']['excel_parametros_input'])
+RUTA_OUTPUT_MODELO = Path(config_ext['modelos']['ml_mora_consumo']['excel_output'])
+RUTA_OUTPUT_MODELO_RENEGOCIADO = Path(config_ext['modelos']['ml_mora_consumo']['excel_output_2'])
+
+
+
+def lectura_parametros_modelo():
+    factores_mora = pd.read_excel(RUTA_PARAMETOS_MORA_CONSUMO, sheet_name="FACTORES_MORA")
+    factores_globales_mora = pd.read_excel(RUTA_PARAMETOS_MORA_CONSUMO, sheet_name="FACTORES_GLOBALES")
+    matriz_mora_consumo = pd.read_excel(RUTA_PARAMETOS_MORA_CONSUMO, sheet_name="MATRIZ_CONSUMO")
+    matriz_mora_automotriz =  pd.read_excel(RUTA_PARAMETOS_MORA_CONSUMO, sheet_name="MATRIZ_AUTOMOTRIZ")
+    matriz_mora_refinanciado = pd.read_excel(RUTA_PARAMETOS_MORA_CONSUMO, sheet_name="MATRIZ_REFINANCIADO")
+    matriz_mora_renegociado = pd.read_excel(RUTA_PARAMETOS_MORA_CONSUMO, sheet_name="MATRIZ_RENEGOCIADO")
+    matriz_mora_consolidado = pd.read_excel(RUTA_PARAMETOS_MORA_CONSUMO, sheet_name="MATRIZ_CONSOLIDADO")
+
+
+    lst_matrices_mora = [matriz_mora_consumo.iloc[:366,:366],
+                         matriz_mora_automotriz.iloc[:366,:366],
+                         matriz_mora_refinanciado.iloc[:366,:366],
+                         matriz_mora_renegociado.iloc[:366,:366],
+                         matriz_mora_consolidado.iloc[:366,:366]]
+    lst_factores_mora = [factores_mora.iloc[:, 0],
+                         factores_mora.iloc[:, 1],
+                         factores_mora.iloc[:, 2],
+                         factores_mora.iloc[:, 3],
+                         factores_mora.iloc[:, 4]]
+    lst_factores_globales_mora = [factores_globales_mora.iloc[0, 0],
+                                factores_globales_mora.iloc[0, 1],
+                                factores_globales_mora.iloc[0, 2],
+                                factores_globales_mora.iloc[0, 3],
+                                factores_globales_mora.iloc[0, 4]]
+    return lst_factores_mora, lst_matrices_mora, lst_factores_globales_mora
+
+def lectura_interfaz_de_datos(fecha_t: datetime.datetime)-> pd.DataFrame:
+    columnas = ["FECHA_PROCESO", "SISTEMA", "CODIGO_SUBPRODUCTO","DESTINOCREDITO", "MONEDA_ORIGEN",
+                "AMORTIZACION", "INTERES","FECHA_VENCIMIENTO_CUOTA"]
+
+    tipos_datos = {"FECHA_PROCESO": "str", "SISTEMA": "str", "CODIGO_SUBPRODUCTO": "str", "DESTINOCREDITO": "str",
+                   "MONEDA_ORIGEN": "str", "AMORTIZACION": "float",
+                   "INTERES": "float","FECHA_VENCIMIENTO_CUOTA": "str",}
+
+    ruta_t = os.path.join(RUTA_INTERFAZ_DE_DATOS, f"ProductosMercadoLiquidezGCP{fecha_t.strftime('%Y%m%d')}.txt")
+
+    interfaz_t = pd.read_csv(ruta_t, sep=';', decimal=',', usecols=columnas, dtype=tipos_datos)
+
+    interfaz_t['FECHA_PROCESO'] = pd.to_datetime(interfaz_t['FECHA_PROCESO'], format='%Y%m%d')
+    interfaz_t['FECHA_VENCIMIENTO_CUOTA'] = pd.to_datetime(interfaz_t['FECHA_VENCIMIENTO_CUOTA'], format='%Y%m%d')
+
+
+    interfaz_t['CODIGO_SUBPRODUCTO'] = interfaz_t['CODIGO_SUBPRODUCTO'].str.strip()
+    interfaz_t['DESTINOCREDITO'] = interfaz_t['DESTINOCREDITO'].str.strip()
+    interfaz_t['SISTEMA'] = interfaz_t['SISTEMA'].str.strip()
+    return interfaz_t[
+            ((interfaz_t['SISTEMA'] == "CRC") & (interfaz_t['DESTINOCREDITO'].isin(["1", "2", "22", "24"]))) |
+            ((interfaz_t['SISTEMA'] == "REC") & (interfaz_t['DESTINOCREDITO'] == "23"))].reset_index(drop=True).copy()
+
+
+def calcular_flujo_estimado_mora(data: pd.DataFrame,
+                                fecha_t: datetime.datetime,
+                                matriz_mora: pd.DataFrame,
+                                factor_mora: float,
+                                factor_global: float) -> pd.DataFrame:
+    """
+    Calcula el flujo estimado para una cartera de créditos.
+
+    Args:
+        data: DataFrame con la información de los créditos.
+        fecha_t: Fecha de proceso.
+        matriz_mora: Matriz de mora para los cálculos.
+        factor_mora: Factor de mora a aplicar.
+        factor_global: Factor de garantía a aplicar.
+
+    Returns:
+        DataFrame con el flujo estimado calculado.
+    """
+    data['FLUJO_MO'] = data['AMORTIZACION'] + data['INTERES']
+    data = data.groupby(['FECHA_VENCIMIENTO_CUOTA'], as_index=False)["FLUJO_MO"].sum()
+
+    lst_fechas_venc = [fecha_t + datetime.timedelta(days=i) for i in range(1, len(matriz_mora) + 1)]
+    df_fechas_venc = pd.DataFrame(lst_fechas_venc, columns=['FECHA_VENCIMIENTO_CUOTA_MODELO'])
+
+    df_fechas_venc = df_fechas_venc.merge(data, how='left',
+                                          left_on='FECHA_VENCIMIENTO_CUOTA_MODELO',
+                                          right_on='FECHA_VENCIMIENTO_CUOTA')
+    df_fechas_venc['FLUJO_MO'] = df_fechas_venc['FLUJO_MO'].fillna(0)
+
+    suma_flujo_mo = data[data['FECHA_VENCIMIENTO_CUOTA'] > df_fechas_venc["FECHA_VENCIMIENTO_CUOTA_MODELO"].iloc[-1]][
+        "FLUJO_MO"].sum()
+
+    suma_flujo_mo_vencido = data[(data['FECHA_VENCIMIENTO_CUOTA'] < fecha_t) &
+                                 ((data['FECHA_VENCIMIENTO_CUOTA'] - fecha_t).dt.days >= -180)]['FLUJO_MO'].sum()
+
+    flujo_estimado = df_fechas_venc.copy()
+    flujo_estimado['FLUJO_MODELO_MO'] = np.dot(df_fechas_venc['FLUJO_MO'].values, matriz_mora.values) * factor_global
+
+    nueva_fila = pd.DataFrame({
+        'FECHA_VENCIMIENTO_CUOTA_MODELO': [
+            df_fechas_venc["FECHA_VENCIMIENTO_CUOTA_MODELO"].iloc[-1] + datetime.timedelta(days=1)],
+        'FLUJO_MO': [suma_flujo_mo],
+        'FLUJO_MODELO_MO': [suma_flujo_mo * factor_global],
+    })
+    flujo_estimado = pd.concat([flujo_estimado, nueva_fila], ignore_index=True)
+    flujo_estimado['FLUJO_MORA_VIGENTE_MO'] = factor_mora * suma_flujo_mo_vencido
+
+    return flujo_estimado
+
+def procesamiento_y_guardado(fecha_t: datetime.datetime,
+                             interfaz_de_datos_t: pd.DataFrame
+                             )-> None:
+
+    print("      • Segmentando datos por tipo de crédito...")
+    consumo = interfaz_de_datos_t[(interfaz_de_datos_t['SISTEMA'] == "CRC")
+                                  & (interfaz_de_datos_t['DESTINOCREDITO']=="1")].copy().reset_index(drop=True)
+    automotriz = interfaz_de_datos_t[(interfaz_de_datos_t['SISTEMA'] == "CRC")
+                                  & (interfaz_de_datos_t['DESTINOCREDITO']=="2")].copy().reset_index(drop=True)
+    refinanciado = interfaz_de_datos_t[(interfaz_de_datos_t['SISTEMA'] == "CRC")
+                                  & (interfaz_de_datos_t['DESTINOCREDITO']=="22")].copy().reset_index(drop=True)
+    renegociado = interfaz_de_datos_t[(interfaz_de_datos_t['SISTEMA'] == "REC")
+                                  & (interfaz_de_datos_t['DESTINOCREDITO']=="23")].copy().reset_index(drop=True)
+    consolidado = interfaz_de_datos_t[(interfaz_de_datos_t['SISTEMA'] == "CRC")
+                                  & (interfaz_de_datos_t['DESTINOCREDITO']=="24")].copy().reset_index(drop=True)
+    
+    print(f"        - Consumo: {len(consumo):,} registros")
+    print(f"        - Automotriz: {len(automotriz):,} registros")
+    print(f"        - Refinanciado: {len(refinanciado):,} registros")
+    print(f"        - Renegociado: {len(renegociado):,} registros")
+    print(f"        - Consolidado: {len(consolidado):,} registros")
+    
+    print("\n      • Cargando parámetros del modelo...")
+    lst_factores_mora, lst_matrices_mora, lst_factores_globales_mora = lectura_parametros_modelo()
+
+    sub_productos_creditos_consumo = {
+        0: {
+            "DESCRIPCION": "CONSUMO",
+            "DATA": consumo,
+            "MATRIZ_MORA": lst_matrices_mora[0],
+            "FACTOR_MORA": lst_factores_mora[0],
+            "FG": lst_factores_globales_mora[0],
+            "SUB_PRODUCTO": "CONSUMO"
+        },
+        1: {
+            "DESCRIPCION": "AUTOMOTRIZ",
+            "DATA": automotriz,
+            "MATRIZ_MORA": lst_matrices_mora[1],
+            "FACTOR_MORA": lst_factores_mora[1],
+            "FG": lst_factores_globales_mora[1],
+            "SUB_PRODUCTO": "AUTOMOTRIZ"
+        },
+        2: {
+            "DESCRIPCION": "REFINANCIADO",
+            "DATA": refinanciado,
+            "MATRIZ_MORA": lst_matrices_mora[2],
+            "FACTOR_MORA": lst_factores_mora[2],
+            "FG": lst_factores_globales_mora[2],
+            "SUB_PRODUCTO": "REFINANCIADO"
+        },
+        3: {
+            "DESCRIPCION": "RENEGOCIADO",
+            "DATA": renegociado,
+            "MATRIZ_MORA": lst_matrices_mora[3],
+            "FACTOR_MORA": lst_factores_mora[3],
+            "FG": lst_factores_globales_mora[3],
+            "SUB_PRODUCTO": "RENEGOCIADO"
+        },
+        4: {
+            "DESCRIPCION": "CONSOLIDADO",
+            "DATA": consolidado,
+            "MATRIZ_MORA": lst_matrices_mora[4],
+            "FACTOR_MORA": lst_factores_mora[4],
+            "FG": lst_factores_globales_mora[4],
+            "SUB_PRODUCTO": "CONSOLIDADO"
+        },
+    }
+
+    tabla_desarrollo = pd.DataFrame()
+    flujo_estimado_agrupado = pd.DataFrame()
+    
+    print("\n      • Procesando por tipo de crédito...")
+    for sub_pord in sub_productos_creditos_consumo.keys():
+        desc_producto = sub_productos_creditos_consumo[sub_pord]["DESCRIPCION"]
+        print(f"        - Calculando flujos para {desc_producto}...")
+        
+        df_iter = sub_productos_creditos_consumo[sub_pord]["DATA"]
+        matriz_mora_iter = sub_productos_creditos_consumo[sub_pord]["MATRIZ_MORA"]
+        factor_mora_iter = sub_productos_creditos_consumo[sub_pord]["FACTOR_MORA"]
+        fg_iter = sub_productos_creditos_consumo[sub_pord]["FG"]
+        sub_producto_iter = sub_productos_creditos_consumo[sub_pord]["SUB_PRODUCTO"]
+        print(f"          Factor Global {desc_producto}: {fg_iter:.4f}")
+
+        flujo_estimado_iter = calcular_flujo_estimado_mora(
+            data=df_iter,
+            fecha_t=fecha_t,
+            matriz_mora=matriz_mora_iter,
+            factor_mora=factor_mora_iter,
+            factor_global=fg_iter)
+        registros = len(flujo_estimado_iter)
+
+        tabla_desarrollo_tmp = {
+            "FECHA_PROCESO": [fecha_t] * registros,
+            "CODIGO_EMPRESA": [np.nan] * registros,
+            "OPERACION": [np.nan] * registros,
+            "COD_ACT/PAS": ["ACT"] * registros,
+            "MONEDA_ORIGEN": ["CLP"] * registros,
+            "MONEDA_COMPENSACION": ["CLP"] * registros,
+            "COMPENSACION": [np.nan] * registros,
+            "CODIGO_PRODUCTO": ["ML_C46_MORA_CREDITO_" + str(sub_producto_iter)] * registros,
+            "CODIGO_SUBPRODUCTO": ["ML_C46_MORA_CREDITO_" + str(sub_producto_iter)] * registros,
+            "FECHA_CREACION": [np.nan] * registros,
+            "NUMERO_CUOTA": [np.nan] * registros,
+            "FECHA_INICIO_CUOTA": [np.nan] * registros,
+            "FECHA_VENCIMIENTO_CUOTA": flujo_estimado_iter["FECHA_VENCIMIENTO_CUOTA_MODELO"],
+            "FECHA_PAGO": flujo_estimado_iter["FECHA_VENCIMIENTO_CUOTA_MODELO"],
+            "FECHA_REPRICING": flujo_estimado_iter["FECHA_VENCIMIENTO_CUOTA_MODELO"],
+            "AMORTIZACION": flujo_estimado_iter['FLUJO_MODELO_MO'] + flujo_estimado_iter['FLUJO_MORA_VIGENTE_MO'],
+            "INTERES": [np.nan] * registros,
+            "INTERES_DEVENGADO": [np.nan] * registros,
+            "VP_AMORTIZACION": [np.nan] * registros,
+            "VP_INTERES": [np.nan] * registros,
+            "FACTOR_DE_RIESGO": [np.nan] * registros,
+            "TIPO_CUOTA": [1] * registros,
+            "AREA_NEGOCIO": ["BALANCE TASAS"] * registros,
+            "CODIGO_EJECUTIVO": [np.nan] * registros,
+            "CODIGO_ESTRATEGIA": ["BALANCE TASAS"] * registros,
+            "CLASIFICACION_CONTABLE": ["HTM"] * registros,
+            "TIPO_TASA": [1] * registros,
+            "INDEXADOR": [np.nan] * registros,
+            "TASA": [np.nan] * registros,
+            "TASA_CF": [np.nan] * registros,
+            "SPREAD": [np.nan] * registros,
+        }
+
+
+        flujo_estimado_iter["PRODUCTO"] = str(sub_producto_iter)
+        flujo_estimado_iter["FECHA_PROCESO"] = fecha_t
+        flujo_estimado_agrupado = pd.concat([flujo_estimado_agrupado, flujo_estimado_iter], ignore_index=True)
+        tabla_desarrollo = pd.concat([tabla_desarrollo, pd.DataFrame(tabla_desarrollo_tmp)], ignore_index=True)
+
+
+
+
+    tabla_desarrollo_output = tabla_desarrollo[tabla_desarrollo["CODIGO_SUBPRODUCTO"] != "ML_C46_MORA_CREDITO_RENEGOCIADO"].copy()
+    tabla_desarrollo_output["CODIGO_PRODUCTO"] = "ML_C46_MORA_CREDITO_CONSUMO"
+    tabla_desarrollo_output["CODIGO_SUBPRODUCTO"] = "ML_C46_MORA_CREDITO_CONSUMO"
+
+    tabla_desarrollo_renegociado_output = tabla_desarrollo[tabla_desarrollo["CODIGO_SUBPRODUCTO"] == "ML_C46_MORA_CREDITO_RENEGOCIADO"].copy()
+
+    formatos_excel = {
+        "FECHA_PROCESO": "dd-mm-yyyy",
+        "FECHA_VENCIMIENTO_CUOTA": "dd-mm-yyyy",
+        "FECHA_PAGO": "dd-mm-yyyy",
+        "FECHA_REPRICING": "dd-mm-yyyy"
+    }
+
+    print("\n      • Guardando resultados en archivo Excel...")
+
+    print(f"        - Guardando hoja 'DESARROLLO_MODELO' con {len(tabla_desarrollo):,} registros")
+    ut.cargar_datos_xlsm(ruta_archivo=RUTA_OUTPUT_MODELO,
+                         nombre_hoja="DESARROLLO_MODELO",
+                         datos=tabla_desarrollo[tabla_desarrollo["CODIGO_SUBPRODUCTO"] != "ML_C46_MORA_CREDITO_RENEGOCIADO"],
+                         formatos_columnas=formatos_excel
+                         )
+    print(f"        - Guardando hoja 'DESARROLLO_MODELO_RENEGOCIADO' con {len(tabla_desarrollo):,} registros")
+    ut.cargar_datos_xlsm(ruta_archivo=RUTA_OUTPUT_MODELO_RENEGOCIADO,
+                         nombre_hoja="DESARROLLO_MODELO",
+                         datos=tabla_desarrollo[tabla_desarrollo["CODIGO_SUBPRODUCTO"] == "ML_C46_MORA_CREDITO_RENEGOCIADO"],
+                         formatos_columnas=formatos_excel
+                         )
+
+    print(f"        - Guardando hoja 'DESARROLLO' con {len(tabla_desarrollo_output):,} registros")
+    ut.cargar_datos_xlsm(ruta_archivo=RUTA_OUTPUT_MODELO,
+                        nombre_hoja="DESARROLLO",
+                        datos=tabla_desarrollo_output,
+                        formatos_columnas=formatos_excel
+                        )
+
+    print(f"        - Guardando hoja 'DESARROLLO_RENEGOCIADO' con {len(tabla_desarrollo_renegociado_output):,} registros")
+    ut.cargar_datos_xlsm(ruta_archivo=RUTA_OUTPUT_MODELO_RENEGOCIADO,
+                        nombre_hoja="DESARROLLO",
+                        datos=tabla_desarrollo_renegociado_output,
+                        formatos_columnas=formatos_excel
+                        )
+                        
+    print(f"        - Guardando hoja 'DETALLE_FLUJOS' con {len(flujo_estimado_agrupado):,} registros")
+    ut.cargar_datos_xlsm(ruta_archivo=RUTA_OUTPUT_MODELO,
+                        nombre_hoja="DETALLE_FLUJOS",
+                        datos=flujo_estimado_agrupado[flujo_estimado_agrupado['PRODUCTO']!='RENEGOCIADO'][["FECHA_PROCESO", "PRODUCTO", "FECHA_VENCIMIENTO_CUOTA", 
+                        "FECHA_VENCIMIENTO_CUOTA_MODELO","FLUJO_MO", "FLUJO_MODELO_MO", "FLUJO_MORA_VIGENTE_MO"]],
+                        formatos_columnas=formatos_excel
+                        )
+
+    print(f"        - Guardando hoja 'DETALLE_FLUJOS_RENEGOCIADO' con {len(flujo_estimado_agrupado):,} registros")
+    ut.cargar_datos_xlsm(ruta_archivo=RUTA_OUTPUT_MODELO_RENEGOCIADO,
+                        nombre_hoja="DETALLE_FLUJOS",
+                        datos=flujo_estimado_agrupado[flujo_estimado_agrupado['PRODUCTO']=='RENEGOCIADO'][["FECHA_PROCESO", "PRODUCTO", "FECHA_VENCIMIENTO_CUOTA", 
+                        "FECHA_VENCIMIENTO_CUOTA_MODELO","FLUJO_MO", "FLUJO_MODELO_MO", "FLUJO_MORA_VIGENTE_MO"]],
+                        formatos_columnas=formatos_excel
+                        )
+
+
+    # print("\n      • Respaldando archivo en carpeta de ejecuciones...")
+    # ut.copia_archivo_en_ruta(RUTA_OUTPUT_MODELO,
+    #                          cr.EJECUCIONES_ML_MORA_CONSUMO,
+    #                          Path(RUTA_OUTPUT_MODELO).stem + ".xlsm",
+    #                          agregar_fecha=True)
+
+
+
+
+# --- Bloque de Ejemplo de Uso ---
+if __name__ == "__main__":
+
+    # if len(sys.argv) < 2:
+    #     print("ERROR: No se proporcionó fecha. Uso: python tu_script.py YYYY-MM-DD")
+    #     sys.exit(1)
+    
+    # fecha_proceso_str = sys.argv[1]
+
+    fecha_proceso_str = "2025-11-03"
+
+    try:
+        fecha_proceso = datetime.datetime.strptime(fecha_proceso_str, "%Y-%m-%d")
+    except ValueError:
+        print(f"ERROR: Formato de fecha '{fecha_proceso_str}' incorrecto. Use YYYY-MM-DD.")
+        sys.exit(1)
+
+    print("\n" + "="*50)
+    print("INICIO DEL PROCESO - MODELO MORA CONSUMO")
+    print(f"Fecha de proceso: {fecha_proceso.strftime('%d-%m-%Y')}")
+    print("="*50 + "\n")
+
+    print("[1/3] Leyendo datos de interfaz...")
+    interfaz_de_datos_consumo_t = lectura_interfaz_de_datos(fecha_proceso)
+    print(f"      ✓ Datos leídos exitosamente - {len(interfaz_de_datos_consumo_t):,} registros encontrados")
+
+    print("\n[2/3] Procesando información y calculando estimaciones...")
+    procesamiento_y_guardado(fecha_proceso, interfaz_de_datos_consumo_t)
+    
+    print("\n[3/3] Proceso completado:")
+    print("      ✓ Cálculos realizados")
+    print("      ✓ Archivos guardados")
+    print("\n" + "="*50)
+    print("PROCESO FINALIZADO EXITOSAMENTE")
+    print("="*50)
+
+
+
+
+
