@@ -1,93 +1,199 @@
-# bfa-cl-ml-inversiones
+# BFA-CL Modelos Diarios
 
+Sistema integral para la ejecución diaria de modelos de riesgo financiero en Banco Falabella Chile.
 
+## Descripción
 
-## Getting started
+Este proyecto contiene la implementación de múltiples modelos de riesgo financiero que se ejecutan de forma automatizada:
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+### Modelos de Mora
+- **ML Mora CAE**
+- **ML Mora Comercial**
+- **ML Mora Consumo**: Incluye Subproductos
+- **ML Mora Hipotecario**: 
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+### Modelos de Prepago
+- **MR Prepago CMR**
+- **MR Prepago Consumo**
+- **MR Prepago Hipotecario**
 
-## Add your files
+Los modelos están diseñados para procesar datos en lotes, generar predicciones y cargar los resultados a BigQuery para su posterior análisis y reporting.
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+## Estructura del Proyecto
 
+### 📁 Directorio Raíz
 ```
-cd existing_repo
-git remote add origin https://gitlab.falabella.tech/rmunozb/bfa-cl-ml-inversiones.git
-git branch -M main
-git push -uf origin main
+main.py                          # Punto de entrada principal de la aplicación
+VARIACION_CARTERA_ML.xlsm       # Archivo de análisis de variación de cartera
 ```
 
-## Integrate with your tools
+### 📁 Configuración y Core
+```
+config/                          # Configuraciones del sistema
+├── config_rutas_ext_y_archivos.yaml  # Rutas externas y archivos de configuración
+├── config_rutas.py              # Configuración de rutas del sistema
+└── __init__.py
 
-- [ ] [Set up project integrations](https://gitlab.falabella.tech/rmunozb/bfa-cl-ml-inversiones/-/settings/integrations)
+core/                           # Núcleo del sistema
+├── orquestador.py              # Orquestador principal de procesos
+└── __init__.py
 
-## Collaborate with your team
+credenciales/                   # Credenciales de acceso (no versionado)
+└── bfa-cl-trade-price-report-dev-9d137fc23b7f.json
+```
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+### 📁 Módulos de Carga de Datos
+```
+carga_modelos_gcp/              # Módulos para carga a Google Cloud Platform
+├── cargar_output_modelos_bigquery_dly.py   # Carga diaria a BigQuery
+├── cargar_output_modelos_bigquery_hist.py  # Carga histórica a BigQuery
+└── __init__.py
+```
 
-## Test and Deploy
+### 📁 Interfaz de Usuario
+```
+gui/                            # Interfaz gráfica de usuario
+├── controladores.py            # Controladores de la GUI
+├── interfaz.py                 # Definición de la interfaz
+└── __init__.py
+```
 
-Use the built-in continuous integration in GitLab.
+### 📁 Modelos
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+#### Modelos de Mora
+```
+RF_Modelo_Mora_CAE/             # Modelo de mora para CAE (Crédito Automotriz Empresas)
+├── ml_mora_cae.py              # Implementación del modelo
+├── ml_mora_cae_cc.xlsm         # Plantilla Excel para cálculos
+└── parametros/                 # Parámetros específicos del modelo
 
-***
+RF_Modelo_Mora_Comercial/       # Modelo de mora para créditos comerciales
+├── ml_mora_comercial.py        # Implementación del modelo
+├── ml_mora_comercial_cc.xlsm   # Plantilla Excel para cálculos
+└── parametros/                 # Parámetros específicos del modelo
 
-# Editing this README
+RF_Modelo_Mora_Consumo/         # Modelo de mora para créditos de consumo
+├── ml_mora_consumo.py          # Implementación del modelo
+├── ml_mora_consumo_cc.xlsm     # Plantilla Excel para cálculos
+├── ml_mora_renegociado_cc.xlsm # Plantilla para créditos renegociados
+└── parametros/                 # Parámetros específicos del modelo
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+RF_Modelo_Mora_Hipotecario/     # Modelo de mora para créditos hipotecarios
+├── ml_mora_hipotecario.py      # Implementación del modelo
+├── ml_mora_hipotecario_cc.xlsm # Plantilla Excel para cálculos
+└── parametros/                 # Parámetros específicos del modelo
+```
 
-## Suggestions for a good README
+#### Modelos de Prepago
+```
+RF_Modelo_Prepago_CMR/          # Modelo de prepago para tarjetas CMR
+├── mr_prepago_cmr.py           # Implementación del modelo
+├── mr_prepago_cmr.xlsm         # Plantilla Excel para cálculos
+├── Generador_Prepago_TC_CMR_Productivo.ipynb  # Notebook de desarrollo
+└── parametros/                 # Parámetros específicos del modelo
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+RF_Modelo_Prepago_Consumo/      # Modelo de prepago para créditos de consumo
+├── mr_prepago_consumo.py       # Implementación del modelo
+├── mr_prepago_consumo.xlsm     # Plantilla Excel para cálculos
+├── EJECUCIONES/                # Historial de ejecuciones
+└── parametros/                 # Parámetros específicos del modelo
 
-## Name
-Choose a self-explaining name for your project.
+RF_Modelo_Prepago_Hipotecario/  # Modelo de prepago para créditos hipotecarios
+├── mr_prepago_hipotecario.py   # Implementación del modelo
+├── mr_prepago_hipotecario.xlsm # Plantilla Excel para cálculos
+├── EJECUCIONES/                # Historial de ejecuciones
+├── OTROS/                      # Archivos adicionales
+└── parametros/                 # Parámetros específicos del modelo
+```
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+### 📁 Documentación
+```
+docs/                           # Documentación del proyecto
+```
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+## Arquitectura del Sistema
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+### Flujo Principal
+1. **Orquestación**: El `orquestador.py` coordina la ejecución de todos los modelos
+2. **Modelos**: Cada modelo procesa sus datos específicos y genera predicciones
+3. **Carga a GCP**: Los resultados se cargan automáticamente a BigQuery
+4. **Interfaz**: La GUI permite monitorear y controlar las ejecuciones
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+### Componentes Clave
+- **Orquestador**: Maneja la secuencia de ejecución y dependencias entre modelos
+- **Modelos ML**: Implementaciones independientes de cada modelo de riesgo
+- **Configuración**: Sistema centralizado de configuración de rutas y parámetros
+- **Carga GCP**: Módulos especializados para la integración con Google Cloud Platform
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+## Requisitos
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+- Python 3.11+
+- Acceso a Google Cloud Platform (BigQuery)
+- Credenciales de servicio configuradas
+- Librerías especificadas en cada módulo de modelo
+- Librería customizada bfa_cl_utilidades: https://gitlab.falabella.tech/rmunozb/bfa-cl-utilidades
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+## Uso
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+### Opciones de Ejecución
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+El sistema ofrece múltiples modos de operación a través de la línea de comandos y interfaz gráfica.
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+#### Listar Modelos Disponibles
+```bash
+python main.py --listar
+```
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+#### Ejecutar Modelos Específicos
+```bash
+# Ejecutar un modelo específico
+python main.py --fecha 2025-11-28 --modelos mr_prepago_consumo
 
-## License
-For open source projects, say how it is licensed.
+# Ejecutar múltiples modelos
+python main.py --fecha 2025-11-28 --modelos mr_prepago_consumo ml_mora_cae
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+# Ejecutar todos los modelos disponibles
+python main.py --fecha 2025-11-28 --modelos todos
+```
+
+#### Ejecutar y Cargar a BigQuery
+```bash
+# Ejecutar modelo y cargar automáticamente a BigQuery
+python main.py --fecha 2025-11-28 --modelos mr_prepago_consumo --cargar-gcp
+
+# Ejecutar todos los modelos y cargar a BigQuery
+python main.py --fecha 2025-11-28 --modelos todos --cargar-gcp
+```
+
+#### Solo Carga a BigQuery (sin ejecutar modelos)
+```bash
+# Cargar modelos específicos a BigQuery
+python main.py --fecha 2025-11-28 --solo-carga-gcp mr_prepago_consumo mr_prepago_hipotecario
+
+# Cargar todos los modelos disponibles a BigQuery
+python main.py --fecha 2025-11-28 --solo-carga-gcp todos
+```
+
+### Parámetros Principales
+
+- `--fecha`: Fecha de ejecución en formato YYYY-MM-DD (requerido en modo consola)
+- `--modelos`: Lista de modelos a ejecutar (usar nombres específicos o "todos")
+- `--cargar-gcp`: Cargar resultados a BigQuery después de ejecutar
+- `--solo-carga-gcp`: Solo cargar a BigQuery sin ejecutar modelos
+- `--listar`: Mostrar modelos disponibles y su estado
+
+### Ejecución de Modelos Individuales
+Cada modelo puede ejecutarse de forma independiente desde su directorio correspondiente.
+
+
+## Configuración
+
+1. Configurar las rutas en `config/config_rutas_ext_y_archivos.yaml`
+2. Colocar las credenciales de GCP en la carpeta `credenciales/`
+3. Ajustar los parámetros específicos de cada modelo en sus carpetas `parametros/`
+
+## Seguridad
+
+⚠️ **Importante**: Las credenciales y archivos sensibles están excluidos del control de versiones mediante `.gitignore`. Asegúrate de configurar las credenciales localmente antes de ejecutar el sistema.
+
+
