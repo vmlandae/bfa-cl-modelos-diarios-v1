@@ -90,3 +90,6 @@ cache/
 # Archivos de backup
 *.bak
 *.backup
+
+# Archivos de respaldo
+respaldos/
