@@ -394,7 +394,6 @@ def procesamiento_y_guardado(
 
             tabla_desarrollo = pd.concat(
                 [tabla_desarrollo, pd.DataFrame(tabla_desarrollo_tmp)],ignore_index=True)
-            tabla_desarrollo.to_clipboard(sep=';',decimal=",", index=False)
 
 
     print("\n      • Guardando resultados...")
@@ -420,12 +419,59 @@ def procesamiento_y_guardado(
     #                          agregar_fecha=True)
     # print("          ✓ Copia de respaldo creada")
 
-             # info_escenario = resultados['INFO_ESCENARIO']
-            # nombre_archivo = f"Resultados_{sub_producto}_{info_escenario['DESCRIPCION']}.xlsx"
-            # ruta = os.path.join("Z:\RF_PROYECTOS\METODOLOGIAS\PROCESOS_DIARIOS_MODELOS\MANUALES\MODELOS\MR_PREPAGO_HIPOTECARIO", nombre_archivo)
-            # with pd.ExcelWriter(ruta) as writer:
-            #     resultados['MATRIZ_F'].to_excel(writer, sheet_name='Matriz_F')
-            #     resultados['FLUJOS'].to_excel(writer, sheet_name='Flujos_de_Caja')
+
+def ejecutar_modelo(fecha_proceso: datetime.datetime) -> bool:
+    """
+    Función principal que ejecuta todo el flujo del modelo de prepago hipotecario.
+    Esta función es llamada por el orquestador y encapsula toda la lógica necesaria.
+    
+    Args:
+        fecha_proceso (datetime.datetime): Fecha de proceso para el modelo
+        
+    Returns:
+        bool: True si la ejecución fue exitosa, False en caso de error
+    """
+    try:
+        print("\n" + "="*50)
+        print("INICIO DEL PROCESO - MODELO PREPAGO HIPOTECARIO")
+        print(f"Fecha de proceso: {fecha_proceso.strftime('%d-%m-%Y')}")
+        print("="*50 + "\n")
+
+        print("[1/4] Cargando parámetros del modelo...")
+        parametros = lectura_parametros_modelo()
+        SMM_MODELO = parametros['SMM_MODELO']
+        ESCENARIOS = parametros['ESCENARIOS']
+        print("      ✓ Parámetros cargados correctamente\n")
+
+        print("[2/4] Leyendo datos de interfaz...")
+        interfaz_de_datos_hipotecario = lectura_interfaz_de_datos(fecha_proceso)
+        
+        # Validar que los datos no estén vacíos
+        if interfaz_de_datos_hipotecario.empty:
+            raise ValueError(f"No se encontraron datos para la fecha {fecha_proceso.strftime('%Y-%m-%d')}. "
+                            f"Verifique que existan registros en la interfaz de datos para esta fecha.")
+        
+        print(f"      ✓ Datos leídos exitosamente - {len(interfaz_de_datos_hipotecario):,} registros encontrados")
+
+        print("\n[3/4] Procesando información y calculando prepagos...")
+        procesamiento_y_guardado(fecha_proceso, interfaz_de_datos_hipotecario, SMM_MODELO, ESCENARIOS)
+        
+        print("\n[4/4] Proceso completado:")
+        print("      ✓ Cálculos realizados")
+        print("      ✓ Archivos guardados")
+        print("\n" + "="*50)
+        print("PROCESO FINALIZADO EXITOSAMENTE")
+        print("="*50)
+        
+        return True
+        
+    except Exception as e:
+        print(f"\nERROR EN EL MODELO PREPAGO HIPOTECARIO:")
+        print(f"   {str(e)}")
+        print("\n" + "="*50)
+        print("PROCESO TERMINADO CON ERRORES")
+        print("="*50)
+        return False
 
 
 # --- Bloque de Ejemplo de Uso ---
@@ -444,30 +490,11 @@ if __name__ == "__main__":
         print(f"ERROR: Formato de fecha '{fecha_proceso_str}' incorrecto. Use YYYY-MM-DD.")
         sys.exit(1)
 
-    print("\n" + "="*50)
-    print("INICIO DEL PROCESO - MODELO PREPAGO HIPOTECARIO")
-    print(f"Fecha de proceso: {fecha_proceso.strftime('%d-%m-%Y')}")
-    print("="*50 + "\n")
-
-    print("[1/4] Cargando parámetros del modelo...")
-    parametros = lectura_parametros_modelo()
-    SMM_MODELO = parametros['SMM_MODELO']
-    ESCENARIOS = parametros['ESCENARIOS']
-    print("      ✓ Parámetros cargados correctamente\n")
-
-    print("\n[2/4] Leyendo datos de interfaz...")
-    interfaz_de_datos_hipotecario = lectura_interfaz_de_datos(fecha_proceso)
-    print(f"      ✓ Datos leídos exitosamente - {len(interfaz_de_datos_hipotecario):,} registros encontrados")
-
-    print("\n[3/4] Procesando información y calculando prepagos...")
-    procesamiento_y_guardado(fecha_proceso, interfaz_de_datos_hipotecario, SMM_MODELO, ESCENARIOS)
+    # Usar la nueva función ejecutar_modelo
+    exito = ejecutar_modelo(fecha_proceso)
     
-    print("\n[4/4] Proceso completado:")
-    print("      ✓ Cálculos realizados")
-    print("      ✓ Archivos guardados")
-    print("\n" + "="*50)
-    print("PROCESO FINALIZADO EXITOSAMENTE")
-    print("="*50)
+    if not exito:
+        sys.exit(1)
 
 
 

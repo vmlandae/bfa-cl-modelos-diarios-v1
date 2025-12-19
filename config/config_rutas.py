@@ -10,6 +10,7 @@ CREDENCIALES = BASE_DIR / 'credenciales'
 CORE = BASE_DIR / 'core'
 GUI = BASE_DIR / 'gui'
 CARGA_MODELOS_GCP = BASE_DIR / 'carga_modelos_gcp'
+LOGS = BASE_DIR / 'logs'
 
 # Rutas específicas de MODELOS
 MR_PREPAGO_CONSUMO = BASE_DIR / 'RF_Modelo_Prepago_Consumo'

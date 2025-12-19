@@ -5,6 +5,34 @@ Registro de cambios y actualizaciones del proyecto BFA-CL Modelos Diarios.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0-dev] - 2025-12-19 - Consolidación Arquitectónica
+
+### Modificado
+- **Consolidación de interfaz de modelos**: Todos los modelos ahora implementan una función `ejecutar_modelo(fecha_proceso) -> bool` unificada
+- **Simplificación del orquestador**: Eliminado código de compatibilidad hacia atrás, ahora usa directamente la interfaz unificada
+- **Estandarización de manejo de errores**: Patrón uniforme de captura y reporte de errores en todos los modelos
+- **Validación consistente de datos**: Verificación estándar de datos vacíos en todos los modelos
+- **Optimización de rendimiento**: Eliminación de verificaciones dinámicas en tiempo de ejecución
+
+### Agregado
+- **Interfaz unificada**: Función `ejecutar_modelo()` implementada en los 7 modelos del sistema
+- **Documentación de funciones**: Docstrings consistentes para todas las funciones ejecutar_modelo
+- **Manejo de retorno estándar**: Todos los modelos retornan `True`/`False` para indicar éxito/fallo
+
+### Mejorado
+- **Mantenibilidad del código**: Estructura consistente facilita el mantenimiento y debugging
+- **Integración con orquestador**: Flujo de ejecución más predecible y eficiente
+- **Escalabilidad**: Arquitectura preparada para agregar nuevos modelos fácilmente
+
+#### Modelos Consolidados
+- ✅ **RF_Modelo_Mora_Consumo**: `ml_mora_consumo.py`
+- ✅ **RF_Modelo_Mora_CAE**: `ml_mora_cae.py`  
+- ✅ **RF_Modelo_Mora_Comercial**: `ml_mora_comercial.py`
+- ✅ **RF_Modelo_Mora_Hipotecario**: `ml_mora_hipotecario.py`
+- ✅ **RF_Modelo_Prepago_CMR**: `mr_prepago_cmr.py`
+- ✅ **RF_Modelo_Prepago_Consumo**: `mr_prepago_consumo.py`
+- ✅ **RF_Modelo_Prepago_Hipotecario**: `mr_prepago_hipotecario.py`
+
 ## [1.0.0-dev] - 2025-12-17 - Estado Inicial (En Desarrollo)
 
 > ⚠️ **Proyecto en Desarrollo Activo**: Este sistema se encuentra actualmente en fase de desarrollo y mejora continua. Las funcionalidades pueden estar sujetas a cambios y optimizaciones.
