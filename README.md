@@ -113,15 +113,23 @@ docs/                           # Documentación del proyecto
 
 ## Arquitectura del Sistema
 
+### Interfaz Unificada de Modelos
+Todos los modelos implementan una interfaz consistente a través de la función `ejecutar_modelo(fecha_proceso) -> bool`, que:
+- ✅ Encapsula toda la lógica de procesamiento del modelo
+- ✅ Proporciona manejo unificado de errores
+- ✅ Retorna un booleano indicando éxito/fallo
+- ✅ Incluye validación consistente de datos de entrada
+- ✅ Facilita la integración con el orquestador
+
 ### Flujo Principal
 1. **Orquestación**: El `orquestador.py` coordina la ejecución de todos los modelos
-2. **Modelos**: Cada modelo procesa sus datos específicos y genera predicciones
+2. **Modelos**: Cada modelo procesa sus datos específicos y genera predicciones usando `ejecutar_modelo()`
 3. **Carga a GCP**: Los resultados se cargan automáticamente a BigQuery
 4. **Interfaz**: La GUI permite monitorear y controlar las ejecuciones
 
 ### Componentes Clave
 - **Orquestador**: Maneja la secuencia de ejecución y dependencias entre modelos
-- **Modelos ML**: Implementaciones independientes de cada modelo de riesgo
+- **Modelos ML**: Implementaciones independientes con interfaz unificada `ejecutar_modelo()`
 - **Configuración**: Sistema centralizado de configuración de rutas y parámetros
 - **Carga GCP**: Módulos especializados para la integración con Google Cloud Platform
 

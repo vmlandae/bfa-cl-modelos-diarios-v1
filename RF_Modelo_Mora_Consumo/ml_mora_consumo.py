@@ -8,9 +8,9 @@ import sys
 import bfa_cl_utilidades as ut
 
 # # # Para una ejecucion directa del script
-BASE_DIR = Path(__file__).resolve().parent.parent
-if str(BASE_DIR) not in sys.path:
-    sys.path.insert(0, str(BASE_DIR))
+# BASE_DIR = Path(__file__).resolve().parent.parent
+# if str(BASE_DIR) not in sys.path:
+#     sys.path.insert(0, str(BASE_DIR))
 
 # Importar configuraciones
 from config import config_rutas as cr
@@ -330,6 +330,52 @@ def procesamiento_y_guardado(fecha_t: datetime.datetime,
     #                          agregar_fecha=True)
 
 
+def ejecutar_modelo(fecha_proceso: datetime.datetime) -> bool:
+    """
+    Función principal que ejecuta todo el flujo del modelo de mora consumo.
+    Esta función es llamada por el orquestador y encapsula toda la lógica necesaria.
+    
+    Args:
+        fecha_proceso (datetime.datetime): Fecha de proceso para el modelo
+        
+    Returns:
+        bool: True si la ejecución fue exitosa, False en caso de error
+    """
+    try:
+        print("\n" + "="*50)
+        print("INICIO DEL PROCESO - MODELO MORA CONSUMO")
+        print(f"Fecha de proceso: {fecha_proceso.strftime('%d-%m-%Y')}")
+        print("="*50 + "\n")
+
+        print("[1/3] Leyendo datos de interfaz...")
+        interfaz_de_datos_consumo_t = lectura_interfaz_de_datos(fecha_proceso)
+        
+        # Validar que los datos no estén vacíos
+        if interfaz_de_datos_consumo_t.empty:
+            raise ValueError(f"No se encontraron datos para la fecha {fecha_proceso.strftime('%Y-%m-%d')}. "
+                            f"Verifique que existan registros en la interfaz de datos para esta fecha.")
+        
+        print(f"      ✓ Datos leídos exitosamente - {len(interfaz_de_datos_consumo_t):,} registros encontrados")
+
+        print("\n[2/3] Procesando información y calculando estimaciones...")
+        procesamiento_y_guardado(fecha_proceso, interfaz_de_datos_consumo_t)
+        
+        print("\n[3/3] Proceso completado:")
+        print("      ✓ Cálculos realizados")
+        print("      ✓ Archivos guardados")
+        print("\n" + "="*50)
+        print("PROCESO FINALIZADO EXITOSAMENTE")
+        print("="*50)
+        
+        return True
+        
+    except Exception as e:
+        print(f"\nERROR EN EL MODELO MORA CONSUMO:")
+        print(f"   {str(e)}")
+        print("\n" + "="*50)
+        print("PROCESO TERMINADO CON ERRORES")
+        print("="*50)
+        return False
 
 
 # --- Bloque de Ejemplo de Uso ---
@@ -349,24 +395,11 @@ if __name__ == "__main__":
         print(f"ERROR: Formato de fecha '{fecha_proceso_str}' incorrecto. Use YYYY-MM-DD.")
         sys.exit(1)
 
-    print("\n" + "="*50)
-    print("INICIO DEL PROCESO - MODELO MORA CONSUMO")
-    print(f"Fecha de proceso: {fecha_proceso.strftime('%d-%m-%Y')}")
-    print("="*50 + "\n")
-
-    print("[1/3] Leyendo datos de interfaz...")
-    interfaz_de_datos_consumo_t = lectura_interfaz_de_datos(fecha_proceso)
-    print(f"      ✓ Datos leídos exitosamente - {len(interfaz_de_datos_consumo_t):,} registros encontrados")
-
-    print("\n[2/3] Procesando información y calculando estimaciones...")
-    procesamiento_y_guardado(fecha_proceso, interfaz_de_datos_consumo_t)
+    # Usar la nueva función ejecutar_modelo
+    exito = ejecutar_modelo(fecha_proceso)
     
-    print("\n[3/3] Proceso completado:")
-    print("      ✓ Cálculos realizados")
-    print("      ✓ Archivos guardados")
-    print("\n" + "="*50)
-    print("PROCESO FINALIZADO EXITOSAMENTE")
-    print("="*50)
+    if not exito:
+        sys.exit(1)
 
 
 

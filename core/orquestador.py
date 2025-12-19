@@ -69,19 +69,8 @@ class OrquestadorModelos:
             # Importar dinámicamente el módulo
             modelo = importlib.import_module(config["modulo"])
             
-            # Leer datos
-            print("Leyendo datos de interfaz...")
-            interfaz_datos = modelo.lectura_interfaz_de_datos(fecha)
-            print(f"Datos leídos exitosamente - {len(interfaz_datos):,} registros\n")
-            
-            # Procesar y guardar resultados
-            print("Procesando información y calculando prepagos...")
-            modelo.procesamiento_y_guardado(fecha, interfaz_datos)
-            
-            print(f"\n{'='*60}")
-            print(f"Ejecución exitosa de {config['nombre']}")
-            print(f"{'='*60}\n")
-            return True
+            # Todos los modelos ahora tienen la función ejecutar_modelo unificada
+            return modelo.ejecutar_modelo(fecha)
             
         except Exception as e:
             print(f"Error en la ejecución de {config['nombre']}: {str(e)}")
