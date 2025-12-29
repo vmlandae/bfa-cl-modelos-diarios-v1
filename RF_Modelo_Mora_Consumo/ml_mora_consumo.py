@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 import bfa_cl_utilidades as ut
 
-# # # Para una ejecucion directa del script
+### Para una ejecucion directa del script
 # BASE_DIR = Path(__file__).resolve().parent.parent
 # if str(BASE_DIR) not in sys.path:
 #     sys.path.insert(0, str(BASE_DIR))
@@ -81,53 +81,120 @@ def lectura_interfaz_de_datos(fecha_t: datetime.datetime)-> pd.DataFrame:
             ((interfaz_t['SISTEMA'] == "REC") & (interfaz_t['DESTINOCREDITO'] == "23"))].reset_index(drop=True).copy()
 
 
-def calcular_flujo_estimado_mora(data: pd.DataFrame,
-                                fecha_t: datetime.datetime,
-                                matriz_mora: pd.DataFrame,
-                                factor_mora: float,
-                                factor_global: float) -> pd.DataFrame:
+def calcular_flujos_estimados_mora(data: pd.DataFrame,
+                           fecha_t: datetime.datetime,
+                           matriz_mora: pd.DataFrame,
+                           factor_mora: float,
+                           factor_global: float) -> pd.DataFrame:
     """
-    Calcula el flujo estimado para una cartera de créditos.
-
+    Calcula estimaciones de flujos de caja considerando probabilidades de mora.
+    
+    Esta función procesa los flujos de amortización e interés de una cartera de créditos,
+    aplicando modelos de mora basados en matrices de transición y factores de ajuste
+    para generar proyecciones de flujos futuros.
+    
     Args:
-        data: DataFrame con la información de los créditos.
-        fecha_t: Fecha de proceso.
-        matriz_mora: Matriz de mora para los cálculos.
-        factor_mora: Factor de mora a aplicar.
-        factor_global: Factor de garantía a aplicar.
-
+        data (pd.DataFrame): DataFrame con información de créditos que debe incluir las columnas:
+                           'AMORTIZACION', 'INTERES', 'FECHA_VENCIMIENTO_CUOTA'
+        fecha_t (datetime.datetime): Fecha base de proceso para los cálculos (fecha T)
+        matriz_mora (pd.DataFrame): Matriz de transición de mora (366x366) con probabilidades
+                                  de pago por día. Cada fila representa un día después de T,
+                                  cada columna representa la probabilidad de pago en ese día.
+        factor_mora (float): Factor multiplicador para ajustar flujos de mora vigente
+                           (aplicado sobre flujos vencidos en los últimos 180 días)
+        factor_global (float): Factor multiplicador global aplicado a todos los flujos
+                             proyectados (factor de garantía/cobertura)
+    
     Returns:
-        DataFrame con el flujo estimado calculado.
+        pd.DataFrame: DataFrame con flujos estimados que incluye las siguientes columnas:
+                     - FECHA_VENCIMIENTO_CUOTA_MODELO: Fechas de proyección (T+1 a T+366)
+                     - FECHA_VENCIMIENTO_CUOTA: Fecha original de vencimiento (si aplica)
+                     - FLUJO_MO, AMORTIZACION_MO, INTERES_MO: Flujos originales agrupados
+                     - FLUJO_MODELO_MO, AMORTIZACION_MODELO_MO, INTERES_MODELO_MO: Flujos ajustados por matriz de mora
+                     - FLUJO_MORA_VIGENTE_MO, AMORTIZACION_MORA_VIGENTE_MO, INTERES_MORA_VIGENTE_MO: Ajustes por mora vigente
+    
+    Notes:
+        - Los flujos vencidos se consideran hasta 180 días hacia atrás desde fecha_t
+        - Los flujos posteriores al horizonte de proyección se consolidan en el último día
+        - Se aplica factor_global a las proyecciones y factor_mora a los vencidos
+    
     """
-    data['FLUJO_MO'] = data['AMORTIZACION'] + data['INTERES']
-    data = data.groupby(['FECHA_VENCIMIENTO_CUOTA'], as_index=False)["FLUJO_MO"].sum()
-
+    # Procesar amortización
+    data_amort = data.copy()
+    data_amort['AMORTIZACION_MO'] = data_amort['AMORTIZACION']
+    data_amort_grouped = data_amort.groupby(['FECHA_VENCIMIENTO_CUOTA'], as_index=False)["AMORTIZACION_MO"].sum()
+    
+    # Procesar interés
+    data_int = data.copy()
+    data_int['INTERES_MO'] = data_int['INTERES']
+    data_int_grouped = data_int.groupby(['FECHA_VENCIMIENTO_CUOTA'], as_index=False)["INTERES_MO"].sum()
+    
+    # Crear fechas modelo
     lst_fechas_venc = [fecha_t + datetime.timedelta(days=i) for i in range(1, len(matriz_mora) + 1)]
     df_fechas_venc = pd.DataFrame(lst_fechas_venc, columns=['FECHA_VENCIMIENTO_CUOTA_MODELO'])
-
-    df_fechas_venc = df_fechas_venc.merge(data, how='left',
+    
+    # Merge con amortización
+    df_fechas_amort = df_fechas_venc.merge(data_amort_grouped, how='left',
                                           left_on='FECHA_VENCIMIENTO_CUOTA_MODELO',
                                           right_on='FECHA_VENCIMIENTO_CUOTA')
-    df_fechas_venc['FLUJO_MO'] = df_fechas_venc['FLUJO_MO'].fillna(0)
-
-    suma_flujo_mo = data[data['FECHA_VENCIMIENTO_CUOTA'] > df_fechas_venc["FECHA_VENCIMIENTO_CUOTA_MODELO"].iloc[-1]][
-        "FLUJO_MO"].sum()
-
-    suma_flujo_mo_vencido = data[(data['FECHA_VENCIMIENTO_CUOTA'] < fecha_t) &
-                                 ((data['FECHA_VENCIMIENTO_CUOTA'] - fecha_t).dt.days >= -180)]['FLUJO_MO'].sum()
-
-    flujo_estimado = df_fechas_venc.copy()
-    flujo_estimado['FLUJO_MODELO_MO'] = np.dot(df_fechas_venc['FLUJO_MO'].values, matriz_mora.values) * factor_global
-
+    df_fechas_amort['AMORTIZACION_MO'] = df_fechas_amort['AMORTIZACION_MO'].fillna(0)
+    
+    # Merge con interés
+    df_fechas_int = df_fechas_venc.merge(data_int_grouped, how='left',
+                                        left_on='FECHA_VENCIMIENTO_CUOTA_MODELO',
+                                        right_on='FECHA_VENCIMIENTO_CUOTA')
+    df_fechas_int['INTERES_MO'] = df_fechas_int['INTERES_MO'].fillna(0)
+    
+    # Combinar ambos DataFrames
+    flujo_estimado = df_fechas_amort.merge(df_fechas_int[['FECHA_VENCIMIENTO_CUOTA_MODELO', 'INTERES_MO']], 
+                                          on='FECHA_VENCIMIENTO_CUOTA_MODELO')
+    
+    # Cálculos para amortización
+    suma_amortizacion_mo = data_amort_grouped[
+        data_amort_grouped['FECHA_VENCIMIENTO_CUOTA'] > df_fechas_venc["FECHA_VENCIMIENTO_CUOTA_MODELO"].iloc[-1]
+    ]["AMORTIZACION_MO"].sum()
+    
+    suma_amortizacion_mo_vencido = data_amort_grouped[
+        (data_amort_grouped['FECHA_VENCIMIENTO_CUOTA'] < fecha_t) &
+        ((data_amort_grouped['FECHA_VENCIMIENTO_CUOTA'] - fecha_t).dt.days >= -180)
+    ]['AMORTIZACION_MO'].sum()
+    
+    # Cálculos para interés
+    suma_interes_mo = data_int_grouped[
+        data_int_grouped['FECHA_VENCIMIENTO_CUOTA'] > df_fechas_venc["FECHA_VENCIMIENTO_CUOTA_MODELO"].iloc[-1]
+    ]["INTERES_MO"].sum()
+    
+    suma_interes_mo_vencido = data_int_grouped[
+        (data_int_grouped['FECHA_VENCIMIENTO_CUOTA'] < fecha_t) &
+        ((data_int_grouped['FECHA_VENCIMIENTO_CUOTA'] - fecha_t).dt.days >= -180)
+    ]['INTERES_MO'].sum()
+    
+    # Aplicar matriz de mora
+    flujo_estimado['AMORTIZACION_MODELO_MO'] = np.dot(flujo_estimado['AMORTIZACION_MO'].values, matriz_mora.values) * factor_global
+    flujo_estimado['INTERES_MODELO_MO'] = np.dot(flujo_estimado['INTERES_MO'].values, matriz_mora.values) * factor_global
+    
+    # Agregar fila final
     nueva_fila = pd.DataFrame({
-        'FECHA_VENCIMIENTO_CUOTA_MODELO': [
-            df_fechas_venc["FECHA_VENCIMIENTO_CUOTA_MODELO"].iloc[-1] + datetime.timedelta(days=1)],
-        'FLUJO_MO': [suma_flujo_mo],
-        'FLUJO_MODELO_MO': [suma_flujo_mo * factor_global],
+        'FECHA_VENCIMIENTO_CUOTA_MODELO': [df_fechas_venc["FECHA_VENCIMIENTO_CUOTA_MODELO"].iloc[-1] + datetime.timedelta(days=1)],
+        'AMORTIZACION_MO': [suma_amortizacion_mo],
+        'INTERES_MO': [suma_interes_mo],
+        'AMORTIZACION_MODELO_MO': [suma_amortizacion_mo * factor_global],
+        'INTERES_MODELO_MO': [suma_interes_mo * factor_global],
     })
+    
     flujo_estimado = pd.concat([flujo_estimado, nueva_fila], ignore_index=True)
-    flujo_estimado['FLUJO_MORA_VIGENTE_MO'] = factor_mora * suma_flujo_mo_vencido
+    
+    # Calcular mora vigente
+    flujo_estimado['AMORTIZACION_MORA_VIGENTE_MO'] = factor_mora * suma_amortizacion_mo_vencido
+    flujo_estimado['INTERES_MORA_VIGENTE_MO'] = factor_mora * suma_interes_mo_vencido
 
+    flujo_estimado['FLUJO_MO'] = flujo_estimado['AMORTIZACION_MO'] + flujo_estimado['INTERES_MO']
+    flujo_estimado['FLUJO_MODELO_MO'] = flujo_estimado['AMORTIZACION_MODELO_MO'] + flujo_estimado['INTERES_MODELO_MO']
+    flujo_estimado['FLUJO_MORA_VIGENTE_MO'] = flujo_estimado['AMORTIZACION_MORA_VIGENTE_MO'] + flujo_estimado['INTERES_MORA_VIGENTE_MO']
+    flujo_estimado = flujo_estimado[['FECHA_VENCIMIENTO_CUOTA_MODELO', 'FECHA_VENCIMIENTO_CUOTA', 
+                                               'FLUJO_MO','AMORTIZACION_MO', 'INTERES_MO', 
+                                               'FLUJO_MODELO_MO','AMORTIZACION_MODELO_MO', 'INTERES_MODELO_MO', 'FLUJO_MORA_VIGENTE_MO','AMORTIZACION_MORA_VIGENTE_MO', 'INTERES_MORA_VIGENTE_MO']]
+    
     return flujo_estimado
 
 def procesamiento_y_guardado(fecha_t: datetime.datetime,
@@ -213,7 +280,7 @@ def procesamiento_y_guardado(fecha_t: datetime.datetime,
         sub_producto_iter = sub_productos_creditos_consumo[sub_pord]["SUB_PRODUCTO"]
         print(f"          Factor Global {desc_producto}: {fg_iter:.4f}")
 
-        flujo_estimado_iter = calcular_flujo_estimado_mora(
+        flujo_estimado_iter = calcular_flujos_estimados_mora(
             data=df_iter,
             fecha_t=fecha_t,
             matriz_mora=matriz_mora_iter,
@@ -237,8 +304,8 @@ def procesamiento_y_guardado(fecha_t: datetime.datetime,
             "FECHA_VENCIMIENTO_CUOTA": flujo_estimado_iter["FECHA_VENCIMIENTO_CUOTA_MODELO"],
             "FECHA_PAGO": flujo_estimado_iter["FECHA_VENCIMIENTO_CUOTA_MODELO"],
             "FECHA_REPRICING": flujo_estimado_iter["FECHA_VENCIMIENTO_CUOTA_MODELO"],
-            "AMORTIZACION": flujo_estimado_iter['FLUJO_MODELO_MO'] + flujo_estimado_iter['FLUJO_MORA_VIGENTE_MO'],
-            "INTERES": [np.nan] * registros,
+            "AMORTIZACION": flujo_estimado_iter['AMORTIZACION_MODELO_MO'] + flujo_estimado_iter['AMORTIZACION_MORA_VIGENTE_MO'],
+            "INTERES": flujo_estimado_iter['INTERES_MODELO_MO'] + flujo_estimado_iter['INTERES_MORA_VIGENTE_MO'],
             "INTERES_DEVENGADO": [np.nan] * registros,
             "VP_AMORTIZACION": [np.nan] * registros,
             "VP_INTERES": [np.nan] * registros,
@@ -309,16 +376,20 @@ def procesamiento_y_guardado(fecha_t: datetime.datetime,
     print(f"        - Guardando hoja 'DETALLE_FLUJOS' con {len(flujo_estimado_agrupado):,} registros")
     ut.cargar_datos_xlsm(ruta_archivo=RUTA_OUTPUT_MODELO,
                         nombre_hoja="DETALLE_FLUJOS",
-                        datos=flujo_estimado_agrupado[flujo_estimado_agrupado['PRODUCTO']!='RENEGOCIADO'][["FECHA_PROCESO", "PRODUCTO", "FECHA_VENCIMIENTO_CUOTA", 
-                        "FECHA_VENCIMIENTO_CUOTA_MODELO","FLUJO_MO", "FLUJO_MODELO_MO", "FLUJO_MORA_VIGENTE_MO"]],
+                        datos=flujo_estimado_agrupado[flujo_estimado_agrupado['PRODUCTO']!='RENEGOCIADO'][["FECHA_PROCESO","PRODUCTO",'FECHA_VENCIMIENTO_CUOTA_MODELO', 'FECHA_VENCIMIENTO_CUOTA', 
+                                               'FLUJO_MO','AMORTIZACION_MO', 'INTERES_MO', 
+                                               'FLUJO_MODELO_MO','AMORTIZACION_MODELO_MO', 'INTERES_MODELO_MO', 
+                                               'FLUJO_MORA_VIGENTE_MO','AMORTIZACION_MORA_VIGENTE_MO', 'INTERES_MORA_VIGENTE_MO']],
                         formatos_columnas=formatos_excel
                         )
 
     print(f"        - Guardando hoja 'DETALLE_FLUJOS_RENEGOCIADO' con {len(flujo_estimado_agrupado):,} registros")
     ut.cargar_datos_xlsm(ruta_archivo=RUTA_OUTPUT_MODELO_RENEGOCIADO,
                         nombre_hoja="DETALLE_FLUJOS",
-                        datos=flujo_estimado_agrupado[flujo_estimado_agrupado['PRODUCTO']=='RENEGOCIADO'][["FECHA_PROCESO", "PRODUCTO", "FECHA_VENCIMIENTO_CUOTA", 
-                        "FECHA_VENCIMIENTO_CUOTA_MODELO","FLUJO_MO", "FLUJO_MODELO_MO", "FLUJO_MORA_VIGENTE_MO"]],
+                        datos=flujo_estimado_agrupado[flujo_estimado_agrupado['PRODUCTO']=='RENEGOCIADO'][["FECHA_PROCESO","PRODUCTO",'FECHA_VENCIMIENTO_CUOTA_MODELO', 'FECHA_VENCIMIENTO_CUOTA', 
+                                                'FLUJO_MO','AMORTIZACION_MO', 'INTERES_MO', 
+                                                'FLUJO_MODELO_MO','AMORTIZACION_MODELO_MO', 'INTERES_MODELO_MO', 
+                                                'FLUJO_MORA_VIGENTE_MO','AMORTIZACION_MORA_VIGENTE_MO', 'INTERES_MORA_VIGENTE_MO']],
                         formatos_columnas=formatos_excel
                         )
 
@@ -381,13 +452,13 @@ def ejecutar_modelo(fecha_proceso: datetime.datetime) -> bool:
 # --- Bloque de Ejemplo de Uso ---
 if __name__ == "__main__":
 
-    # if len(sys.argv) < 2:
-    #     print("ERROR: No se proporcionó fecha. Uso: python tu_script.py YYYY-MM-DD")
-    #     sys.exit(1)
+    if len(sys.argv) < 2:
+        print("ERROR: No se proporcionó fecha. Uso: python tu_script.py YYYY-MM-DD")
+        sys.exit(1)
     
-    # fecha_proceso_str = sys.argv[1]
+    fecha_proceso_str = sys.argv[1]
 
-    fecha_proceso_str = "2025-11-03"
+    # fecha_proceso_str = "2025-12-24"
 
     try:
         fecha_proceso = datetime.datetime.strptime(fecha_proceso_str, "%Y-%m-%d")

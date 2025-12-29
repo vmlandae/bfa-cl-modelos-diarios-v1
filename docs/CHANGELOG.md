@@ -5,6 +5,24 @@ Registro de cambios y actualizaciones del proyecto BFA-CL Modelos Diarios.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0-dev] - 2025-12-29 - Mejoras en Documentación y Consolidación de Funciones
+
+### Mejorado
+- **Documentación de funciones**: Docstrings comprehensivos implementados para `calcular_flujos_estimados_mora()` en todos los modelos de mora
+- **Estándares de documentación**: Documentación técnica unificada con especificaciones detalladas de parámetros, valores de retorno y notas técnicas
+- **Claridad funcional**: Explicaciones detalladas del propósito y funcionamiento de las funciones de cálculo de flujos
+
+### Agregado
+- **Documentación técnica completa**: 
+  - Especificación detallada de `calcular_flujos_estimados_mora()`
+
+
+### Modificado
+- **Función consolidada**: `calcular_flujos_estimados_mora()` ahora procesa amortización e interés simultáneamente
+- **Eficiencia mejorada**: Eliminación de duplicación de código mediante consolidación funcional
+
+
+
 ## [1.1.0-dev] - 2025-12-19 - Consolidación Arquitectónica
 
 ### Modificado
