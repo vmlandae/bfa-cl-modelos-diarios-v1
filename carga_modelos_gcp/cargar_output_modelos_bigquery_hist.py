@@ -124,7 +124,7 @@ if __name__ == "__main__":
     #
     # fecha_proceso_str = sys.argv[1]
 
-    fecha_proceso_str = "2025-12-17"
+    fecha_proceso_str = "2025-12-24"
 
     try:
         fecha_proceso_t = datetime.datetime.strptime(fecha_proceso_str, "%Y-%m-%d")

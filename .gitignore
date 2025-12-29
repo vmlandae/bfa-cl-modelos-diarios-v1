@@ -12,6 +12,7 @@ config.ini
 __pycache__/
 *.py[cod]
 *$py.class
+cargar_output_modelos_bigquery_hist.py
 *.so
 .Python
 build/
@@ -51,6 +52,7 @@ ipython_config.py
 ~$*.xlsm
 ~$*.xls
 *.tmp
+VARIACION_CARTERA_ML.xlsm
 
 # IDE
 .vscode/
