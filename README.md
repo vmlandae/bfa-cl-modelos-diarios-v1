@@ -121,6 +121,15 @@ Todos los modelos implementan una interfaz consistente a través de la función 
 - ✅ Incluye validación consistente de datos de entrada
 - ✅ Facilita la integración con el orquestador
 
+### Estándares de Documentación
+Los modelos implementan estándares avanzados de documentación técnica:
+- ✅ **Docstrings comprehensivos**: Documentación detallada de funciones con especificaciones técnicas
+- ✅ **Parámetros especificados**: Descripción completa de tipos de datos, formatos y restricciones
+- ✅ **Valores de retorno documentados**: Estructura y contenido de DataFrames resultado claramente especificados
+- ✅ **Notas técnicas**: Explicaciones de algoritmos, matrices de transición y factores de ajuste
+- ✅ **Ejemplos de uso**: Código de ejemplo con parámetros reales para facilitar implementación
+
+
 ### Flujo Principal
 1. **Orquestación**: El `orquestador.py` coordina la ejecución de todos los modelos
 2. **Modelos**: Cada modelo procesa sus datos específicos y genera predicciones usando `ejecutar_modelo()`

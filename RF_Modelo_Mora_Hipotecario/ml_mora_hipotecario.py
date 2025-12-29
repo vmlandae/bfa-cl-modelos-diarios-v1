@@ -60,10 +60,37 @@ def calcular_flujos_estimados_mora(data: pd.DataFrame,
                            factor_mora: float,
                            factor_global: float) -> pd.DataFrame:
     """
-    Calcula estimados de mora para amortización e interés simultáneamente.
+    Calcula estimaciones de flujos de caja considerando probabilidades de mora.
+    
+    Esta función procesa los flujos de amortización e interés de una cartera de créditos,
+    aplicando modelos de mora basados en matrices de transición y factores de ajuste
+    para generar proyecciones de flujos futuros.
+    
+    Args:
+        data (pd.DataFrame): DataFrame con información de créditos que debe incluir las columnas:
+                           'AMORTIZACION', 'INTERES', 'FECHA_VENCIMIENTO_CUOTA'
+        fecha_t (datetime.datetime): Fecha base de proceso para los cálculos (fecha T)
+        matriz_mora (pd.DataFrame): Matriz de transición de mora (366x366) con probabilidades
+                                  de pago por día. Cada fila representa un día después de T,
+                                  cada columna representa la probabilidad de pago en ese día.
+        factor_mora (float): Factor multiplicador para ajustar flujos de mora vigente
+                           (aplicado sobre flujos vencidos en los últimos 180 días)
+        factor_global (float): Factor multiplicador global aplicado a todos los flujos
+                             proyectados (factor de garantía/cobertura)
     
     Returns:
-        DataFrame con ambos cálculos combinados
+        pd.DataFrame: DataFrame con flujos estimados que incluye las siguientes columnas:
+                     - FECHA_VENCIMIENTO_CUOTA_MODELO: Fechas de proyección (T+1 a T+366)
+                     - FECHA_VENCIMIENTO_CUOTA: Fecha original de vencimiento (si aplica)
+                     - FLUJO_MO, AMORTIZACION_MO, INTERES_MO: Flujos originales agrupados
+                     - FLUJO_MODELO_MO, AMORTIZACION_MODELO_MO, INTERES_MODELO_MO: Flujos ajustados por matriz de mora
+                     - FLUJO_MORA_VIGENTE_MO, AMORTIZACION_MORA_VIGENTE_MO, INTERES_MORA_VIGENTE_MO: Ajustes por mora vigente
+    
+    Notes:
+        - Los flujos vencidos se consideran hasta 180 días hacia atrás desde fecha_t
+        - Los flujos posteriores al horizonte de proyección se consolidan en el último día
+        - Se aplica factor_global a las proyecciones y factor_mora a los vencidos
+    
     """
     # Procesar amortización
     data_amort = data.copy()
