@@ -156,30 +156,6 @@ def procesamiento_y_guardado(fecha_t: datetime.datetime,
 
     print("      • Calculando flujos estimados de mora...")
 
-    # flujo_amort_iter = calcular_amortizacion_estimado_mora(
-    #     data=hipotecario,
-    #     fecha_t=fecha_t,
-    #     matriz_mora=matriz_mora_hipotecario,
-    #     factor_mora=factor_mora_hipotecario,
-    #     factor_global=fg_hipotecario)
-    
-    # flujo_interes_iter = calcular_interes_estimado_mora(
-    #     data=hipotecario,
-    #     fecha_t=fecha_t,
-    #     matriz_mora=matriz_mora_hipotecario,
-    #     factor_mora=factor_mora_hipotecario,
-    #     factor_global=fg_hipotecario)
-
-
-    # flujo_estimado_iter = pd.merge(flujo_amort_iter, flujo_interes_iter, how='inner', on=['FECHA_VENCIMIENTO_CUOTA_MODELO', 'FECHA_VENCIMIENTO_CUOTA'])
-    # flujo_estimado_iter['FLUJO_MO'] = flujo_estimado_iter['AMORTIZACION_MO'] + flujo_estimado_iter['INTERES_MO']
-    # flujo_estimado_iter['FLUJO_MODELO_MO'] = flujo_estimado_iter['AMORTIZACION_MODELO_MO'] + flujo_estimado_iter['INTERES_MODELO_MO']
-    # flujo_estimado_iter['FLUJO_MORA_VIGENTE_MO'] = flujo_estimado_iter['AMORTIZACION_MORA_VIGENTE_MO'] + flujo_estimado_iter['INTERES_MORA_VIGENTE_MO']
-    # flujo_estimado_iter = flujo_estimado_iter[['FECHA_VENCIMIENTO_CUOTA_MODELO', 'FECHA_VENCIMIENTO_CUOTA', 
-    #                                            'FLUJO_MO','AMORTIZACION_MO', 'INTERES_MO', 
-    #                                            'FLUJO_MODELO_MO','AMORTIZACION_MODELO_MO', 'INTERES_MODELO_MO', 'FLUJO_MORA_VIGENTE_MO','AMORTIZACION_MORA_VIGENTE_MO', 'INTERES_MORA_VIGENTE_MO']]
-    
-    # flujo_estimado_iter_v2.to_clipboard(sep=';',decimal=',', index=False)
     flujo_estimado_iter = calcular_flujos_estimados_mora(
         data=hipotecario,
         fecha_t=fecha_t,
@@ -187,7 +163,6 @@ def procesamiento_y_guardado(fecha_t: datetime.datetime,
         factor_mora=factor_mora_hipotecario,
         factor_global=fg_hipotecario)
     
-    # flujo_estimado_iter.to_clipboard(sep=';',decimal=',', index=False)
 
     registros = len(flujo_estimado_iter)
 
@@ -249,7 +224,7 @@ def procesamiento_y_guardado(fecha_t: datetime.datetime,
     print(f"        - Guardando hoja 'DETALLE_FLUJOS' con {len(flujo_estimado_iter):,} registros")
     ut.cargar_datos_xlsm(ruta_archivo=RUTA_OUTPUT_MODELO,
                         nombre_hoja="DETALLE_FLUJOS",
-                        datos=flujo_estimado_iter[['FECHA_VENCIMIENTO_CUOTA_MODELO', 'FECHA_VENCIMIENTO_CUOTA','PRODUCTO', 
+                        datos=flujo_estimado_iter[["FECHA_PROCESO","PRODUCTO",'FECHA_VENCIMIENTO_CUOTA_MODELO', 'FECHA_VENCIMIENTO_CUOTA', 
                                                'FLUJO_MO','AMORTIZACION_MO', 'INTERES_MO', 
                                                'FLUJO_MODELO_MO','AMORTIZACION_MODELO_MO', 'INTERES_MODELO_MO', 
                                                'FLUJO_MORA_VIGENTE_MO','AMORTIZACION_MORA_VIGENTE_MO', 'INTERES_MORA_VIGENTE_MO']],
@@ -303,7 +278,7 @@ def ejecutar_modelo(fecha_proceso: datetime.datetime) -> bool:
         return True
         
     except Exception as e:
-        print(f"\nERROR EN EL MODELO MORA HIPOTECARIO:")
+        print("\nERROR EN EL MODELO MORA HIPOTECARIO:")
         print(f"   {str(e)}")
         print("\n" + "="*50)
         print("PROCESO TERMINADO CON ERRORES")
