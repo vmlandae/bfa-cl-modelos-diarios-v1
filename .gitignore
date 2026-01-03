@@ -53,6 +53,7 @@ ipython_config.py
 ~$*.xls
 *.tmp
 VARIACION_CARTERA_ML.xlsm
+ml_nmd_cc.xlsm
 
 # IDE
 .vscode/
