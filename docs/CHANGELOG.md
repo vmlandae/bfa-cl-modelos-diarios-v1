@@ -5,6 +5,30 @@ Registro de cambios y actualizaciones del proyecto BFA-CL Modelos Diarios.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0-dev] - 2026-01-03 - Incorporación del Modelo NMD
+
+### Agregado
+- **Modelo de No Maduración de Depósitos (NMD)**: Nuevo modelo `RF_Modelo_NMD/ml_nmd.py` implementado
+- **Funcionalidades del modelo NMD**:
+  - Carga de datos de balance desde base de datos de gestión
+  - Procesamiento de datos contractuales DAP con información detallada de flujos
+  - Cálculo de flujos con decay rate para productos de depósitos
+  - Aplicación de ajustes normativos de primera banda (25%)
+  - Ajustes especiales DAP para primeros 90 días con el maximo entre el dato contractual y del modelo.
+  - Soporte para múltiples productos: DAP (CLP, CLF, USD), Cuentas Corrientes, Cuentas Vista, Cuentas de Ahorro
+- **Plantilla Excel**: `ml_nmd_cc.xlsm` para cálculos y análisis del modelo
+- **Parámetros configurables**: Factores de decay rate y parámetros de core vigente
+- **Validación de datos**: Verificación completa de datos iniciales y parámetros
+- **Documentación técnica completa**: Docstrings detallados para todas las funciones principales
+
+### Mejorado
+- **Arquitectura del sistema**: Mantenimiento de la interfaz unificada `ejecutar_modelo(fecha_proceso) -> bool`
+- **Documentación del proyecto**: README.md actualizado con estructura y descripción del modelo NMD
+
+### Modificado
+- **Estructura del proyecto**: Incorporada carpeta `RF_Modelo_NMD/` con implementación completa
+- **Lista de modelos consolidados**: Actualizada para incluir RF_Modelo_NMD como el 8vo modelo del sistema
+
 ## [1.2.0-dev] - 2025-12-29 - Mejoras en Documentación y Consolidación de Funciones
 
 ### Mejorado

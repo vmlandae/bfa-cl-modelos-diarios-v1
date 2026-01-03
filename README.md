@@ -17,6 +17,9 @@ Este proyecto contiene la implementación de múltiples modelos de riesgo financ
 - **MR Prepago Consumo**
 - **MR Prepago Hipotecario**
 
+### Modelos de No Maduración de Depósitos (NMD)
+- **ML NMD**: Modelado de flujos para productos de depósitos (DAP, Cuentas Corrientes, Cuentas Vista, Cuentas de Ahorro)
+
 Los modelos están diseñados para procesar datos en lotes, generar predicciones y cargar los resultados a BigQuery para su posterior análisis y reporting.
 
 ## Estructura del Proyecto
@@ -103,6 +106,14 @@ RF_Modelo_Prepago_Hipotecario/  # Modelo de prepago para créditos hipotecarios
 ├── mr_prepago_hipotecario.xlsm # Plantilla Excel para cálculos
 ├── EJECUCIONES/                # Historial de ejecuciones
 ├── OTROS/                      # Archivos adicionales
+└── parametros/                 # Parámetros específicos del modelo
+```
+
+#### Modelos de No Maduración de Depósitos (NMD)
+```
+RF_Modelo_NMD/                  # Modelo de no maduración para productos de depósitos
+├── ml_nmd.py                   # Implementación del modelo
+├── ml_nmd_cc.xlsm             # Plantilla Excel para cálculos
 └── parametros/                 # Parámetros específicos del modelo
 ```
 

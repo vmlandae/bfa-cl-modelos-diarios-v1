@@ -56,6 +56,13 @@ class OrquestadorModelos:
                 "activado": True,
                 "orden": 7,
                 "tiene_carga_gcp": True
+            },
+            "ml_nmd": {
+                "nombre": "Modelo NMD",
+                "modulo": "RF_Modelo_NMD.ml_nmd",
+                "activado": True,
+                "orden": 8,
+                "tiene_carga_gcp": True
             }
         }
         
