@@ -12,7 +12,6 @@ config.ini
 __pycache__/
 *.py[cod]
 *$py.class
-cargar_output_modelos_bigquery_hist.py
 *.so
 .Python
 build/
@@ -96,3 +95,6 @@ cache/
 
 # Archivos de respaldo
 respaldos/
+
+# Archivos específicos del proyecto
+carga_modelos_gcp/cargar_output_modelos_bigquery_hist.py
