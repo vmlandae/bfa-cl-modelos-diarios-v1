@@ -9,9 +9,9 @@ import sys
 import bfa_cl_utilidades as ut
 
 # # Para una ejecucion directa del script
-# BASE_DIR = Path(__file__).resolve().parent.parent
-# if str(BASE_DIR) not in sys.path:
-#     sys.path.insert(0, str(BASE_DIR))
+BASE_DIR = Path(__file__).resolve().parent.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 
 # Importar configuraciones
 from config import config_rutas as cr
@@ -20,8 +20,6 @@ from config import config_rutas as cr
 with open(cr.CONFIG / 'config_rutas_ext_y_archivos.yaml', 'r') as file:
     config_ext = yaml.safe_load(file)
 
-# Importar utilidades
-# import HERRAMIENTAS.utilidades_bfal as ut
 
 # Configuración de rutas
 RUTA_INTERFAZ_DE_DATOS = Path(config_ext['modelos']['mr_prepago_consumo']['interfaz_datos_input'])
@@ -224,10 +222,10 @@ def estandariza_vencimiento(row, fecha_t):
 
 
 def lectura_interfaz_de_datos(fecha_t: datetime.datetime)-> pd.DataFrame:
-    columnas = ["FECHA_PROCESO", "SISTEMA", "CODIGO_SUBPRODUCTO","DESTINOCREDITO", "MONEDA_ORIGEN",
+    columnas = ["FECHA_PROCESO", "SISTEMA","CODIGO_PRODUCTO", "CODIGO_SUBPRODUCTO","DESTINOCREDITO", "MONEDA_ORIGEN",
                 "AMORTIZACION", "INTERES","FECHA_VENCIMIENTO_CUOTA"]
 
-    tipos_datos = {"FECHA_PROCESO": "str", "SISTEMA": "str", "CODIGO_SUBPRODUCTO": "str", "DESTINOCREDITO": "str",
+    tipos_datos = {"FECHA_PROCESO": "str", "SISTEMA": "str", "CODIGO_PRODUCTO": "str", "CODIGO_SUBPRODUCTO": "str", "DESTINOCREDITO": "str",
                    "MONEDA_ORIGEN": "str", "AMORTIZACION": "float",
                    "INTERES": "float","FECHA_VENCIMIENTO_CUOTA": "str",}
 
@@ -238,14 +236,33 @@ def lectura_interfaz_de_datos(fecha_t: datetime.datetime)-> pd.DataFrame:
     interfaz_t['FECHA_PROCESO'] = pd.to_datetime(interfaz_t['FECHA_PROCESO'], format='%Y%m%d')
     interfaz_t['FECHA_VENCIMIENTO_CUOTA'] = pd.to_datetime(interfaz_t['FECHA_VENCIMIENTO_CUOTA'], format='%Y%m%d')
 
-    interfaz_t = interfaz_t[interfaz_t['FECHA_VENCIMIENTO_CUOTA'] > fecha_t].copy()
-
+    interfaz_t['CODIGO_PRODUCTO'] = interfaz_t['CODIGO_PRODUCTO'].str.strip()
     interfaz_t['CODIGO_SUBPRODUCTO'] = interfaz_t['CODIGO_SUBPRODUCTO'].str.strip()
     interfaz_t['DESTINOCREDITO'] = interfaz_t['DESTINOCREDITO'].str.strip()
     interfaz_t['SISTEMA'] = interfaz_t['SISTEMA'].str.strip()
+
+    subproductos_validos_crc = [
+        #"38", "80",
+        #Automotriz
+        "16", 
+        # Consolidacion
+        "27", "32", "34", "37", "42", "46",
+        #Consumo
+        "1", "4", "31", "33", "35", "68", "69", "71", "73", 
+        "78", "81", 
+        #Refinanciado
+        "24", "36", "43", "75"
+    ]
+
+    subproductos_validos_rec = ["1", "4", "16", "23", 
+                                "24", "27", "31", "32", 
+                                "35", "37", "42", "43", 
+                                "46", "100"
+                                ]
+
     return interfaz_t[
-            ((interfaz_t['SISTEMA'] == "CRC") & (interfaz_t['DESTINOCREDITO'].isin(["1", "2", "22", "24"]))) |
-            ((interfaz_t['SISTEMA'] == "REC") & (interfaz_t['DESTINOCREDITO'] == "23"))].reset_index(drop=True).copy()
+            ((interfaz_t['SISTEMA'] == "CRC") & (interfaz_t['CODIGO_PRODUCTO'] == "150001") & (interfaz_t['CODIGO_SUBPRODUCTO'].isin(subproductos_validos_crc))) |
+            ((interfaz_t['SISTEMA'] == "REC") & (interfaz_t['CODIGO_PRODUCTO'] == "150001") & (interfaz_t['CODIGO_SUBPRODUCTO'].isin(subproductos_validos_rec)))].reset_index(drop=True).copy()
 
 
 def procesamiento_y_guardado(
@@ -269,17 +286,46 @@ def procesamiento_y_guardado(
         parametros = lectura_parametros_modelo()
         smm_modelo = parametros['SMM_MODELO']
         escenarios = parametros['ESCENARIOS']
-    
-    map_glosa_origen = {
-        "1": "CONSUMO",
-        "2": "AUTOMOTRIZ",
-        "22": "REFINANCIADO",
-        "23": "RENEGOCIADO",
-        "24": "CONSOLIDADO",
-    }
+
+    # Definir listas de subproductos por categoría
+    subproducto_consumo_consumo = ["1", "4", "31", "33", "35", "68", "69", "71", "73", "78", "81"]
+    subproducto_consumo_automotriz = ["16"]
+    subproducto_consumo_refinanciado = ["24", "36", "43", "75"]
+    subproducto_consumo_consolidado = ["27", "32", "34", "37", "42", "46"]
+    subproducto_renegociado = ["1", "4", "16", "23", "24", "27", "31", "32", 
+                               "35", "37", "42", "43", "46", "100"]
 
     print("      • Preparando datos para procesamiento...")
-    interfaz_de_datos_t["GLOSA_CODIGO_DESTINOCREDITO"] = interfaz_de_datos_t["DESTINOCREDITO"].map(map_glosa_origen)
+    
+    condicion = [
+        (interfaz_de_datos_t['SISTEMA'] == "CRC") & (interfaz_de_datos_t['CODIGO_PRODUCTO'] == "150001") & (interfaz_de_datos_t['CODIGO_SUBPRODUCTO'].isin(subproducto_consumo_consumo)),
+        (interfaz_de_datos_t['SISTEMA'] == "CRC") & (interfaz_de_datos_t['CODIGO_PRODUCTO'] == "150001") & (interfaz_de_datos_t['CODIGO_SUBPRODUCTO'].isin(subproducto_consumo_automotriz)),
+        (interfaz_de_datos_t['SISTEMA'] == "CRC") & (interfaz_de_datos_t['CODIGO_PRODUCTO'] == "150001") & (interfaz_de_datos_t['CODIGO_SUBPRODUCTO'].isin(subproducto_consumo_refinanciado)),
+        (interfaz_de_datos_t['SISTEMA'] == "CRC") & (interfaz_de_datos_t['CODIGO_PRODUCTO'] == "150001") & (interfaz_de_datos_t['CODIGO_SUBPRODUCTO'].isin(subproducto_consumo_consolidado)),
+        (interfaz_de_datos_t['SISTEMA'] == "REC") & (interfaz_de_datos_t['CODIGO_PRODUCTO'] == "150001") & (interfaz_de_datos_t['CODIGO_SUBPRODUCTO'].isin(subproducto_renegociado)),
+    ]
+ 
+    resultado = [
+        "CONSUMO", 
+        "AUTOMOTRIZ",
+        "REFINANCIADO",
+        "CONSOLIDADO",
+        "RENEGOCIADO"
+    ]
+    
+    interfaz_de_datos_t["GLOSA_CODIGO_DESTINOCREDITO"] = np.select(
+        condicion, 
+        resultado, 
+        default="OTROS"
+    )
+
+    registros_otros = interfaz_de_datos_t[interfaz_de_datos_t["GLOSA_CODIGO_DESTINOCREDITO"] == "OTROS"]
+    if not registros_otros.empty:
+        print("\n      ¡ADVERTENCIA!: Se encontraron registros con subproductos no válidos")
+        raise ValueError("Verifique la configuración de subproductos válidos y las condiciones de mapeo.")
+
+
+
     interfaz_de_datos_t['FECHA_VENCIMIENTO_AJUSTADA'] = interfaz_de_datos_t.apply(estandariza_vencimiento, axis=1, fecha_t=fecha_t)
 
     tabla_desarrollo = pd.DataFrame()
@@ -438,12 +484,12 @@ def ejecutar_modelo(fecha_proceso: datetime.datetime) -> bool:
 # --- Bloque de Ejemplo de Uso ---
 if __name__ == "__main__":
 
-    if len(sys.argv) < 2:
-        print("ERROR: No se proporcionó fecha. Uso: python tu_script.py YYYY-MM-DD")
-        sys.exit(1)
+    # if len(sys.argv) < 2:
+    #     print("ERROR: No se proporcionó fecha. Uso: python tu_script.py YYYY-MM-DD")
+    #     sys.exit(1)
 
-    fecha_proceso_str = sys.argv[1]
-    # fecha_proceso_str = "2025-11-28"
+    # fecha_proceso_str = sys.argv[1]
+    fecha_proceso_str = "2026-01-02"
 
     try:
         fecha_proceso = datetime.datetime.strptime(fecha_proceso_str, "%Y-%m-%d")

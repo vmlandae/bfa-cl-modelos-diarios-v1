@@ -8,9 +8,9 @@ import sys
 import bfa_cl_utilidades as ut
 
 # Configuración de importación para ejecución directa
-# BASE_DIR = Path(__file__).resolve().parent.parent
-# if str(BASE_DIR) not in sys.path:
-#     sys.path.insert(0, str(BASE_DIR))
+BASE_DIR = Path(__file__).resolve().parent.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 
 # Importación de módulos internos
 from config import config_rutas as cr  # Configuración de rutas del proyecto
@@ -66,10 +66,10 @@ def lectura_interfaz_de_datos(fecha_t: datetime.datetime)-> pd.DataFrame:
         - INTERES
         - FECHA_VENCIMIENTO_CUOTA
     """
-    columnas = ["FECHA_PROCESO", "SISTEMA", "CODIGO_SUBPRODUCTO","DESTINOCREDITO", "MONEDA_ORIGEN",
+    columnas = ["FECHA_PROCESO", "SISTEMA","CODIGO_PRODUCTO", "CODIGO_SUBPRODUCTO","DESTINOCREDITO", "MONEDA_ORIGEN",
                 "AMORTIZACION", "INTERES","FECHA_VENCIMIENTO_CUOTA"]
 
-    tipos_datos = {"FECHA_PROCESO": "str", "SISTEMA": "str", "CODIGO_SUBPRODUCTO": "str", "DESTINOCREDITO": "str",
+    tipos_datos = {"FECHA_PROCESO": "str", "SISTEMA": "str", "CODIGO_PRODUCTO": "str", "CODIGO_SUBPRODUCTO": "str", "DESTINOCREDITO": "str",
                    "MONEDA_ORIGEN": "str", "AMORTIZACION": "float",
                    "INTERES": "float","FECHA_VENCIMIENTO_CUOTA": "str",}
 
@@ -80,11 +80,16 @@ def lectura_interfaz_de_datos(fecha_t: datetime.datetime)-> pd.DataFrame:
     interfaz_t['FECHA_PROCESO'] = pd.to_datetime(interfaz_t['FECHA_PROCESO'], format='%Y%m%d')
     interfaz_t['FECHA_VENCIMIENTO_CUOTA'] = pd.to_datetime(interfaz_t['FECHA_VENCIMIENTO_CUOTA'], format='%Y%m%d')
 
+    interfaz_t['CODIGO_PRODUCTO'] = interfaz_t['CODIGO_PRODUCTO'].str.strip()
     interfaz_t['CODIGO_SUBPRODUCTO'] = interfaz_t['CODIGO_SUBPRODUCTO'].str.strip()
     interfaz_t['DESTINOCREDITO'] = interfaz_t['DESTINOCREDITO'].str.strip()
     interfaz_t['SISTEMA'] = interfaz_t['SISTEMA'].str.strip()
 
-    return interfaz_t[interfaz_t['SISTEMA']=="CRUGE"].reset_index(drop=True).copy()
+    subproductos_validos_cruge = [
+        "0"
+    ]
+    return interfaz_t[((interfaz_t['SISTEMA'] == "CRUGE") & (interfaz_t['CODIGO_PRODUCTO'] == "0") & 
+                       (interfaz_t['CODIGO_SUBPRODUCTO'].isin(subproductos_validos_cruge)))].reset_index(drop=True).copy()
 
 def calcular_flujos_estimados_mora(data: pd.DataFrame,
                            fecha_t: datetime.datetime,

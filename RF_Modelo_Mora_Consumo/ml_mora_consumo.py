@@ -58,10 +58,10 @@ def lectura_parametros_modelo():
     return lst_factores_mora, lst_matrices_mora, lst_factores_globales_mora
 
 def lectura_interfaz_de_datos(fecha_t: datetime.datetime)-> pd.DataFrame:
-    columnas = ["FECHA_PROCESO", "SISTEMA", "CODIGO_SUBPRODUCTO","DESTINOCREDITO", "MONEDA_ORIGEN",
+    columnas = ["FECHA_PROCESO", "SISTEMA","CODIGO_PRODUCTO", "CODIGO_SUBPRODUCTO","DESTINOCREDITO", "MONEDA_ORIGEN",
                 "AMORTIZACION", "INTERES","FECHA_VENCIMIENTO_CUOTA"]
 
-    tipos_datos = {"FECHA_PROCESO": "str", "SISTEMA": "str", "CODIGO_SUBPRODUCTO": "str", "DESTINOCREDITO": "str",
+    tipos_datos = {"FECHA_PROCESO": "str", "SISTEMA": "str", "CODIGO_PRODUCTO": "str", "CODIGO_SUBPRODUCTO": "str", "DESTINOCREDITO": "str",
                    "MONEDA_ORIGEN": "str", "AMORTIZACION": "float",
                    "INTERES": "float","FECHA_VENCIMIENTO_CUOTA": "str",}
 
@@ -72,13 +72,32 @@ def lectura_interfaz_de_datos(fecha_t: datetime.datetime)-> pd.DataFrame:
     interfaz_t['FECHA_PROCESO'] = pd.to_datetime(interfaz_t['FECHA_PROCESO'], format='%Y%m%d')
     interfaz_t['FECHA_VENCIMIENTO_CUOTA'] = pd.to_datetime(interfaz_t['FECHA_VENCIMIENTO_CUOTA'], format='%Y%m%d')
 
-
+    interfaz_t['CODIGO_PRODUCTO'] = interfaz_t['CODIGO_PRODUCTO'].str.strip()
     interfaz_t['CODIGO_SUBPRODUCTO'] = interfaz_t['CODIGO_SUBPRODUCTO'].str.strip()
     interfaz_t['DESTINOCREDITO'] = interfaz_t['DESTINOCREDITO'].str.strip()
     interfaz_t['SISTEMA'] = interfaz_t['SISTEMA'].str.strip()
+
+    subproductos_validos_crc = [
+        #"38", "80",
+        #Automotriz
+        "16", 
+        # Consolidacion
+        "27", "32", "34", "37", "42", "46",
+        #Consumo
+        "1", "4", "31", "33", "35", "68", "69", "71", "73", 
+        "78", "81", 
+        #Refinanciado
+        "24", "36", "43", "75"
+    ]
+
+    subproductos_validos_rec = ["1", "4", "16", "23", 
+                                "24", "27", "31", "32", 
+                                "35", "37", "42", "43", 
+                                "46", "100"
+                                ]
     return interfaz_t[
-            ((interfaz_t['SISTEMA'] == "CRC") & (interfaz_t['DESTINOCREDITO'].isin(["1", "2", "22", "24"]))) |
-            ((interfaz_t['SISTEMA'] == "REC") & (interfaz_t['DESTINOCREDITO'] == "23"))].reset_index(drop=True).copy()
+            ((interfaz_t['SISTEMA'] == "CRC") & (interfaz_t['CODIGO_PRODUCTO'] == "150001") & (interfaz_t['CODIGO_SUBPRODUCTO'].isin(subproductos_validos_crc))) |
+            ((interfaz_t['SISTEMA'] == "REC") & (interfaz_t['CODIGO_PRODUCTO'] == "150001") & (interfaz_t['CODIGO_SUBPRODUCTO'].isin(subproductos_validos_rec)))].reset_index(drop=True).copy()
 
 
 def calcular_flujos_estimados_mora(data: pd.DataFrame,
@@ -202,16 +221,24 @@ def procesamiento_y_guardado(fecha_t: datetime.datetime,
                              )-> None:
 
     print("      • Segmentando datos por tipo de crédito...")
+
+    subproducto_consumo_consumo = ["1", "4", "31", "33", "35", "68", "69", "71", "73", "78", "81",]
+    subproducto_consumo_automotriz = ["16"]
+    subproducto_consumo_refinanciado = ["24", "36", "43", "75"]
+    subproducto_consumo_consolidado = ["27", "32", "34", "37", "42", "46"]
+    subproducto_renegociado = ["1", "4", "16", "23", "24", "27", "31", "32", 
+                               "35", "37", "42", "43", "46", "100"]
+
     consumo = interfaz_de_datos_t[(interfaz_de_datos_t['SISTEMA'] == "CRC")
-                                  & (interfaz_de_datos_t['DESTINOCREDITO']=="1")].copy().reset_index(drop=True)
+                                  & (interfaz_de_datos_t['CODIGO_SUBPRODUCTO'].isin(subproducto_consumo_consumo))].copy().reset_index(drop=True)
     automotriz = interfaz_de_datos_t[(interfaz_de_datos_t['SISTEMA'] == "CRC")
-                                  & (interfaz_de_datos_t['DESTINOCREDITO']=="2")].copy().reset_index(drop=True)
+                                  & (interfaz_de_datos_t['CODIGO_SUBPRODUCTO'].isin(subproducto_consumo_automotriz))].copy().reset_index(drop=True)
     refinanciado = interfaz_de_datos_t[(interfaz_de_datos_t['SISTEMA'] == "CRC")
-                                  & (interfaz_de_datos_t['DESTINOCREDITO']=="22")].copy().reset_index(drop=True)
+                                  & (interfaz_de_datos_t['CODIGO_SUBPRODUCTO'].isin(subproducto_consumo_refinanciado))].copy().reset_index(drop=True)
     renegociado = interfaz_de_datos_t[(interfaz_de_datos_t['SISTEMA'] == "REC")
-                                  & (interfaz_de_datos_t['DESTINOCREDITO']=="23")].copy().reset_index(drop=True)
+                                  & (interfaz_de_datos_t['CODIGO_SUBPRODUCTO'].isin(subproducto_renegociado))].copy().reset_index(drop=True)
     consolidado = interfaz_de_datos_t[(interfaz_de_datos_t['SISTEMA'] == "CRC")
-                                  & (interfaz_de_datos_t['DESTINOCREDITO']=="24")].copy().reset_index(drop=True)
+                                  & (interfaz_de_datos_t['CODIGO_SUBPRODUCTO'].isin(subproducto_consumo_consolidado))].copy().reset_index(drop=True)
     
     print(f"        - Consumo: {len(consumo):,} registros")
     print(f"        - Automotriz: {len(automotriz):,} registros")
@@ -458,7 +485,7 @@ if __name__ == "__main__":
     
     fecha_proceso_str = sys.argv[1]
 
-    # fecha_proceso_str = "2025-12-24"
+    # fecha_proceso_str = "2025-12-30"
 
     try:
         fecha_proceso = datetime.datetime.strptime(fecha_proceso_str, "%Y-%m-%d")

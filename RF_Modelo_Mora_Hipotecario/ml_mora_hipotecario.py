@@ -33,10 +33,10 @@ def lectura_parametros_modelo():
     return factores_mora, matriz_mora_hipotecario.iloc[:366,:366], factores_globales_mora
 
 def lectura_interfaz_de_datos(fecha_t: datetime.datetime)-> pd.DataFrame:
-    columnas = ["FECHA_PROCESO", "SISTEMA", "CODIGO_SUBPRODUCTO","DESTINOCREDITO", "MONEDA_ORIGEN",
+    columnas = ["FECHA_PROCESO", "SISTEMA","CODIGO_PRODUCTO", "CODIGO_SUBPRODUCTO","DESTINOCREDITO", "MONEDA_ORIGEN",
                 "AMORTIZACION", "INTERES","FECHA_VENCIMIENTO_CUOTA"]
 
-    tipos_datos = {"FECHA_PROCESO": "str", "SISTEMA": "str", "CODIGO_SUBPRODUCTO": "str", "DESTINOCREDITO": "str",
+    tipos_datos = {"FECHA_PROCESO": "str", "SISTEMA": "str", "CODIGO_PRODUCTO": "str", "CODIGO_SUBPRODUCTO": "str", "DESTINOCREDITO": "str",
                    "MONEDA_ORIGEN": "str", "AMORTIZACION": "float",
                    "INTERES": "float","FECHA_VENCIMIENTO_CUOTA": "str",}
 
@@ -47,11 +47,20 @@ def lectura_interfaz_de_datos(fecha_t: datetime.datetime)-> pd.DataFrame:
     interfaz_t['FECHA_PROCESO'] = pd.to_datetime(interfaz_t['FECHA_PROCESO'], format='%Y%m%d')
     interfaz_t['FECHA_VENCIMIENTO_CUOTA'] = pd.to_datetime(interfaz_t['FECHA_VENCIMIENTO_CUOTA'], format='%Y%m%d')
 
-
+    interfaz_t['CODIGO_PRODUCTO'] = interfaz_t['CODIGO_PRODUCTO'].str.strip()
     interfaz_t['CODIGO_SUBPRODUCTO'] = interfaz_t['CODIGO_SUBPRODUCTO'].str.strip()
     interfaz_t['DESTINOCREDITO'] = interfaz_t['DESTINOCREDITO'].str.strip()
     interfaz_t['SISTEMA'] = interfaz_t['SISTEMA'].str.strip()
-    return interfaz_t[interfaz_t['SISTEMA']=="HIP"].reset_index(drop=True).copy()
+
+    subproductos_validos_hip = [
+        "20", "30", "40", "50", "60", "70", "80", "90", "120", "130", 
+        "150", "170", "180", "190", "200", "220", "230", "235", "240", "260", 
+        "335", "435", "535", "635", "735", "835", "935", "970", "980", "990", 
+        "1235", "1335", "1535", "1735", "1835", "1935", "2035", "2235", "2335", 
+        "2435", "2635", "9735", "9835", "9935"
+    ]
+
+    return interfaz_t[((interfaz_t['SISTEMA'] == "HIP") & (interfaz_t['CODIGO_PRODUCTO'] == "150003") & (interfaz_t['CODIGO_SUBPRODUCTO'].isin(subproductos_validos_hip)))].reset_index(drop=True).copy()
 
 
 def calcular_flujos_estimados_mora(data: pd.DataFrame,
