@@ -8,9 +8,9 @@ import sys
 import bfa_cl_utilidades as ut
 
 # Configuración de importación para ejecución directa
-BASE_DIR = Path(__file__).resolve().parent.parent
-if str(BASE_DIR) not in sys.path:
-    sys.path.insert(0, str(BASE_DIR))
+# BASE_DIR = Path(__file__).resolve().parent.parent
+# if str(BASE_DIR) not in sys.path:
+#     sys.path.insert(0, str(BASE_DIR))
 
 # Importación de módulos internos
 from config import config_rutas as cr  # Configuración de rutas del proyecto

@@ -9,9 +9,9 @@ import sys
 import bfa_cl_utilidades as ut
 
 # # Para una ejecucion directa del script
-BASE_DIR = Path(__file__).resolve().parent.parent
-if str(BASE_DIR) not in sys.path:
-    sys.path.insert(0, str(BASE_DIR))
+# BASE_DIR = Path(__file__).resolve().parent.parent
+# if str(BASE_DIR) not in sys.path:
+#     sys.path.insert(0, str(BASE_DIR))
 
 # Importar configuraciones
 from config import config_rutas as cr
@@ -484,12 +484,12 @@ def ejecutar_modelo(fecha_proceso: datetime.datetime) -> bool:
 # --- Bloque de Ejemplo de Uso ---
 if __name__ == "__main__":
 
-    # if len(sys.argv) < 2:
-    #     print("ERROR: No se proporcionó fecha. Uso: python tu_script.py YYYY-MM-DD")
-    #     sys.exit(1)
+    if len(sys.argv) < 2:
+        print("ERROR: No se proporcionó fecha. Uso: python tu_script.py YYYY-MM-DD")
+        sys.exit(1)
 
-    # fecha_proceso_str = sys.argv[1]
-    fecha_proceso_str = "2026-01-02"
+    fecha_proceso_str = sys.argv[1]
+    # fecha_proceso_str = "2026-01-02"
 
     try:
         fecha_proceso = datetime.datetime.strptime(fecha_proceso_str, "%Y-%m-%d")
