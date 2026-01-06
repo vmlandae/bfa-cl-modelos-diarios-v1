@@ -88,7 +88,7 @@ def lectura_interfaz_de_datos(fecha_t: datetime.datetime)-> pd.DataFrame:
     subproductos_validos_cruge = [
         "0"
     ]
-    return interfaz_t[((interfaz_t['SISTEMA'] == "CRUGE") & (interfaz_t['CODIGO_PRODUCTO'] == "0") & 
+    return interfaz_t[((interfaz_t['SISTEMA'] == "CRUGE") & 
                        (interfaz_t['CODIGO_SUBPRODUCTO'].isin(subproductos_validos_cruge)))].reset_index(drop=True).copy()
 
 def calcular_flujos_estimados_mora(data: pd.DataFrame,
