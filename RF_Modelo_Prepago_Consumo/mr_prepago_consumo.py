@@ -8,13 +8,16 @@ from pathlib import Path
 import sys
 import bfa_cl_utilidades as ut
 
-# # Para una ejecucion directa del script
+
+
+# Para una ejecucion directa del script
 # BASE_DIR = Path(__file__).resolve().parent.parent
 # if str(BASE_DIR) not in sys.path:
 #     sys.path.insert(0, str(BASE_DIR))
 
 # Importar configuraciones
 from config import config_rutas as cr
+
 
 # Cargar configuración de rutas externas
 with open(cr.CONFIG / 'config_rutas_ext_y_archivos.yaml', 'r') as file:
@@ -460,6 +463,7 @@ def ejecutar_modelo(fecha_proceso: datetime.datetime) -> bool:
         
         print(f"      ✓ Datos leídos exitosamente - {len(interfaz_de_datos_consumo_t):,} registros encontrados")
 
+
         print("\n[3/4] Procesando información y calculando prepagos...")
         procesamiento_y_guardado(fecha_proceso, interfaz_de_datos_consumo_t, SMM_MODELO, ESCENARIOS)
         
@@ -473,7 +477,7 @@ def ejecutar_modelo(fecha_proceso: datetime.datetime) -> bool:
         return True
         
     except Exception as e:
-        print(f"\nERROR EN EL MODELO PREPAGO CONSUMO:")
+        print("\nERROR EN EL MODELO PREPAGO CONSUMO:")
         print(f"   {str(e)}")
         print("\n" + "="*50)
         print("PROCESO TERMINADO CON ERRORES")
