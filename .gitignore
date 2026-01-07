@@ -96,6 +96,9 @@ cache/
 # Archivos de respaldo
 respaldos/
 
+# Archivos de testing
+test/
+
 # Archivos específicos del proyecto
 carga_modelos_gcp/cargar_output_modelos_bigquery_hist.py
 config/parametros_input_modelos.xlsx
