@@ -82,6 +82,7 @@ def cargar_datos_balance(fecha_t: datetime) -> pd.DataFrame:
     ]
     asignacion = ["CTA_VTA_CLP", "CTA_CTE_CLP", "AGD_CLF", "AGI_CLF", "DAP_CLP", "DAP_CLF", "DAP_USD"]
     data["COD_PRO_MODELO"] = np.select(condiciones, asignacion, default=None)
+    data = data[data["COD_PRO_MODELO"].notna()].reset_index(drop=True)
     
     print(f"        - Datos de balance cargados: {len(data):,} registros")
     print(f"        - Productos encontrados: {data['COD_PRO_MODELO'].value_counts().to_dict()}")
