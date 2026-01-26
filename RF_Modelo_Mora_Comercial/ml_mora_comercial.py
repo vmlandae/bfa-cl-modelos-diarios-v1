@@ -36,10 +36,10 @@ def lectura_parametros_modelo():
     return factores_mora, matriz_mora_comercial.iloc[:366,:366], factores_globales_mora
 
 def lectura_interfaz_de_datos(fecha_t: datetime.datetime)-> pd.DataFrame:
-    columnas = ["FECHA_PROCESO", "SISTEMA", "CODIGO_SUBPRODUCTO","DESTINOCREDITO", "MONEDA_ORIGEN",
+    columnas = ["FECHA_PROCESO", "SISTEMA","CODIGO_PRODUCTO", "CODIGO_SUBPRODUCTO","DESTINOCREDITO", "MONEDA_ORIGEN",
                 "AMORTIZACION", "INTERES","FECHA_VENCIMIENTO_CUOTA"]
 
-    tipos_datos = {"FECHA_PROCESO": "str", "SISTEMA": "str", "CODIGO_SUBPRODUCTO": "str", "DESTINOCREDITO": "str",
+    tipos_datos = {"FECHA_PROCESO": "str", "SISTEMA": "str", "CODIGO_PRODUCTO": "str", "CODIGO_SUBPRODUCTO": "str", "DESTINOCREDITO": "str",
                    "MONEDA_ORIGEN": "str", "AMORTIZACION": "float",
                    "INTERES": "float","FECHA_VENCIMIENTO_CUOTA": "str",}
 
@@ -50,11 +50,17 @@ def lectura_interfaz_de_datos(fecha_t: datetime.datetime)-> pd.DataFrame:
     interfaz_t['FECHA_PROCESO'] = pd.to_datetime(interfaz_t['FECHA_PROCESO'], format='%Y%m%d')
     interfaz_t['FECHA_VENCIMIENTO_CUOTA'] = pd.to_datetime(interfaz_t['FECHA_VENCIMIENTO_CUOTA'], format='%Y%m%d')
 
+    interfaz_t['CODIGO_PRODUCTO'] = interfaz_t['CODIGO_PRODUCTO'].str.strip()
     interfaz_t['CODIGO_SUBPRODUCTO'] = interfaz_t['CODIGO_SUBPRODUCTO'].str.strip()
     interfaz_t['DESTINOCREDITO'] = interfaz_t['DESTINOCREDITO'].str.strip()
     interfaz_t['SISTEMA'] = interfaz_t['SISTEMA'].str.strip()
 
-    return interfaz_t[interfaz_t['SISTEMA']=="SEL"].reset_index(drop=True).copy()
+    subproductos_validos_sel = [
+        "80", "82"
+    ]
+
+    return interfaz_t[((interfaz_t['SISTEMA'] == "SEL") & (interfaz_t['CODIGO_PRODUCTO'] == "150001") & 
+                       (interfaz_t['CODIGO_SUBPRODUCTO'].isin(subproductos_validos_sel)))].reset_index(drop=True).copy()
 
 
 def calcular_flujos_estimados_mora(data: pd.DataFrame,

@@ -297,7 +297,9 @@ def procesamiento_y_guardado(fecha_t: datetime.datetime,
 
         "SUPER AVANCE": "SAV",
         "SUPER AVANCE RENEGOCIADO": "SAV",
+        'SUPER AVANCE RENEGOCIADO-MORA': "NO_SAV",
         "SUPER AVANCE-INCUMPLIMIENTO": "SAV",
+        'SUPER AVANCE-INCUMPLIMIENTO-MORA': "NO_SAV",
         "SUPER AVANCE MORA": "NO_SAV",
         "SUPER AVANCE-MORA": "NO_SAV",
 
