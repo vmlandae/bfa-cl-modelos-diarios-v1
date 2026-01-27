@@ -246,9 +246,9 @@ def cargar_modelos_a_bigquery(fecha_proceso: datetime, modelos_a_cargar: list = 
         
         # Para cada modelo solicitado, buscar todas sus tareas asociadas
         for modelo in modelos_a_cargar:
-            for clave, tarea in todas_las_tareas.items():
+            for llave, tarea in todas_las_tareas.items():
                 # Incluir si la clave coincide directamente O si el modelo_origen coincide
-                if clave == modelo or tarea.get('modelo_origen') == modelo:
+                if llave == modelo or tarea.get('modelo_origen') == modelo:
                     tareas_a_ejecutar.append(tarea)
         
         if not tareas_a_ejecutar:
