@@ -1,45 +1,49 @@
+# Configuración de rutas externas y archivos para modelos diarios
+# Las rutas locales (excel_parametros_input, excel_output) son RELATIVAS al directorio base del proyecto
+# Las rutas de red (interfaz_datos_input, ms_access_input) permanecen absolutas
+
 modelos:
   
   mr_prepago_consumo:
     interfaz_datos_input: "\\\\vmdvorak\\Riesgo Financiero Folder\\RRFF-GCP\\Cartera\\input"
-    excel_parametros_input: "C:\\Users\\rmunozb\\OneDrive - Falabella\\LOCAL_RF\\LABS\\PROCESOS_DIARIOS_V0.03\\RF_Modelo_Prepago_Consumo\\parametros\\parametros_mr_prepago_consumo.xlsx"
-    excel_output: "C:\\Users\\rmunozb\\OneDrive - Falabella\\LOCAL_RF\\LABS\\PROCESOS_DIARIOS_V0.03\\RF_Modelo_Prepago_Consumo\\mr_prepago_consumo.xlsm"
+    excel_parametros_input: "RF_Modelo_Prepago_Consumo/parametros/parametros_mr_prepago_consumo.xlsx"
+    excel_output: "RF_Modelo_Prepago_Consumo/mr_prepago_consumo.xlsm"
 
   mr_prepago_hipotecario:
     interfaz_datos_input: "\\\\vmdvorak\\Riesgo Financiero Folder\\RRFF-GCP\\Cartera\\input"
-    excel_parametros_input: "C:\\Users\\rmunozb\\OneDrive - Falabella\\LOCAL_RF\\LABS\\PROCESOS_DIARIOS_V0.03\\RF_Modelo_Prepago_Hipotecario\\parametros\\parametros_mr_prepago_hipotecario.xlsx"
-    excel_output: "C:\\Users\\rmunozb\\OneDrive - Falabella\\LOCAL_RF\\LABS\\PROCESOS_DIARIOS_V0.03\\RF_Modelo_Prepago_Hipotecario\\mr_prepago_hipotecario.xlsm"
+    excel_parametros_input: "RF_Modelo_Prepago_Hipotecario/parametros/parametros_mr_prepago_hipotecario.xlsx"
+    excel_output: "RF_Modelo_Prepago_Hipotecario/mr_prepago_hipotecario.xlsm"
 
   mr_prepago_cmr:
     ms_access_input: "\\\\vmdvorak\\Riesgo Financiero2\\RF_PROCESOS\\RF_Carteras\\INTERFAZ_DATOS\\RF_Base_Carteras_Completa.accdb"
     ms_access_tabla_input: "RF_BD_Gestion_RM"
-    excel_parametros_input: "C:\\Users\\rmunozb\\OneDrive - Falabella\\LOCAL_RF\\LABS\\PROCESOS_DIARIOS_V0.03\\RF_Modelo_Prepago_CMR\\parametros\\parametros_mr_prepago_cmr.xlsx"
-    excel_output: "C:\\Users\\rmunozb\\OneDrive - Falabella\\LOCAL_RF\\LABS\\PROCESOS_DIARIOS_V0.03\\RF_Modelo_Prepago_CMR\\mr_prepago_cmr.xlsm"
+    excel_parametros_input: "RF_Modelo_Prepago_CMR/parametros/parametros_mr_prepago_cmr.xlsx"
+    excel_output: "RF_Modelo_Prepago_CMR/mr_prepago_cmr.xlsm"
 
   ml_mora_consumo:
     interfaz_datos_input: "\\\\vmdvorak\\Riesgo Financiero Folder\\RRFF-GCP\\Cartera\\input"
-    excel_parametros_input: "C:\\Users\\rmunozb\\OneDrive - Falabella\\LOCAL_RF\\LABS\\PROCESOS_DIARIOS_V0.03\\RF_Modelo_Mora_Consumo\\parametros\\parametros_ml_mora_consumo.xlsx"
-    excel_output: "C:\\Users\\rmunozb\\OneDrive - Falabella\\LOCAL_RF\\LABS\\PROCESOS_DIARIOS_V0.03\\RF_Modelo_Mora_Consumo\\ml_mora_consumo_cc.xlsm"
-    excel_output_2: "C:\\Users\\rmunozb\\OneDrive - Falabella\\LOCAL_RF\\LABS\\PROCESOS_DIARIOS_V0.03\\RF_Modelo_Mora_Consumo\\ml_mora_renegociado_cc.xlsm"
+    excel_parametros_input: "RF_Modelo_Mora_Consumo/parametros/parametros_ml_mora_consumo.xlsx"
+    excel_output: "RF_Modelo_Mora_Consumo/ml_mora_consumo_cc.xlsm"
+    excel_output_2: "RF_Modelo_Mora_Consumo/ml_mora_renegociado_cc.xlsm"
   
   ml_mora_cae:
     interfaz_datos_input: "\\\\vmdvorak\\Riesgo Financiero Folder\\RRFF-GCP\\Cartera\\input"
-    excel_parametros_input: "C:\\Users\\rmunozb\\OneDrive - Falabella\\LOCAL_RF\\LABS\\PROCESOS_DIARIOS_V0.03\\RF_Modelo_Mora_CAE\\parametros\\parametros_ml_mora_cae.xlsx"
-    excel_output: "C:\\Users\\rmunozb\\OneDrive - Falabella\\LOCAL_RF\\LABS\\PROCESOS_DIARIOS_V0.03\\RF_Modelo_Mora_CAE\\ml_mora_cae_cc.xlsm"
+    excel_parametros_input: "RF_Modelo_Mora_CAE/parametros/parametros_ml_mora_cae.xlsx"
+    excel_output: "RF_Modelo_Mora_CAE/ml_mora_cae_cc.xlsm"
   
   ml_mora_hipotecario:
     interfaz_datos_input: "\\\\vmdvorak\\Riesgo Financiero Folder\\RRFF-GCP\\Cartera\\input"
-    excel_parametros_input: "C:\\Users\\rmunozb\\OneDrive - Falabella\\LOCAL_RF\\LABS\\PROCESOS_DIARIOS_V0.03\\RF_Modelo_Mora_Hipotecario\\parametros\\parametros_ml_mora_hipotecario.xlsx"
-    excel_output: "C:\\Users\\rmunozb\\OneDrive - Falabella\\LOCAL_RF\\LABS\\PROCESOS_DIARIOS_V0.03\\RF_Modelo_Mora_Hipotecario\\ml_mora_hipotecario_cc.xlsm"
+    excel_parametros_input: "RF_Modelo_Mora_Hipotecario/parametros/parametros_ml_mora_hipotecario.xlsx"
+    excel_output: "RF_Modelo_Mora_Hipotecario/ml_mora_hipotecario_cc.xlsm"
   
   ml_mora_comercial:
     interfaz_datos_input: "\\\\vmdvorak\\Riesgo Financiero Folder\\RRFF-GCP\\Cartera\\input"
-    excel_parametros_input: "C:\\Users\\rmunozb\\OneDrive - Falabella\\LOCAL_RF\\LABS\\PROCESOS_DIARIOS_V0.03\\RF_Modelo_Mora_Comercial\\parametros\\parametros_ml_mora_comercial.xlsx"
-    excel_output: "C:\\Users\\rmunozb\\OneDrive - Falabella\\LOCAL_RF\\LABS\\PROCESOS_DIARIOS_V0.03\\RF_Modelo_Mora_Comercial\\ml_mora_comercial_cc.xlsm"
+    excel_parametros_input: "RF_Modelo_Mora_Comercial/parametros/parametros_ml_mora_comercial.xlsx"
+    excel_output: "RF_Modelo_Mora_Comercial/ml_mora_comercial_cc.xlsm"
 
   ml_nmd:
     ms_access_input: "\\\\vmdvorak\\Riesgo Financiero2\\RF_PROCESOS\\RF_Carteras\\INTERFAZ_DATOS\\RF_Base_Carteras_Completa.accdb"
     ms_access_tabla_input: "RF_BD_Gestion_RL"
-    excel_parametros_modelo_input: "C:\\Users\\rmunozb\\OneDrive - Falabella\\LOCAL_RF\\LABS\\bfa-cl-modelos-diarios\\RF_Modelo_NMD\\parametros\\parametros_ml_nmd.xlsx"
+    excel_parametros_modelo_input: "RF_Modelo_NMD/parametros/parametros_ml_nmd.xlsx"
     excel_parametros_core_input: "\\\\vmdvorak\\Riesgo Financiero2\\RF_PROCESOS\\RF_Resultados\\Precios de Transferencia\\saldos_core.xlsx"
-    excel_output: "C:\\Users\\rmunozb\\OneDrive - Falabella\\LOCAL_RF\\LABS\\bfa-cl-modelos-diarios\\RF_Modelo_NMD\\ml_nmd_cc.xlsm"
+    excel_output: "RF_Modelo_NMD/ml_nmd_cc.xlsm"

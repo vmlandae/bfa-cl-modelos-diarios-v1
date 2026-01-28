@@ -22,11 +22,11 @@ with open(cr.CONFIG / 'config_rutas_ext_y_archivos.yaml', 'r') as file:
 # Importar utilidades
 
 
-# Configuración de rutas
-RUTA_INTERFAZ_DE_DATOS = Path(config_ext['modelos']['ml_mora_consumo']['interfaz_datos_input'])
-RUTA_PARAMETOS_MORA_CONSUMO = Path(config_ext['modelos']['ml_mora_consumo']['excel_parametros_input'])
-RUTA_OUTPUT_MODELO = Path(config_ext['modelos']['ml_mora_consumo']['excel_output'])
-RUTA_OUTPUT_MODELO_RENEGOCIADO = Path(config_ext['modelos']['ml_mora_consumo']['excel_output_2'])
+# Configuración de rutas (resolver_ruta maneja rutas relativas y absolutas)
+RUTA_INTERFAZ_DE_DATOS = cr.resolver_ruta(config_ext['modelos']['ml_mora_consumo']['interfaz_datos_input'])
+RUTA_PARAMETOS_MORA_CONSUMO = cr.resolver_ruta(config_ext['modelos']['ml_mora_consumo']['excel_parametros_input'])
+RUTA_OUTPUT_MODELO = cr.resolver_ruta(config_ext['modelos']['ml_mora_consumo']['excel_output'])
+RUTA_OUTPUT_MODELO_RENEGOCIADO = cr.resolver_ruta(config_ext['modelos']['ml_mora_consumo']['excel_output_2'])
 
 
 

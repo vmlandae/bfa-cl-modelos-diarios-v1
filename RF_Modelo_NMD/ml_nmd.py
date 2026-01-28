@@ -20,12 +20,12 @@ from config import config_rutas as cr  # Configuración de rutas del proyecto
 with open(cr.CONFIG / 'config_rutas_ext_y_archivos.yaml', 'r') as file:
     config_ext = yaml.safe_load(file)
 
-# Configuración de rutas
-ARCHIVO_INPUT = Path(config_ext['modelos']['ml_nmd']['ms_access_input'])
-ARCHIVO_DAP = Path(config_ext['modelos']['ml_nmd']['ms_access_input'])
-RUTA_PARAMETROS_NMD = Path(config_ext['modelos']['ml_nmd']['excel_parametros_modelo_input'])
-RUTA_PARAMETROS_CORE = Path(config_ext['modelos']['ml_nmd']['excel_parametros_core_input'])
-RUTA_OUTPUT_MODELO = Path(config_ext['modelos']['ml_nmd']['excel_output'])
+# Configuración de rutas (resolver_ruta maneja rutas relativas y absolutas)
+ARCHIVO_INPUT = cr.resolver_ruta(config_ext['modelos']['ml_nmd']['ms_access_input'])
+ARCHIVO_DAP = cr.resolver_ruta(config_ext['modelos']['ml_nmd']['ms_access_input'])
+RUTA_PARAMETROS_NMD = cr.resolver_ruta(config_ext['modelos']['ml_nmd']['excel_parametros_modelo_input'])
+RUTA_PARAMETROS_CORE = cr.resolver_ruta(config_ext['modelos']['ml_nmd']['excel_parametros_core_input'])
+RUTA_OUTPUT_MODELO = cr.resolver_ruta(config_ext['modelos']['ml_nmd']['excel_output'])
 
 
 def cargar_datos_balance(fecha_t: datetime) -> pd.DataFrame:

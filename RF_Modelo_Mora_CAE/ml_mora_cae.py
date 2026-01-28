@@ -20,10 +20,10 @@ from config import config_rutas as cr  # Configuración de rutas del proyecto
 with open(cr.CONFIG / 'config_rutas_ext_y_archivos.yaml', 'r') as file:
     config_ext = yaml.safe_load(file)
 
-# Configuración de rutas
-RUTA_INTERFAZ_DE_DATOS = Path(config_ext['modelos']['ml_mora_cae']['interfaz_datos_input'])
-RUTA_PARAMETOS_MORA_CAE = Path(config_ext['modelos']['ml_mora_cae']['excel_parametros_input'])
-RUTA_OUTPUT_MODELO = Path(config_ext['modelos']['ml_mora_cae']['excel_output'])
+# Configuración de rutas (resolver_ruta maneja rutas relativas y absolutas)
+RUTA_INTERFAZ_DE_DATOS = cr.resolver_ruta(config_ext['modelos']['ml_mora_cae']['interfaz_datos_input'])
+RUTA_PARAMETOS_MORA_CAE = cr.resolver_ruta(config_ext['modelos']['ml_mora_cae']['excel_parametros_input'])
+RUTA_OUTPUT_MODELO = cr.resolver_ruta(config_ext['modelos']['ml_mora_cae']['excel_output'])
 
 
 

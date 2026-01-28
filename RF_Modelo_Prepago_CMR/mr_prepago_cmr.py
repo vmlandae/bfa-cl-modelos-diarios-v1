@@ -19,11 +19,11 @@ from config import config_rutas as cr
 with open(cr.CONFIG / 'config_rutas_ext_y_archivos.yaml', 'r') as file:
     config_ext = yaml.safe_load(file)
 
-# Configuración de rutas
-ARCHIVO_INPUT = Path(config_ext['modelos']['mr_prepago_cmr']['ms_access_input'])
+# Configuración de rutas (resolver_ruta maneja rutas relativas y absolutas)
+ARCHIVO_INPUT = cr.resolver_ruta(config_ext['modelos']['mr_prepago_cmr']['ms_access_input'])
 TABLA_INPUT = config_ext['modelos']['mr_prepago_cmr']['ms_access_tabla_input']
-ARCHIVO_OUTPUT_MODELO = Path(config_ext['modelos']['mr_prepago_cmr']['excel_output'])
-ARCHIVO_PARAMETROS = Path(config_ext['modelos']['mr_prepago_cmr']['excel_parametros_input'])
+ARCHIVO_OUTPUT_MODELO = cr.resolver_ruta(config_ext['modelos']['mr_prepago_cmr']['excel_output'])
+ARCHIVO_PARAMETROS = cr.resolver_ruta(config_ext['modelos']['mr_prepago_cmr']['excel_parametros_input'])
 
 
 

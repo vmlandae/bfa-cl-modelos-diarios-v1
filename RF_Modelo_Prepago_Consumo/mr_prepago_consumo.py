@@ -24,10 +24,10 @@ with open(cr.CONFIG / 'config_rutas_ext_y_archivos.yaml', 'r') as file:
     config_ext = yaml.safe_load(file)
 
 
-# Configuración de rutas
-RUTA_INTERFAZ_DE_DATOS = Path(config_ext['modelos']['mr_prepago_consumo']['interfaz_datos_input'])
-ARCHIVO_OUTPUT_MODELO = Path(config_ext['modelos']['mr_prepago_consumo']['excel_output'])
-ARCHIVO_PARAMETROS = Path(config_ext['modelos']['mr_prepago_consumo']['excel_parametros_input'])
+# Configuración de rutas (resolver_ruta maneja rutas relativas y absolutas)
+RUTA_INTERFAZ_DE_DATOS = cr.resolver_ruta(config_ext['modelos']['mr_prepago_consumo']['interfaz_datos_input'])
+ARCHIVO_OUTPUT_MODELO = cr.resolver_ruta(config_ext['modelos']['mr_prepago_consumo']['excel_output'])
+ARCHIVO_PARAMETROS = cr.resolver_ruta(config_ext['modelos']['mr_prepago_consumo']['excel_parametros_input'])
 
 
 

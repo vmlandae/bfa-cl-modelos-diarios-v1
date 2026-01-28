@@ -21,6 +21,28 @@ ML_MORA_CAE = BASE_DIR / 'RF_Modelo_Mora_CAE'
 ML_MORA_HIPOTECARIO = BASE_DIR / 'RF_Modelo_Mora_Hipotecario'
 ML_MORA_COMERCIAL = BASE_DIR / 'RF_Modelo_Mora_Comercial'
 
+
+def resolver_ruta(ruta: str) -> Path:
+    """
+    Resuelve una ruta que puede ser absoluta o relativa al proyecto.
+    
+    - Si la ruta es absoluta (empieza con letra de unidad o \\), la retorna tal cual
+    - Si la ruta es relativa, la resuelve desde BASE_DIR
+    
+    Args:
+        ruta: String con la ruta a resolver
+        
+    Returns:
+        Path: Ruta resuelta como objeto Path
+    """
+    path = Path(ruta)
+    # Si es ruta absoluta (Windows: C:\... o UNC: \\server\...)
+    if path.is_absolute() or ruta.startswith('\\\\'):
+        return path
+    # Si es relativa, resolver desde BASE_DIR
+    return BASE_DIR / path
+
+
 # Funciones
 def obtener_ruta_credenciales_gcp():
     return CREDENCIALES / 'bfa-cl-trade-price-report-dev-9d137fc23b7f.json'
