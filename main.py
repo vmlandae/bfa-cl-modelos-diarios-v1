@@ -14,6 +14,161 @@ from core.orquestador import OrquestadorModelos
 from gui.interfaz import InterfazModelos
 from gui.controladores import ControladorModelos
 
+
+def mostrar_tabla_resumen(orquestador, resultados_ejecucion: dict, resultados_carga: dict, incluir_carga: bool):
+    """
+    Muestra una tabla resumen con el estado de ejecución y carga de los modelos
+    
+    Args:
+        orquestador: Instancia del OrquestadorModelos
+        resultados_ejecucion: Dict con resultados de ejecución {modelo: bool}
+        resultados_carga: Dict con resultados de carga {tabla: bool}
+        incluir_carga: Si se debe mostrar la columna de carga GCP
+    """
+    # Mapeo de modelos a sus tablas (para relacionar resultados de carga)
+    MODELO_A_TABLAS = {
+        'mr_prepago_hipotecario': ['report_mr_prepago_hipotecario_dly'],
+        'mr_prepago_consumo': ['report_mr_prepago_consumo_dly'],
+        'mr_prepago_cmr': ['report_mr_prepago_cmr_dly'],
+        'ml_mora_consumo': ['report_ml_mora_consumo_dly', 'report_ml_mora_consumo_renegociado_dly'],
+        'ml_mora_cae': ['report_ml_mora_cae_dly'],
+        'ml_mora_hipotecario': ['report_ml_mora_hipotecario_dly'],
+        'ml_mora_comercial': ['report_ml_mora_comercial_dly'],
+        'ml_nmd': ['report_ml_nmd_dly'],
+    }
+    
+    print("\n")
+    print("=" * 80)
+    print(" " * 25 + "RESUMEN DE EJECUCION")
+    print("=" * 80)
+    
+    # Definir anchos de columna
+    col_modelo = 30
+    col_ejecucion = 15
+    col_carga = 15
+    
+    # Encabezado
+    if incluir_carga:
+        encabezado = f"{'MODELO':<{col_modelo}} | {'EJECUCION':^{col_ejecucion}} | {'CARGA GCP':^{col_carga}}"
+        separador = "-" * col_modelo + "-+-" + "-" * col_ejecucion + "-+-" + "-" * col_carga
+    else:
+        encabezado = f"{'MODELO':<{col_modelo}} | {'EJECUCION':^{col_ejecucion}}"
+        separador = "-" * col_modelo + "-+-" + "-" * col_ejecucion
+    
+    print(encabezado)
+    print(separador)
+    
+    # Contadores para resumen
+    total_modelos = len(resultados_ejecucion)
+    ejecuciones_exitosas = 0
+    cargas_exitosas = 0
+    total_tablas_cargadas = 0
+    
+    # Filas de datos
+    for modelo, exito_ejecucion in resultados_ejecucion.items():
+        nombre_modelo = orquestador.modelos.get(modelo, {}).get('nombre', modelo)
+        
+        # Estado de ejecución
+        estado_ejecucion = "OK" if exito_ejecucion else "ERROR"
+        if exito_ejecucion:
+            ejecuciones_exitosas += 1
+        
+        if incluir_carga:
+            # Determinar estado de carga para este modelo
+            tablas_modelo = MODELO_A_TABLAS.get(modelo, [])
+            
+            if not exito_ejecucion:
+                estado_carga = "NO EJECUTADO"
+            elif not tablas_modelo:
+                estado_carga = "SIN CONFIG"
+            else:
+                # Verificar si todas las tablas del modelo se cargaron correctamente
+                cargas_tablas = [resultados_carga.get(tabla, False) for tabla in tablas_modelo]
+                total_tablas_cargadas += len(tablas_modelo)
+                
+                if all(cargas_tablas):
+                    estado_carga = "OK"
+                    cargas_exitosas += sum(cargas_tablas)
+                elif any(cargas_tablas):
+                    estado_carga = "PARCIAL"
+                    cargas_exitosas += sum(cargas_tablas)
+                else:
+                    estado_carga = "ERROR"
+            
+            fila = f"{nombre_modelo:<{col_modelo}} | {estado_ejecucion:^{col_ejecucion}} | {estado_carga:^{col_carga}}"
+        else:
+            fila = f"{nombre_modelo:<{col_modelo}} | {estado_ejecucion:^{col_ejecucion}}"
+        
+        print(fila)
+    
+    print(separador)
+    
+    # Resumen de totales
+    print(f"\nTotales:")
+    print(f"  Modelos ejecutados: {ejecuciones_exitosas}/{total_modelos}")
+    if incluir_carga:
+        print(f"  Tablas cargadas a GCP: {cargas_exitosas}/{total_tablas_cargadas}")
+    
+    # Estado final
+    if incluir_carga:
+        exito_total = (ejecuciones_exitosas == total_modelos) and (cargas_exitosas == total_tablas_cargadas)
+    else:
+        exito_total = ejecuciones_exitosas == total_modelos
+    
+    estado_final = "COMPLETADO EXITOSAMENTE" if exito_total else "COMPLETADO CON ERRORES"
+    print(f"\nEstado final: {estado_final}")
+    print("=" * 80)
+
+
+def mostrar_tabla_consolidacion(resultados_consolidacion: dict):
+    """
+    Muestra una tabla resumen con el estado de consolidación histórica
+    
+    Args:
+        resultados_consolidacion: Dict con resultados de consolidación {tabla: bool}
+    """
+    print("\n")
+    print("=" * 80)
+    print(" " * 20 + "RESUMEN DE CONSOLIDACION HISTORICA")
+    print("=" * 80)
+    
+    # Definir anchos de columna
+    col_tabla = 45
+    col_estado = 18
+    
+    # Encabezado
+    encabezado = f"{'TABLA DESTINO':<{col_tabla}} | {'CONSOLIDACION':^{col_estado}}"
+    separador = "-" * col_tabla + "-+-" + "-" * col_estado
+    
+    print(encabezado)
+    print(separador)
+    
+    # Contadores para resumen
+    total_tablas = len(resultados_consolidacion)
+    consolidaciones_exitosas = 0
+    
+    # Filas de datos
+    for tabla, exito in resultados_consolidacion.items():
+        estado = "OK" if exito else "ERROR"
+        if exito:
+            consolidaciones_exitosas += 1
+        
+        fila = f"{tabla:<{col_tabla}} | {estado:^{col_estado}}"
+        print(fila)
+    
+    print(separador)
+    
+    # Resumen de totales
+    print(f"\nTotales:")
+    print(f"  Tablas consolidadas: {consolidaciones_exitosas}/{total_tablas}")
+    
+    # Estado final
+    exito_total = consolidaciones_exitosas == total_tablas
+    estado_final = "COMPLETADO EXITOSAMENTE" if exito_total else "COMPLETADO CON ERRORES"
+    print(f"\nEstado final: {estado_final}")
+    print("=" * 80)
+
+
 def ejecutar_modo_consola(args):
     try:
         fecha = datetime.strptime(args.fecha, '%Y-%m-%d')
@@ -34,7 +189,7 @@ def ejecutar_modo_consola(args):
     # Modo: Solo carga a GCP
     if args.solo_carga_gcp:
         print(f"\n{'='*60}")
-        print(f"MODO: SOLO CARGA A GCP")
+        print("MODO: SOLO CARGA A GCP")
         print(f"Fecha: {fecha.strftime('%Y-%m-%d')}")
         print(f"{'='*60}")
         
@@ -56,6 +211,28 @@ def ejecutar_modo_consola(args):
             print(f"{tabla}: {estado}")
         return
 
+    # Modo: Consolidar histórico
+    if args.consolidar_historico:
+        print(f"\n{'='*60}")
+        print("MODO: CONSOLIDACION HISTORICA")
+        print(f"Fecha: {fecha.strftime('%Y-%m-%d')}")
+        print(f"{'='*60}")
+        
+        # Expandir "todos" si se especificó
+        modelos_consolidar = args.consolidar_historico
+        if 'todos' in modelos_consolidar:
+            modelos_consolidar = [
+                key for key, config in orquestador.modelos.items()
+                if config.get("tiene_carga_gcp", False)
+            ]
+            print(f"Expandiendo 'todos' a: {', '.join(modelos_consolidar)}\n")
+        
+        resultados_consolidacion = orquestador.consolidar_historico_gcp(modelos_consolidar, fecha)
+        
+        # Mostrar tabla resumen de consolidación
+        mostrar_tabla_consolidacion(resultados_consolidacion)
+        return
+
     if not args.modelos:
         print("Error: Debe especificar --modelos, --solo-carga-gcp o usar --listar")
         return
@@ -71,11 +248,9 @@ def ejecutar_modo_consola(args):
     # Ejecutar modelos
     resultados = orquestador.ejecutar_modelos_paralelo(modelos_a_ejecutar, fecha)
     
-    print("\n=== Resumen de ejecución ===")
-    for modelo, exito in resultados.items():
-        estado = "ÉXITO" if exito else "ERROR"
-        print(f"{orquestador.modelos[modelo]['nombre']}: {estado}")
-
+    # Inicializar resultados de carga (vacío si no se carga a GCP)
+    resultados_carga = {}
+    
     # Cargar a GCP si se solicitó y hubo ejecuciones exitosas
     if args.cargar_gcp:
         modelos_exitosos = [modelo for modelo, exito in resultados.items() if exito]
@@ -86,14 +261,11 @@ def ejecutar_modo_consola(args):
             print(f"{'='*60}")
             
             resultados_carga = orquestador.cargar_modelos_gcp(modelos_exitosos, fecha)
-            
-            print("\n=== Resumen de carga a GCP ===")
-            for modelo, exito in resultados_carga.items():
-                estado = "ÉXITO" if exito else "ERROR"
-                nombre = orquestador.modelos.get(modelo, {}).get('nombre', modelo)
-                print(f"{nombre}: {estado}")
         else:
             print("\nNo hay modelos exitosos para cargar a GCP")
+    
+    # Mostrar tabla resumen final
+    mostrar_tabla_resumen(orquestador, resultados, resultados_carga, args.cargar_gcp)
 
 def ejecutar_modo_gui():
     root = tk.Tk()
@@ -124,6 +296,12 @@ Ejemplos de uso:
   # Solo cargar TODOS los modelos a GCP (sin ejecutar)
   python main.py --fecha 2025-11-28 --solo-carga-gcp todos
   
+  # Consolidar datos diarios en tablas históricas
+  python main.py --fecha 2025-11-28 --consolidar-historico mr_prepago_consumo
+  
+  # Consolidar TODOS los modelos en histórico
+  python main.py --fecha 2025-11-28 --consolidar-historico todos
+  
   # Modo GUI
   python main.py --gui
   
@@ -138,6 +316,8 @@ Ejemplos de uso:
     parser.add_argument('--cargar-gcp', action='store_true', help='Cargar resultados a BigQuery después de ejecutar')
     parser.add_argument('--solo-carga-gcp', type=str, nargs='+', metavar='MODELO',
                        help='Solo cargar modelos a GCP sin ejecutarlos')
+    parser.add_argument('--consolidar-historico', type=str, nargs='+', metavar='MODELO',
+                       help='Consolidar datos diarios en tablas históricas de BigQuery')
     args = parser.parse_args()
 
     if args.gui:

@@ -128,6 +128,49 @@ class OrquestadorModelos:
             print(f"Detalles del error: {traceback.format_exc()}")
             return {}
 
+    def consolidar_historico_gcp(self, modelos_a_consolidar: List[str], fecha: datetime) -> Dict[str, bool]:
+        """
+        Consolida los datos diarios en las tablas históricas de BigQuery
+        
+        Args:
+            modelos_a_consolidar: Lista de códigos de modelos a consolidar
+            fecha: Fecha de proceso
+            
+        Returns:
+            dict: Diccionario con los resultados de cada consolidación {tabla: bool}
+        """
+        try:
+            # Importar el módulo de consolidación histórica
+            from carga_modelos_gcp.cargar_output_modelos_bigquery_hist import consolidar_historico_bigquery
+            
+            # Filtrar solo modelos que tienen configuración de carga GCP
+            modelos_con_carga = [
+                modelo for modelo in modelos_a_consolidar 
+                if modelo in self.modelos and self.modelos[modelo].get("tiene_carga_gcp", False)
+            ]
+            
+            if not modelos_con_carga:
+                print("Ninguno de los modelos seleccionados tiene configuración de consolidación histórica")
+                return {}
+            
+            print(f"\n{'='*60}")
+            print("CONSOLIDACION HISTORICA EN BIGQUERY")
+            print(f"Modelos seleccionados: {', '.join([self.modelos[m]['nombre'] for m in modelos_con_carga])}")
+            print(f"{'='*60}\n")
+            
+            # Ejecutar consolidación
+            resultados_tablas = consolidar_historico_bigquery(fecha, modelos_con_carga)
+            
+            return resultados_tablas
+            
+        except ImportError as e:
+            print(f"Error al importar módulo de consolidación histórica: {str(e)}")
+            return {}
+        except Exception as e:
+            print(f"Error en consolidación histórica: {str(e)}")
+            print(f"Detalles del error: {traceback.format_exc()}")
+            return {}
+
     def ejecutar_modelo_secuencial(self, nombre_modelo: str, fecha: datetime) -> Dict[str, bool]:
         """Ejecuta un único modelo de forma secuencial"""
         print(f"Iniciando ejecución secuencial del modelo para fecha: {fecha.strftime('%Y-%m-%d')}")
@@ -194,6 +237,12 @@ Ejemplos de uso:
   # Solo cargar TODOS los modelos a GCP (sin ejecutar)
   python orquestador.py --fecha 2025-11-28 --solo-carga-gcp todos
   
+  # Consolidar datos diarios en tablas históricas
+  python orquestador.py --fecha 2025-11-28 --consolidar-historico mr_prepago_consumo
+  
+  # Consolidar TODOS los modelos en histórico
+  python orquestador.py --fecha 2025-11-28 --consolidar-historico todos
+  
   # Listar modelos disponibles
   python orquestador.py --listar
         """
@@ -204,6 +253,8 @@ Ejemplos de uso:
     parser.add_argument('--cargar-gcp', action='store_true', help='Cargar resultados a BigQuery después de ejecutar')
     parser.add_argument('--solo-carga-gcp', type=str, nargs='+', metavar='MODELO', 
                        help='Solo cargar modelos a GCP sin ejecutarlos')
+    parser.add_argument('--consolidar-historico', type=str, nargs='+', metavar='MODELO',
+                       help='Consolidar datos diarios en tablas históricas de BigQuery')
     return parser.parse_args()
 
 def listar_modelos_disponibles(orquestador: OrquestadorModelos):
@@ -265,6 +316,32 @@ def main():
         for modelo, exito in resultados_carga.items():
             estado = "ÉXITO" if exito else "ERROR"
             print(f"{orquestador.modelos[modelo]['nombre']}: {estado}")
+        return
+
+    # Modo: Consolidar histórico
+    if args.consolidar_historico:
+        print(f"\n{'='*60}")
+        print("MODO: CONSOLIDACION HISTORICA")
+        print(f"Fecha: {fecha.strftime('%Y-%m-%d')}")
+        print(f"{'='*60}")
+        
+        # Expandir "todos" si se especificó
+        modelos_consolidar = args.consolidar_historico
+        if 'todos' in modelos_consolidar:
+            modelos_consolidar = [
+                key for key, config in orquestador.modelos.items()
+                if config.get("tiene_carga_gcp", False)
+            ]
+            print(f"Expandiendo 'todos' a: {', '.join(modelos_consolidar)}\n")
+        
+        resultados_consolidacion = orquestador.consolidar_historico_gcp(modelos_consolidar, fecha)
+        
+        print("\n" + "="*60)
+        print("RESUMEN DE CONSOLIDACION HISTORICA")
+        print("="*60)
+        for tabla, exito in resultados_consolidacion.items():
+            estado = "ÉXITO" if exito else "ERROR"
+            print(f"{tabla}: {estado}")
         return
 
     # Modo: Ejecutar modelos
