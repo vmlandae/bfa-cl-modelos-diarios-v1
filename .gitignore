@@ -102,3 +102,6 @@ test/
 # Archivos específicos del proyecto
 carga_modelos_gcp/cargar_output_modelos_bigquery_hist.py
 config/parametros_input_modelos.xlsx
+
+# archivos de excel con macros que no deben ser versionados: todos los archivos .xlsm
+*.xlsm
