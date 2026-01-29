@@ -252,7 +252,7 @@ def cargar_modelos_a_bigquery(fecha_proceso: datetime, modelos_a_cargar: list = 
                     tareas_a_ejecutar.append(tarea)
         
         if not tareas_a_ejecutar:
-            print(f"⚠️ Ninguno de los modelos especificados tiene configuración de carga: {modelos_a_cargar}")
+            print(f"Ninguno de los modelos especificados tiene configuración de carga: {modelos_a_cargar}")
             return {}
         
         # Mostrar qué tablas se cargarán
@@ -318,7 +318,7 @@ if __name__ == "__main__":
     # Mostrar resumen
     print("\n=== RESUMEN DE CARGAS ===")
     for tabla, exito in resultados.items():
-        estado = "✅ ÉXITO" if exito else "❌ ERROR"
+        estado = "ÉXITO" if exito else "ERROR"
         print(f"{tabla}: {estado}")
     
     sys.exit(0 if all(resultados.values()) else 1)
