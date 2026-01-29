@@ -13,56 +13,64 @@ class OrquestadorModelos:
                 "modulo": "RF_Modelo_Prepago_Consumo.mr_prepago_consumo",
                 "activado": True,
                 "orden": 1,
-                "tiene_carga_gcp": True
+                "tiene_carga_gcp": True,
+                "tiene_carga_gcp_historica": True
             },
             "mr_prepago_hipotecario": {
                 "nombre": "Modelo Prepago Hipotecario",
                 "modulo": "RF_Modelo_Prepago_Hipotecario.mr_prepago_hipotecario",
                 "activado": True,
                 "orden": 2,
-                "tiene_carga_gcp": True
+                "tiene_carga_gcp": True,
+                "tiene_carga_gcp_historica": True
             },
             "mr_prepago_cmr": {
                 "nombre": "Modelo Prepago CMR",
                 "modulo": "RF_Modelo_Prepago_CMR.mr_prepago_cmr",
                 "activado": True,
                 "orden": 3,
-                "tiene_carga_gcp": True
+                "tiene_carga_gcp": True,
+                "tiene_carga_gcp_historica": True
             },
             "ml_mora_consumo": {
                 "nombre": "Modelo Mora Consumo",
                 "modulo": "RF_Modelo_Mora_Consumo.ml_mora_consumo",
                 "activado": True,
                 "orden": 4,
-                "tiene_carga_gcp": True
+                "tiene_carga_gcp": True,
+                "tiene_carga_gcp_historica": True
             },
             "ml_mora_cae": {
                 "nombre": "Modelo Mora CAE",
                 "modulo": "RF_Modelo_Mora_CAE.ml_mora_cae",
                 "activado": True,
                 "orden": 5,
-                "tiene_carga_gcp": True
+                "tiene_carga_gcp": True,
+                "tiene_carga_gcp_historica": True
             },
             "ml_mora_hipotecario": {
                 "nombre": "Modelo Mora Hipotecario",
                 "modulo": "RF_Modelo_Mora_Hipotecario.ml_mora_hipotecario",
                 "activado": True,
                 "orden": 6,
-                "tiene_carga_gcp": True
+                "tiene_carga_gcp": True,
+                "tiene_carga_gcp_historica": True
             },
             "ml_mora_comercial": {
                 "nombre": "Modelo Mora Comercial",
                 "modulo": "RF_Modelo_Mora_Comercial.ml_mora_comercial",
                 "activado": True,
                 "orden": 7,
-                "tiene_carga_gcp": True
+                "tiene_carga_gcp": True,
+                "tiene_carga_gcp_historica": True
             },
             "ml_nmd": {
                 "nombre": "Modelo NMD",
                 "modulo": "RF_Modelo_NMD.ml_nmd",
                 "activado": True,
                 "orden": 8,
-                "tiene_carga_gcp": True
+                "tiene_carga_gcp": True,
+                "tiene_carga_gcp_historica": True
             }
         }
         
@@ -110,7 +118,7 @@ class OrquestadorModelos:
                 return {}
             
             print(f"\n{'='*60}")
-            print(f"CARGA A BIGQUERY (GCP)")
+            print("CARGA A BIGQUERY (GCP)")
             print(f"Modelos seleccionados: {', '.join([self.modelos[m]['nombre'] for m in modelos_con_carga])}")
             print(f"{'='*60}\n")
             
@@ -143,23 +151,23 @@ class OrquestadorModelos:
             # Importar el módulo de consolidación histórica
             from carga_modelos_gcp.cargar_output_modelos_bigquery_hist import consolidar_historico_bigquery
             
-            # Filtrar solo modelos que tienen configuración de carga GCP
-            modelos_con_carga = [
+            # Filtrar solo modelos que tienen configuración de carga GCP histórica
+            modelos_con_carga_historica = [
                 modelo for modelo in modelos_a_consolidar 
-                if modelo in self.modelos and self.modelos[modelo].get("tiene_carga_gcp", False)
+                if modelo in self.modelos and self.modelos[modelo].get("tiene_carga_gcp_historica", False)
             ]
             
-            if not modelos_con_carga:
+            if not modelos_con_carga_historica:
                 print("Ninguno de los modelos seleccionados tiene configuración de consolidación histórica")
                 return {}
             
             print(f"\n{'='*60}")
             print("CONSOLIDACION HISTORICA EN BIGQUERY")
-            print(f"Modelos seleccionados: {', '.join([self.modelos[m]['nombre'] for m in modelos_con_carga])}")
+            print(f"Modelos seleccionados: {', '.join([self.modelos[m]['nombre'] for m in modelos_con_carga_historica])}")
             print(f"{'='*60}\n")
             
             # Ejecutar consolidación
-            resultados_tablas = consolidar_historico_bigquery(fecha, modelos_con_carga)
+            resultados_tablas = consolidar_historico_bigquery(fecha, modelos_con_carga_historica)
             
             return resultados_tablas
             
@@ -294,7 +302,7 @@ def main():
     # Modo: Solo carga a GCP
     if args.solo_carga_gcp:
         print(f"\n{'='*60}")
-        print(f"MODO: SOLO CARGA A GCP")
+        print("MODO: SOLO CARGA A GCP")
         print(f"Fecha: {fecha.strftime('%Y-%m-%d')}")
         print(f"{'='*60}")
         
@@ -330,7 +338,7 @@ def main():
         if 'todos' in modelos_consolidar:
             modelos_consolidar = [
                 key for key, config in orquestador.modelos.items()
-                if config.get("tiene_carga_gcp", False)
+                if config.get("tiene_carga_gcp_historica", False)
             ]
             print(f"Expandiendo 'todos' a: {', '.join(modelos_consolidar)}\n")
         
