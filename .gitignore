@@ -52,7 +52,16 @@ ipython_config.py
 ~$*.xls
 *.tmp
 VARIACION_CARTERA_ML.xlsm
+
 ml_nmd_cc.xlsm
+ml_mora_cae_cc.xlsm
+ml_mora_comercial_cc.xlsm
+ml_mora_consumo_cc.xlsm
+ml_mora_renegociado_cc.xlsm
+ml_mora_hipotecario_cc.xlsm
+mr_prepago_cmr.xlsm
+mr_prepago_consumo.xlsm
+mr_prepago_hipotecario.xlsm
 
 # IDE
 .vscode/
