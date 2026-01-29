@@ -1,6 +1,5 @@
 import bfa_cl_utilidades as ut
 import datetime
-import os
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List
@@ -144,11 +143,11 @@ def consolidar_historico_por_tabla(fecha_a_procesar: datetime.datetime,
     
     if datos_existentes:
         print(f"DATOS YA EXISTEN en {destino_tabla} para la fecha {fecha_str}")
-        print(f"SUSPENDIENDO inserción para evitar duplicados")
+        print("SUSPENDIENDO inserción para evitar duplicados")
         print(f"--- {origen_tabla} OMITIDO ---\n")
         return
     
-    print(f"No hay datos existentes. Procediendo con la inserción...")
+    print("No hay datos existentes. Procediendo con la inserción...")
 
     # 2. Query de INSERCIÓN (Mover datos)
     sql_insert = f"""
