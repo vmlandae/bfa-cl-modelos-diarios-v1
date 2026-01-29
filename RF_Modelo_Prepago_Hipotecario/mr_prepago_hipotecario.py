@@ -24,10 +24,10 @@ with open(cr.CONFIG / 'config_rutas_ext_y_archivos.yaml', 'r') as file:
 # Importar utilidades
 # import HERRAMIENTAS.utilidades_bfal as ut
 
-# Configuración de rutas y archivos
-RUTA_INTERFAZ_DE_DATOS = Path(config_ext['modelos']['mr_prepago_hipotecario']['interfaz_datos_input'])
-ARCHIVO_OUTPUT_MODELO = Path(config_ext['modelos']['mr_prepago_hipotecario']['excel_output'])
-ARCHIVO_PARAMETROS = Path(config_ext['modelos']['mr_prepago_hipotecario']['excel_parametros_input'])
+# Configuración de rutas y archivos (resolver_ruta maneja rutas relativas y absolutas)
+RUTA_INTERFAZ_DE_DATOS = cr.resolver_ruta(config_ext['modelos']['mr_prepago_hipotecario']['interfaz_datos_input'])
+ARCHIVO_OUTPUT_MODELO = cr.resolver_ruta(config_ext['modelos']['mr_prepago_hipotecario']['excel_output'])
+ARCHIVO_PARAMETROS = cr.resolver_ruta(config_ext['modelos']['mr_prepago_hipotecario']['excel_parametros_input'])
 
 
 def lectura_parametros_modelo() -> Dict[str, Any]:

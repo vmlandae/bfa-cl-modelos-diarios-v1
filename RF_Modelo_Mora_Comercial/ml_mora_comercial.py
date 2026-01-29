@@ -23,10 +23,10 @@ with open(cr.CONFIG / 'config_rutas_ext_y_archivos.yaml', 'r') as file:
 
 
 
-# Configuración de rutas
-RUTA_INTERFAZ_DE_DATOS = Path(config_ext['modelos']['ml_mora_comercial']['interfaz_datos_input'])
-RUTA_PARAMETOS_MORA_COMERCIAL = Path(config_ext['modelos']['ml_mora_comercial']['excel_parametros_input'])
-RUTA_OUTPUT_MODELO = Path(config_ext['modelos']['ml_mora_comercial']['excel_output'])
+# Configuración de rutas (resolver_ruta maneja rutas relativas y absolutas)
+RUTA_INTERFAZ_DE_DATOS = cr.resolver_ruta(config_ext['modelos']['ml_mora_comercial']['interfaz_datos_input'])
+RUTA_PARAMETOS_MORA_COMERCIAL = cr.resolver_ruta(config_ext['modelos']['ml_mora_comercial']['excel_parametros_input'])
+RUTA_OUTPUT_MODELO = cr.resolver_ruta(config_ext['modelos']['ml_mora_comercial']['excel_output'])
 
 
 def lectura_parametros_modelo():
