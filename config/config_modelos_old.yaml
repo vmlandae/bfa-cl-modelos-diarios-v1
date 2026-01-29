@@ -1,0 +1,41 @@
+# Configuración de modelos legacy (no implementados en Python)
+# Estos modelos se ejecutan en Excel/VBA y solo extraemos sus outputs
+
+# Configuración de GCP
+gcp:
+  proyecto_id: "bfa-cl-trade-price-report-dev"
+  dataset_id: "bfa_cl_prd_financial_risk_dly_proc_models"
+
+# Definición de modelos old
+# Cada modelo debe tener:
+#   - descripcion: Descripción del modelo
+#   - ruta_excel: Ruta al archivo Excel (puede ser ruta de red \\servidor\...)
+#   - hoja: Nombre de la hoja a extraer (por defecto "DESARROLLO")
+#   - tabla_bigquery: Nombre de la tabla destino en BigQuery
+#   - activo: true/false para activar/desactivar la carga
+
+modelos_old:
+  
+  # EJEMPLO - Descomenta y modifica según tus necesidades
+  # mr_prepago_ejemplo:
+  #   descripcion: "Modelo de prepago ejemplo (legacy)"
+  #   ruta_excel: "\\\\vmdvorak\\Riesgo Financiero Folder\\ruta\\al\\archivo.xlsm"
+  #   hoja: "DESARROLLO"
+  #   tabla_bigquery: "report_mr_prepago_ejemplo_dly"
+  #   activo: true
+  
+  # ml_mora_ejemplo:
+  #   descripcion: "Modelo de mora ejemplo (legacy)"
+  #   ruta_excel: "\\\\vmdvorak\\Riesgo Financiero2\\ruta\\al\\archivo.xlsm"
+  #   hoja: "DESARROLLO"
+  #   tabla_bigquery: "report_ml_mora_ejemplo_dly"
+  #   activo: false  # Desactivado por ahora
+
+# ============================================================================
+# INSTRUCCIONES DE USO:
+# ============================================================================
+# 1. Agrega cada modelo legacy con su configuración correspondiente
+# 2. Ejecuta: python carga_modelos_old/cargar_modelos_old.py YYYY-MM-DD
+# 3. Para listar modelos: python carga_modelos_old/cargar_modelos_old.py --listar
+# 4. Para solo DuckDB: python carga_modelos_old/cargar_modelos_old.py YYYY-MM-DD --solo-duckdb
+# ============================================================================
