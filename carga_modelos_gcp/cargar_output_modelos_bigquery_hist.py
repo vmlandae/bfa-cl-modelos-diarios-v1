@@ -12,6 +12,10 @@ MAX_WORKERS = 5
 RUTA_CUENTA_SERVICIO_GCP = cr.obtener_ruta_credenciales_gcp()
 PROJECT_ID = "bfa-cl-trade-price-report-dev"
 
+lector_trade_dev = ut.LectorBigQuery(tipo_conexion='cuenta_servicio', 
+                                     archivo_credenciales_json=RUTA_CUENTA_SERVICIO_GCP,
+                                     proyecto_id='bfa-cl-trade-price-report-dev')
+
 def verificar_datos_existentes(ruta_servicio: str, tabla_completa: str, columna_fecha: str, fecha: str) -> bool:
     """
     Verifica si ya existen datos en la tabla de destino para la fecha especificada
@@ -32,12 +36,8 @@ def verificar_datos_existentes(ruta_servicio: str, tabla_completa: str, columna_
     """
     
     try:
-        resultado = ut.ejecutar_query_bigquery(ruta_servicio, sql_verificacion)
-        # Si la función devuelve -1, hubo un error
-        if resultado == -1:
-            print(f"ADVERTENCIA: Error al verificar datos existentes en {tabla_completa}")
-            return True  # Por seguridad, asumimos que existen datos
-        
+        # resultado = ut.ejecutar_query_bigquery(ruta_servicio, sql_verificacion)
+        resultado = lector_trade_dev.leer_a_dataframe(sql_verificacion).iloc[0]['total_registros']
         # Si el resultado es mayor a 0, ya existen datos
         return resultado > 0
     except Exception as e:
@@ -107,6 +107,13 @@ CONFIGURACION_CONSOLIDACION = [
         "ORIGEN_TABLA": "report_ml_nmd_dly",
         "DESTINO_DATASET": "bfa_cl_prd_financial_risk_dly_proc_models_hist",
         "DESTINO_TABLA": "report_ml_nmd_hist",
+        "COLUMNA_FECHA_PARTICION": "FECHA_PROCESO"
+    },
+        {
+        "ORIGEN_DATASET": "bfa_cl_prd_financial_risk_dly_proc_models",
+        "ORIGEN_TABLA": "report_ml_lc_dly",
+        "DESTINO_DATASET": "bfa_cl_prd_financial_risk_dly_proc_models_hist",
+        "DESTINO_TABLA": "report_ml_lc_hist",
         "COLUMNA_FECHA_PARTICION": "FECHA_PROCESO"
     },
     
@@ -197,6 +204,7 @@ def consolidar_historico_bigquery(fecha_proceso: datetime.datetime, modelos_a_co
         'ml_mora_hipotecario': ['report_ml_mora_hipotecario_dly'],
         'ml_mora_comercial': ['report_ml_mora_comercial_dly'],
         'ml_nmd': ['report_ml_nmd_dly'],
+        'ml_lc': ['report_ml_lc_dly'],
     }
 
     # Filtrar configuraciones según los modelos solicitados

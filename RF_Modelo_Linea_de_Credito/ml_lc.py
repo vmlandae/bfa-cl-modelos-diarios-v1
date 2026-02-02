@@ -91,9 +91,10 @@ def cargar_ml_lc_egreso(fecha_proceso: datetime):
     ml_lc_egreso = pd.read_excel(RUTA_PARAMETROS_LC, sheet_name="LC_EGRESO")
     ml_lc_egreso
     ml_lc_egreso['FECHA_PROCESO'] = fecha_proceso
-    ml_lc_egreso['FECHA_VENCIMIENTO_CUOTA'] = ml_lc_egreso['FECHA_PROCESO'] + pd.to_timedelta(ml_lc_egreso['FECHA_INICIO_CUOTA'], unit='D')
+    ml_lc_egreso['FECHA_VENCIMIENTO_CUOTA'] = ml_lc_egreso['FECHA_PROCESO'] + pd.to_timedelta(ml_lc_egreso['DIAS_AL_VENCIMIENTO_BORRAR'], unit='D')
     ml_lc_egreso['FECHA_PAGO'] = ml_lc_egreso['FECHA_VENCIMIENTO_CUOTA']
     ml_lc_egreso['FECHA_REPRICING'] = ml_lc_egreso['FECHA_VENCIMIENTO_CUOTA']
+    ml_lc_egreso = ml_lc_egreso.drop(columns=['DIAS_AL_VENCIMIENTO_BORRAR'])
     print(f"        - {len(ml_lc_egreso):,} registros de egreso procesados")
     print("          ✓ Datos de egreso LC procesados exitosamente")
     return ml_lc_egreso
@@ -169,7 +170,7 @@ def calculo_estimacion_modelo(datos_modelo: pd.DataFrame, fecha_proceso: datetim
         flujo_total_mo = datos_producto['FLUJO_MO'].values[0]
         z_95 = norm.ppf(0.95)
 
-        print(f"          • Parámetros del modelo cargados:")
+        print("          • Parámetros del modelo cargados:")
         print(f"            - Flujo total MO: {flujo_total_mo:,.2f}")
         print(f"            - Gamma_1: {gamma_1:.6f}, Delta_1: {delta_1:.6f}")
         print(f"            - Gamma_2: {gamma_2:.6f}, Delta_2: {delta_2:.6f}")
@@ -182,7 +183,7 @@ def calculo_estimacion_modelo(datos_modelo: pd.DataFrame, fecha_proceso: datetim
 
         factor_decaimiento = np.maximum(0, decay_rate + z_95 * decay_rate_acurracy)
         
-        print(f"          • Factores base calculados:")
+        print("          • Factores base calculados:")
         print(f"            - Factor mensual hoy: {factor_mensual_hoy:.6f}")
         print(f"            - Factor bisemanal hoy: {factor_bisemanal_hoy:.6f}")
         print(f"            - Factor decaimiento: {factor_decaimiento:.6f}")
@@ -269,7 +270,7 @@ def tabla_desarrollo_modelo(datos_modelo: pd.DataFrame, fecha_proceso: datetime)
     "COD_ACT/PAS": saldos_modelo["COD_ACT/PAS"],
     "MONEDA_ORIGEN": ['CLP']* num_registros,
     "MONEDA_COMPENSACION": ["CLP"] * num_registros,
-    "COMPENSACION": ["E"] * num_registros,
+    "COMPENSACION": [np.nan] * num_registros,
     "CODIGO_PRODUCTO": saldos_modelo["CODIGO_PRODUCTO"],
     "CODIGO_SUBPRODUCTO": saldos_modelo["CODIGO_SUBPRODUCTO"],
     "FECHA_CREACION": [np.nan] * num_registros,
