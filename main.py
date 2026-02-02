@@ -255,7 +255,8 @@ def ejecutar_modo_consola(args):
         # Segunda vuelta: mr_prepago_cmr, ml_nmd
         modelos_a_ejecutar = [
             'mr_prepago_cmr',
-            'ml_nmd'
+            'ml_nmd',
+            'ml_lc'
         ]
 
     print(f"\nFecha de ejecución: {fecha.strftime('%Y-%m-%d')}")
