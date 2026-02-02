@@ -12,9 +12,9 @@ MAX_WORKERS = 5
 RUTA_CUENTA_SERVICIO_GCP = cr.obtener_ruta_credenciales_gcp()
 PROJECT_ID = "bfa-cl-trade-price-report-dev"
 
-lector_trade_dev = ut.LectorBigQuery(tipo_conexion='cuenta_servicio', 
+lector_trade_dev = ut.LectorBigQuery(tipo_conexion="cuenta_servicio",
                                      archivo_credenciales_json=RUTA_CUENTA_SERVICIO_GCP,
-                                     proyecto_id='bfa-cl-trade-price-report-dev')
+                                     proyecto_id=PROJECT_ID)
 
 def verificar_datos_existentes(ruta_servicio: str, tabla_completa: str, columna_fecha: str, fecha: str) -> bool:
     """

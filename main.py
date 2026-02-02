@@ -241,6 +241,22 @@ def ejecutar_modo_consola(args):
     modelos_a_ejecutar = args.modelos
     if 'todos' in modelos_a_ejecutar:
         modelos_a_ejecutar = list(orquestador.modelos.keys())
+    elif 'primera_vuelta' in modelos_a_ejecutar:
+        # Primera vuelta: mr_prepago_consumo, mr_prepago_hipotecario, ml_mora_*
+        modelos_a_ejecutar = [
+            'mr_prepago_consumo',
+            'mr_prepago_hipotecario',
+            'ml_mora_consumo',
+            'ml_mora_cae',
+            'ml_mora_hipotecario',
+            'ml_mora_comercial'
+        ]
+    elif 'segunda_vuelta' in modelos_a_ejecutar:
+        # Segunda vuelta: mr_prepago_cmr, ml_nmd
+        modelos_a_ejecutar = [
+            'mr_prepago_cmr',
+            'ml_nmd'
+        ]
 
     print(f"\nFecha de ejecución: {fecha.strftime('%Y-%m-%d')}")
     print(f"Modelos seleccionados: {', '.join(modelos_a_ejecutar)}")
@@ -290,6 +306,12 @@ Ejemplos de uso:
   
   # Ejecutar todos los modelos y cargar
   python main.py --fecha 2025-11-28 --modelos todos --cargar-gcp
+  
+  # Ejecutar primera vuelta (mr_prepago_consumo, mr_prepago_hipotecario, ml_mora_*)
+  python main.py --fecha 2025-11-28 --modelos primera_vuelta --cargar-gcp
+  
+  # Ejecutar segunda vuelta (mr_prepago_cmr, ml_nmd)
+  python main.py --fecha 2025-11-28 --modelos segunda_vuelta --cargar-gcp
   
   # Solo cargar modelos específicos a GCP (sin ejecutar)
   python main.py --fecha 2025-11-28 --solo-carga-gcp mr_prepago_consumo mr_prepago_hipotecario
