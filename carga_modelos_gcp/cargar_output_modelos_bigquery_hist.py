@@ -12,6 +12,10 @@ MAX_WORKERS = 5
 RUTA_CUENTA_SERVICIO_GCP = cr.obtener_ruta_credenciales_gcp()
 PROJECT_ID = "bfa-cl-trade-price-report-dev"
 
+lector_trade_dev = ut.LectorBigQuery(tipo_conexion="cuenta_servicio",
+                                     archivo_credenciales_json=RUTA_CUENTA_SERVICIO_GCP,
+                                     proyecto_id=PROJECT_ID)
+
 def verificar_datos_existentes(ruta_servicio: str, tabla_completa: str, columna_fecha: str, fecha: str) -> bool:
     """
     Verifica si ya existen datos en la tabla de destino para la fecha especificada
@@ -32,11 +36,9 @@ def verificar_datos_existentes(ruta_servicio: str, tabla_completa: str, columna_
     """
     
     try:
-        resultado = ut.ejecutar_query_bigquery(ruta_servicio, sql_verificacion)
-        # Si la función devuelve -1, hubo un error
-        if resultado == -1:
-            print(f"ADVERTENCIA: Error al verificar datos existentes en {tabla_completa}")
-            return True  # Por seguridad, asumimos que existen datos
+        # resultado = ut.ejecutar_query_bigquery(ruta_servicio, sql_verificacion)
+        resultado = lector_trade_dev.leer_a_dataframe(sql_verificacion)
+        resultado = resultado['total_registros'].iloc[0]
         
         # Si el resultado es mayor a 0, ya existen datos
         return resultado > 0
