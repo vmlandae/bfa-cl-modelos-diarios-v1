@@ -85,6 +85,10 @@ xlrd==2.0.2
 zipp==3.23.0
 zope.interface==8.1.1
 
+# Documentación
+mkdocs==1.6.1
+mkdocs-material==9.6.12
+
 # Dependencia interna (instalar manualmente o agregar a tu repositorio)
 # bfa-cl-utilidades @ git+https://gitlab.falabella.tech/rmunozb/bfa-cl-utilidades.git
 # pero instalaremos una versión local para evitar problemas de acceso, 
