@@ -35,6 +35,7 @@ def mostrar_tabla_resumen(orquestador, resultados_ejecucion: dict, resultados_ca
         'ml_mora_hipotecario': ['report_ml_mora_hipotecario_dly'],
         'ml_mora_comercial': ['report_ml_mora_comercial_dly'],
         'ml_nmd': ['report_ml_nmd_dly'],
+        'ml_lc': ['report_ml_lc_dly'],
     }
     
     print("\n")
@@ -104,7 +105,7 @@ def mostrar_tabla_resumen(orquestador, resultados_ejecucion: dict, resultados_ca
     print(separador)
     
     # Resumen de totales
-    print(f"\nTotales:")
+    print("\nTotales:")
     print(f"  Modelos ejecutados: {ejecuciones_exitosas}/{total_modelos}")
     if incluir_carga:
         print(f"  Tablas cargadas a GCP: {cargas_exitosas}/{total_tablas_cargadas}")
@@ -159,7 +160,7 @@ def mostrar_tabla_consolidacion(resultados_consolidacion: dict):
     print(separador)
     
     # Resumen de totales
-    print(f"\nTotales:")
+    print("\nTotales:")
     print(f"  Tablas consolidadas: {consolidaciones_exitosas}/{total_tablas}")
     
     # Estado final

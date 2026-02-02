@@ -238,6 +238,15 @@ def cargar_modelos_a_bigquery(fecha_proceso: datetime, modelos_a_cargar: list = 
             'tipo_carga': "TRUNCATE",
             'modelo_origen': 'ml_nmd'  # Mismo modelo origen
         },
+        'ml_lc': {  # Clave única
+            'fecha_t': fecha_proceso,
+            'ruta_archivo': Path(config_ext['modelos']['ml_lc']['excel_output']),
+            'hoja_archivo': "DESARROLLO",
+            'tabla_respaldo': "report_ml_lc_dly",
+            'esquema_tabla': crear_esquema_base(),
+            'tipo_carga': "TRUNCATE",
+            'modelo_origen': 'ml_lc'  # Mismo modelo origen
+        },
     }
 
     # Filtrar tareas según los modelos solicitados
