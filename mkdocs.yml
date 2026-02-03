@@ -73,6 +73,7 @@ nav:
     - Mora Hipotecario: modelos/mora-hipotecario.md
     - Mora Comercial: modelos/mora-comercial.md
     - NMD: modelos/nmd.md
+    - Línea de Crédito: modelos/lc.md
   - Features:
     - Carga Modelos Old:
       - Diagnóstico: feats/carga-modelos-old/diagnostic.md

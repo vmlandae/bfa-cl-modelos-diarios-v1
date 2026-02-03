@@ -5,6 +5,28 @@ Registro de cambios y actualizaciones del proyecto BFA-CL Modelos Diarios.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0-dev] - 2026-02-03 - Incorporación del Modelo Línea de Crédito
+
+### Agregado
+- **Modelo de Línea de Crédito (LC)**: Nuevo modelo `RF_Modelo_Linea_de_Credito/ml_lc.py` implementado
+- **Funcionalidades del modelo LC**:
+  - Carga de datos de balance desde base de datos de gestión para líneas de crédito
+  - Cálculo de submodelo dinamico para factores estacionales mensuales y bisemanales
+  - Separación automática de flujos de ingreso (ACT) y egreso (PAS)
+  - Soporte para producto LC_CLP (Línea de Crédito en CLP)
+- **Plantilla Excel**: `ml_lc.xlsm` para cálculos y análisis del modelo
+- **Parámetros configurables**: Factores GAMMA_1, DELTA_1, GAMMA_2, DELTA_2, DECAY_RATE y DECAY_RATE_ACURRACY
+- **Validación de datos**: Verificación completa de datos iniciales y parámetros
+- **Documentación técnica completa**: Docstrings detallados para todas las funciones principales
+
+### Mejorado
+- **Arquitectura del sistema**: Mantenimiento de la interfaz unificada `ejecutar_modelo(fecha_proceso) -> bool`
+- **Documentación del proyecto**: README.md actualizado con estructura y descripción del modelo LC
+
+### Modificado
+- **Estructura del proyecto**: Incorporada carpeta `RF_Modelo_Linea_de_Credito/` con implementación completa
+- **Lista de modelos consolidados**: Actualizada para incluir RF_Modelo_Linea_de_Credito como el 9no modelo del sistema
+
 ## [1.3.0-dev] - 2026-01-03 - Incorporación del Modelo NMD
 
 ### Agregado
@@ -74,6 +96,8 @@ y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.h
 - ✅ **RF_Modelo_Prepago_CMR**: `mr_prepago_cmr.py`
 - ✅ **RF_Modelo_Prepago_Consumo**: `mr_prepago_consumo.py`
 - ✅ **RF_Modelo_Prepago_Hipotecario**: `mr_prepago_hipotecario.py`
+- ✅ **RF_Modelo_NMD**: `ml_nmd.py`
+- ✅ **RF_Modelo_Linea_de_Credito**: `ml_lc.py`
 
 ## [1.0.0-dev] - 2025-12-17 - Estado Inicial (En Desarrollo)
 

@@ -20,6 +20,8 @@ Este proyecto contiene la implementación de múltiples modelos de riesgo financ
 ### Modelos de No Maduración de Depósitos (NMD)
 - **ML NMD**: Modelado de flujos para productos de depósitos (DAP, Cuentas Corrientes, Cuentas Vista, Cuentas de Ahorro)
 
+### Modelos de Línea de Crédito
+- **ML LC**: Modelado de flujos para Líneas de Crédito. Considera dinamicas intrames y un decaimiento exponencial.
 Los modelos están diseñados para procesar datos en lotes, generar predicciones y cargar los resultados a BigQuery para su posterior análisis y reporting.
 
 ## Estructura del Proyecto
@@ -115,6 +117,14 @@ RF_Modelo_NMD/                  # Modelo de no maduración para productos de dep
 ├── ml_nmd.py                   # Implementación del modelo
 ├── ml_nmd_cc.xlsm             # Plantilla Excel para cálculos
 └── parametros/                 # Parámetros específicos del modelo
+```
+
+#### Modelos de Línea de Crédito
+```
+RF_Modelo_Linea_de_Credito/     # Modelo de línea de crédito
+├── ml_lc.py                    # Implementación del modelo
+├── ml_lc.xlsm                  # Plantilla Excel para cálculos
+└── parametros/                 # Parámetros específicos del modelo (GAMMA, DELTA, DECAY_RATE)
 ```
 
 ### 📁 Documentación

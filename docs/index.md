@@ -39,6 +39,7 @@ python main.py
 | `ml_mora_hipotecario` | Mora cartera hipotecaria | ✅ Activo |
 | `ml_mora_comercial` | Mora cartera comercial | ✅ Activo |
 | `ml_nmd` | Modelo NMD | ✅ Activo |
+| [`ml_lc`](modelos/lc.md) | Línea de Crédito | ✅ Activo |
 
 ## Estructura del Proyecto
 
