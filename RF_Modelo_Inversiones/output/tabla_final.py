@@ -148,12 +148,20 @@ def generar_precios_dia(
     resultado = df.loc[mask, ['Fecha', 'NEMOTECNICO', 'Instrumento', 'Precio_Mid']].copy()
     
     if verbose:
-        if len(resultado) > 0:
-            precio = resultado['Precio_Mid'].iloc[0]
-            print(f"  ✓ Precio {instrumento}: {precio:,.4f}")
+        if len(resultado) == 0:
+            print(f"  ⚠ No se encontraron precios para {instrumento} en {fecha.date()}")
         else:
-            print(f"  ⚠ No se encontró precio para {instrumento} en fecha {fecha}")
-    
+        # hagamos un print del precio de la UF y del USD del día
+        # esto es: NEMOTECNICO 'CLF' y 'USD'
+            print(f"  ✓ Precios encontrados: {len(resultado)} registros")
+            for nemotecnico in ['CLF', 'USD']:
+                precio = resultado.loc[resultado['NEMOTECNICO'] == nemotecnico, 'Precio_Mid']
+                if not precio.empty:
+                    print(f"    - {nemotecnico}: {precio.iloc[0]:,.4f}")
+                else:
+                    print(f"    - {nemotecnico}: No disponible")
+
+ 
     return resultado
 
 

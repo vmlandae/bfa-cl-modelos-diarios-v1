@@ -62,7 +62,7 @@ ml_mora_hipotecario_cc.xlsm
 mr_prepago_cmr.xlsm
 mr_prepago_consumo.xlsm
 mr_prepago_hipotecario.xlsm
-
+ml_lc.xlsm
 # IDE
 .vscode/
 .idea/
