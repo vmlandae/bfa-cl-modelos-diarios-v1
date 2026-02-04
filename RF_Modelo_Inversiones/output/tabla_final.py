@@ -277,6 +277,12 @@ def generar_cartera_garantias(
     
     df = df_base.copy()
     
+    # Verificar si df_base está vacío o sin columnas necesarias
+    if df.empty or 'Cod_Pro' not in df.columns:
+        if verbose:
+            print(f"    ⚠ Sin datos de cartera base")
+        return pd.DataFrame(columns=COLUMNAS_TABLA_FINAL)
+    
     # Filtrar por fecha de proceso
     if 'Fec_Pro' in df.columns:
         df['Fec_Pro'] = pd.to_datetime(df['Fec_Pro'])
@@ -377,7 +383,8 @@ def generar_cartera_pactos(
     
     df = df_pactos.copy()
     
-    if len(df) == 0:
+    # Verificar si df_pactos está vacío o sin columnas necesarias
+    if df.empty or 'Moneda' not in df.columns:
         if verbose:
             print(f"    ⚠ Sin pactos en cartera")
         return pd.DataFrame(columns=COLUMNAS_TABLA_FINAL)
