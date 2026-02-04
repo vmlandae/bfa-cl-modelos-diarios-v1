@@ -272,7 +272,7 @@ RF_Modelo_Inversiones/
 
 ---
 
-## Fase 4: Reorganizar Módulos
+## Fase 4: Reorganizar Módulos ✅ COMPLETADA
 
 ### 4.1 Estructura final de archivos
 
@@ -293,14 +293,14 @@ RF_Modelo_Inversiones/
 ├── pipeline/
 │   ├── __init__.py
 │   ├── cartera.py                 # genera_cartera_inv()
-│   ├── haircut.py                 # Funciones de haircut
-│   ├── liquidacion.py             # calcular_flujo_liquidacion()
+│   ├── haircut.py                 # ✅ Funciones de haircut
+│   ├── liquidacion.py             # ✅ calcular_flujo_liquidacion()
 │   ├── agregaciones.py            # agregar_por_columnas()
-│   └── orquestador.py             # generar_flujo_liquidacion_instrumento()
+│   └── orquestador.py             # ✅ generar_flujo_liquidacion_instrumento()
 │
 ├── output/
 │   ├── __init__.py
-│   └── tabla_final.py             # Generador de tabla final
+│   └── tabla_final.py             # Generador de tabla final (pendiente)
 │
 ├── dev/                           # Notebooks y archivos de desarrollo
 │   ├── helpers.py                 # DEPRECADO - mantener por compatibilidad
@@ -309,43 +309,68 @@ RF_Modelo_Inversiones/
 │
 └── tests/
     ├── __init__.py
-    ├── test_config.py
-    ├── test_cache.py
-    ├── test_cartera.py
-    └── test_liquidacion.py
+    ├── test_config_instrumentos.py # ✅ 48 tests
+    ├── test_cache.py               # ✅ 22 tests
+    ├── test_cartera.py             # ✅ 18 tests
+    ├── test_agregaciones.py        # ✅ 18 tests
+    ├── test_haircut.py             # ✅ 17 tests
+    ├── test_liquidacion.py         # ✅ 19 tests
+    └── test_orquestador.py         # ✅ 16 tests
 ```
 
 ### 4.2 Tasks de migración por módulo
 
-#### Task 4.2.1: Crear `pipeline/haircut.py`
-- [ ] Mover `generar_cartera_haircut()`
-- [ ] Mover `generar_haircut_dia()`
-- [ ] Mover `agregar_dia_semana()`
-- [ ] Mover `combinar_haircut_con_pactos()`
-- [ ] Mover `filtrar_monto_liquidar()`
-- [ ] Actualizar imports
+#### Task 4.2.1: Crear `pipeline/haircut.py` ✅
+- [x] Mover `generar_cartera_haircut()` - ~90 líneas
+- [x] Mover `generar_haircut_dia()` - ~40 líneas
+- [x] Mover `agregar_dia_semana()` - ~60 líneas
+- [x] Mover `combinar_haircut_con_pactos()` - ~45 líneas
+- [x] Mover `filtrar_monto_liquidar()` - ~35 líneas
+- [x] Actualizar imports en `pipeline/__init__.py`
+- [x] **17 tests en test_haircut.py**
 
-#### Task 4.2.2: Crear `pipeline/liquidacion.py`
-- [ ] Mover `calcular_flujo_liquidacion()`
-- [ ] Mover `generar_cartera_pond()`
-- [ ] Mover `generar_cartera_instrumento()`
-- [ ] Mover `generar_monto_total_instrumento()` (o usar `agregar_por_columnas`)
-- [ ] Actualizar imports
+#### Task 4.2.2: Crear `pipeline/liquidacion.py` ✅
+- [x] Mover `calcular_flujo_liquidacion()` - ~140 líneas
+- [x] Mover `generar_cartera_pond()` - ~60 líneas
+- [x] Mover `generar_cartera_instrumento()` - ~50 líneas
+- [x] Mover `generar_monto_total_instrumento()` - ~45 líneas
+- [x] Agregar constantes COLUMNAS_CARTERA_DISP/PACTO
+- [x] Agregar alias deprecado `monto_liq_gob_clp()`
+- [x] **19 tests en test_liquidacion.py**
 
-#### Task 4.2.3: Crear `pipeline/orquestador.py`
-- [ ] Mover `generar_flujo_liquidacion_instrumento()`
-- [ ] Actualizar para importar desde otros módulos
-- [ ] Actualizar para usar `config.instrumentos`
+#### Task 4.2.3: Crear `pipeline/orquestador.py` ✅
+- [x] Mover `generar_flujo_liquidacion_instrumento()` - ~200 líneas
+- [x] Agregar `_obtener_config_instrumento()` con fallback
+- [x] Agregar `listar_tipos_instrumento()`
+- [x] Agregar `CONFIGURACION_INSTRUMENTOS_FALLBACK` para 6 instrumentos
+- [x] Integración con `config/instrumentos.py` (prioridad) o fallback local
+- [x] Pipeline de 10 pasos orquestado
+- [x] **16 tests en test_orquestador.py**
 
-#### Task 4.2.4: Crear `output/tabla_final.py`
+#### Task 4.2.4: Crear `output/tabla_final.py` (PENDIENTE)
 - [ ] Mover contenido de `generador_tabla_final.py`
 - [ ] Actualizar para importar desde `config/`
 - [ ] Actualizar para importar desde `pipeline/`
 
-#### Criterios de Validación 4.2:
-- [ ] Cada módulo importa correctamente
-- [ ] No hay imports circulares
-- [ ] `python -c "from RF_Modelo_Inversiones.pipeline import orquestador"` funciona
+#### Criterios de Validación 4.2 ✅:
+- [x] Cada módulo importa correctamente
+- [x] No hay imports circulares
+- [x] `python -c "from RF_Modelo_Inversiones.pipeline import orquestador"` funciona
+- [x] **158 tests totales pasando**
+
+### Archivos Creados Fase 4
+```
+RF_Modelo_Inversiones/
+├── pipeline/
+│   ├── __init__.py           # Actualizado con nuevos exports (~25 funciones)
+│   ├── haircut.py            # ~400 líneas, 5 funciones de haircut
+│   ├── liquidacion.py        # ~397 líneas, 4 funciones + constantes + alias
+│   └── orquestador.py        # ~409 líneas, pipeline principal parametrizado
+└── tests/
+    ├── test_haircut.py       # 17 tests
+    ├── test_liquidacion.py   # 19 tests
+    └── test_orquestador.py   # 16 tests
+```
 
 ---
 
