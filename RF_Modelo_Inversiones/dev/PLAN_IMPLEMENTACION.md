@@ -19,10 +19,10 @@ refactorizaciones que deben ser validadas antes de merge a `main`.
 | Fase 1: Centralizar Configuración | ✅ Completada | 100% | 48 tests |
 | Fase 2: Refactorizar Cache | ✅ Completada | 100% | 22 tests |
 | Fase 3: Unificar Cartera | ✅ Completada | 100% | 36 tests |
-| Fase 4: Reorganizar Módulos | ⬜ Pendiente | 0% | - |
-| Fase 5: Integración y Tests | 🔄 En progreso | 100% (106 tests) | 106 tests |
+| Fase 4: Reorganizar Módulos | ✅ Completada | 100% | 74 tests |
+| Fase 5: Integración y Tests | 🔄 En progreso | - | - |
 
-**Total tests: 106 pasando** ✅
+**Total tests: 180 pasando** ✅
 
 ---
 
@@ -347,16 +347,26 @@ RF_Modelo_Inversiones/
 - [x] Pipeline de 10 pasos orquestado
 - [x] **16 tests en test_orquestador.py**
 
-#### Task 4.2.4: Crear `output/tabla_final.py` (PENDIENTE)
-- [ ] Mover contenido de `generador_tabla_final.py`
-- [ ] Actualizar para importar desde `config/`
-- [ ] Actualizar para importar desde `pipeline/`
+#### Task 4.2.4: Crear `output/tabla_final.py` ✅
+- [x] Implementar `generar_precios_dia()` - Paso 20 (filtrar TCRC)
+- [x] Implementar `formatear_flujo_instrumento()` - Formatear al esquema final
+- [x] Implementar `generar_cartera_garantias()` - Extraer garantías de RF_PLI_001b
+- [x] Implementar `generar_cartera_pactos()` - Formatear pactos FB
+- [x] Implementar `generar_tabla_final_inversiones()` - Paso 21 (UNION ALL)
+- [x] Implementar `agregar_precio_y_flujo_clp()` - Paso 23 (JOIN precios, CLF→CLP)
+- [x] Implementar `extraer_cartera_especial()` - Pasos 24-26 (FFMM, HTM, RT)
+- [x] Implementar `generar_tabla_desarrollo_completa()` - Consolidar pasos 22-26
+- [x] Implementar `formatear_para_excel()` - Paso 27 (renombrar columnas)
+- [x] Implementar `ejecutar_pasos_20_a_27()` - Wrapper completo
+- [x] Agregar constantes: COLUMNAS_TABLA_FINAL, COLUMNAS_TABLA_DESARROLLO, MAPEO_COLUMNAS_EXCEL
+- [x] **22 tests en test_tabla_final.py**
 
 #### Criterios de Validación 4.2 ✅:
 - [x] Cada módulo importa correctamente
 - [x] No hay imports circulares
 - [x] `python -c "from RF_Modelo_Inversiones.pipeline import orquestador"` funciona
-- [x] **158 tests totales pasando**
+- [x] `python -c "from RF_Modelo_Inversiones.output import tabla_final"` funciona
+- [x] **180 tests totales pasando**
 
 ### Archivos Creados Fase 4
 ```
@@ -366,10 +376,14 @@ RF_Modelo_Inversiones/
 │   ├── haircut.py            # ~400 líneas, 5 funciones de haircut
 │   ├── liquidacion.py        # ~397 líneas, 4 funciones + constantes + alias
 │   └── orquestador.py        # ~409 líneas, pipeline principal parametrizado
+├── output/
+│   ├── __init__.py           # Exports de tabla_final.py
+│   └── tabla_final.py        # ~865 líneas, 10 funciones (pasos 20-27)
 └── tests/
     ├── test_haircut.py       # 17 tests
     ├── test_liquidacion.py   # 19 tests
-    └── test_orquestador.py   # 16 tests
+    ├── test_orquestador.py   # 16 tests
+    └── test_tabla_final.py   # 22 tests
 ```
 
 ---
