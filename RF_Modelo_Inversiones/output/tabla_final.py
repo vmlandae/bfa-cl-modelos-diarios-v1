@@ -420,11 +420,216 @@ def generar_cartera_pactos(
     return resultado
 
 
+# =============================================================================
+# FUNCIONES PARA PACTOS FUERA DE PLAZO (>90 DÍAS)
+# =============================================================================
+
+# Mapeo de instrumentos a sufijos de código de sub-producto
+_MAPEO_INSTRUMENTO_PACTO: Dict[str, tuple] = {
+    'GobCLP': ('CLP', '_GOBCLP'),
+    'GobCLF': ('CLF', '_GOBCLF'),
+    'DPF': ('CLP', '_DPFCLP'),
+    'DPR': ('CLF', '_DPRCLF'),
+    'BBC': ('CLP', '_CORPCLP'),
+    'LCH': ('CLF', '_LCHR'),
+}
+"""Mapeo instrumento -> (moneda, sufijo_cod_sub_pro) para pactos fuera de plazo."""
+
+# Umbral de días para considerar pacto "fuera de plazo"
+UMBRAL_DIAS_PACTO: int = 90
+"""Pactos con Dias_Pacto > 90 no entran en modelo de liquidación, van directo a tabla final."""
+
+
+def generar_monto_fuera_plazo_instrumento(
+    df_cartera_pacto: pd.DataFrame,
+    instrumento: Literal['GobCLP', 'GobCLF', 'DPF', 'DPR', 'BBC', 'LCH'],
+    umbral_dias: int = UMBRAL_DIAS_PACTO,
+    verbose: bool = False
+) -> pd.DataFrame:
+    """
+    Filtra pactos fuera de plazo (>umbral_dias) para un instrumento específico.
+    
+    Implementa la lógica de queries RF_PLI_XXXc_Monto_FueraPlazo donde:
+    - XXX = 008 (GobCLP), 015 (GobCLF), 022 (DPF), 029 (DPR), 036 (LCH), 043 (BBC)
+    
+    SQL de referencia (ejemplo GobCLP):
+        SELECT Moneda, Dias_Pacto, Sum(Monto) AS Monto
+        FROM RF_PLI_008b_MontoPlazo_Pacto_GOBCLP
+        GROUP BY Moneda, Dias_Pacto
+        HAVING Dias_Pacto > 90
+    
+    La tabla de entrada RF_PLI_XXXb viene de filtrar RF_PLI_001d_CarteraInv_Pcto
+    por el instrumento correspondiente.
+    
+    Args:
+        df_cartera_pacto: DataFrame con cartera de pactos (RF_PLI_001d_CarteraInv_Pcto).
+            Columnas requeridas: Nemotecnico, Dias_Pacto, Monto_CLP/Monto_CLF.
+        instrumento: Código del instrumento ('GobCLP', 'GobCLF', etc.).
+        umbral_dias: Umbral de días para filtrar (default 90).
+        verbose: Si True, muestra mensajes de debug.
+        
+    Returns:
+        DataFrame con columnas [Moneda, Dias_Pacto, Monto] filtrado por instrumento
+        y agrupado por Moneda/Dias_Pacto para pactos > umbral_dias.
+    """
+    if instrumento not in _MAPEO_INSTRUMENTO_PACTO:
+        raise ValueError(f"Instrumento '{instrumento}' no válido. "
+                        f"Opciones: {list(_MAPEO_INSTRUMENTO_PACTO.keys())}")
+    
+    moneda, _ = _MAPEO_INSTRUMENTO_PACTO[instrumento]
+    
+    if df_cartera_pacto.empty:
+        return pd.DataFrame(columns=['Moneda', 'Dias_Pacto', 'Monto'])
+    
+    # Determinar columna de monto según moneda
+    col_monto = f'Monto_{moneda}'
+    if col_monto not in df_cartera_pacto.columns:
+        # Fallback a columna genérica si existe
+        if 'Monto' in df_cartera_pacto.columns:
+            col_monto = 'Monto'
+        else:
+            return pd.DataFrame(columns=['Moneda', 'Dias_Pacto', 'Monto'])
+    
+    # Filtrar por instrumento basándose en Nemotecnico
+    # La lógica de filtro depende del instrumento:
+    # - GobCLP/GobCLF: BTU*, BTP*, BCU*, PDBC*, PRC*
+    # - DPF: BFAL*, BISA*, etc.
+    # - DPR: Similares en CLF
+    # - BBC/LCH: Otros nemotécnicos corporativos
+    
+    # Por ahora, asumimos que df_cartera_pacto ya viene filtrada o
+    # tiene columna 'Instrumento' si necesitamos filtrar
+    df = df_cartera_pacto.copy()
+    
+    if 'Instrumento' in df.columns:
+        df = df[df['Instrumento'] == instrumento]
+    
+    if df.empty or 'Dias_Pacto' not in df.columns:
+        return pd.DataFrame(columns=['Moneda', 'Dias_Pacto', 'Monto'])
+    
+    # Filtrar por umbral
+    df_fuera = df[df['Dias_Pacto'] > umbral_dias].copy()
+    
+    if df_fuera.empty:
+        return pd.DataFrame(columns=['Moneda', 'Dias_Pacto', 'Monto'])
+    
+    # Agregar columna Moneda si no existe
+    df_fuera['Moneda'] = moneda
+    
+    # Agrupar por Moneda y Dias_Pacto
+    resultado = df_fuera.groupby(['Moneda', 'Dias_Pacto'], as_index=False).agg({
+        col_monto: 'sum'
+    }).rename(columns={col_monto: 'Monto'})
+    
+    if verbose:
+        print(f"    - {instrumento}: {len(resultado)} grupos, "
+              f"Monto total={resultado['Monto'].sum():,.0f}")
+    
+    return resultado
+
+
+def generar_pactos_fuera_plazo_todos(
+    df_cartera_pacto: pd.DataFrame,
+    fecha_proceso: Union[int, str, datetime],
+    umbral_dias: int = UMBRAL_DIAS_PACTO,
+    verbose: bool = True
+) -> pd.DataFrame:
+    """
+    Genera tabla consolidada de pactos fuera de plazo para todos los instrumentos.
+    
+    Implementa RF_PLI_044c_Modelo_Inversiones_Pacto_FB que hace UNION de:
+    - RF_PLI_008c_Monto_FueraPlazo_GOBCLP
+    - RF_PLI_015c_Monto_FueraPlazo_GOBCLF
+    - RF_PLI_022c_Monto_FueraPlazo_DPF
+    - RF_PLI_029c_Monto_FueraPlazo_DPR
+    - RF_PLI_036c_Monto_FueraPlazo_LCH
+    - RF_PLI_043c_Monto_FueraPlazo_BBC
+    
+    Y luego formatea al esquema de tabla final de inversiones.
+    
+    Lógica de negocio:
+        Los pactos con Dias_Pacto > 90 días no entran en el modelo de liquidación
+        (horizonte 90 días), por lo que se agregan directamente a la tabla final
+        con VP = Monto (sin descuento, se asume vencen después del horizonte).
+    
+    Args:
+        df_cartera_pacto: DataFrame con cartera de pactos (RF_PLI_001d_CarteraInv_Pcto).
+            Debe contener columnas para determinar instrumento y montos.
+        fecha_proceso: Fecha de proceso.
+        umbral_dias: Umbral de días para considerar "fuera de plazo" (default 90).
+        verbose: Si True, muestra mensajes de progreso.
+        
+    Returns:
+        DataFrame con esquema de COLUMNAS_TABLA_FINAL, listo para concatenar.
+    """
+    if verbose:
+        print(f"\n  Generando pactos fuera de plazo (>{umbral_dias} días)...")
+    
+    # Normalizar fecha
+    if isinstance(fecha_proceso, int):
+        fecha = pd.to_datetime(str(fecha_proceso), format='%Y%m%d')
+    elif isinstance(fecha_proceso, str):
+        fecha = pd.to_datetime(fecha_proceso)
+    else:
+        fecha = fecha_proceso
+    
+    if df_cartera_pacto.empty:
+        if verbose:
+            print(f"    ⚠ Sin pactos en cartera de entrada")
+        return pd.DataFrame(columns=COLUMNAS_TABLA_FINAL)
+    
+    # Procesar cada instrumento
+    instrumentos = ['GobCLP', 'GobCLF', 'DPF', 'DPR', 'BBC', 'LCH']
+    dfs_por_instrumento = []
+    
+    for instr in instrumentos:
+        df_fuera = generar_monto_fuera_plazo_instrumento(
+            df_cartera_pacto=df_cartera_pacto,
+            instrumento=instr,
+            umbral_dias=umbral_dias,
+            verbose=verbose
+        )
+        if not df_fuera.empty:
+            dfs_por_instrumento.append(df_fuera)
+    
+    if not dfs_por_instrumento:
+        if verbose:
+            print(f"    ⚠ Sin pactos fuera de plazo")
+        return pd.DataFrame(columns=COLUMNAS_TABLA_FINAL)
+    
+    # UNION de todos los instrumentos
+    df_union = pd.concat(dfs_por_instrumento, ignore_index=True)
+    
+    # Formatear al esquema de tabla final
+    resultado = pd.DataFrame({
+        'Fec_Pro': fecha,
+        'Cod_Emp': CODIGO_EMPRESA,
+        'Moneda': df_union['Moneda'].values,
+        'Cod_A_P': CODIGO_ACTIVO_PASIVO,
+        'Cod_Pro': CODIGO_PRODUCTO,
+        'Cod_Sub_Pro': 'ML_C46_Inversiones_Financieras_Pcto',
+        'Fec_Pago': fecha + pd.to_timedelta(df_union['Dias_Pacto'].values, unit='D'),
+        'Dias_Pago': df_union['Dias_Pacto'].values,
+        'Cap_Amort': df_union['Monto'].values,
+        'Int_Total_Cont': 0,
+        'VP_Cap_Amort': df_union['Monto'].values,  # VP = Monto (sin descuento)
+        'VP_Int_Total_Cont': 0,
+    })
+    
+    if verbose:
+        total = resultado['Cap_Amort'].sum()
+        n_registros = len(resultado)
+        print(f"    ✓ Pactos fuera plazo: {n_registros} registros, total={total:,.0f}")
+    
+    return resultado
+
+
 def generar_tabla_final_inversiones(
     flujos: Dict[str, pd.DataFrame],
     fecha_proceso: Union[int, str, datetime],
     df_base: Optional[pd.DataFrame] = None,
-    df_pactos: Optional[pd.DataFrame] = None,
+    df_cartera_inv_pacto: Optional[pd.DataFrame] = None,
+    umbral_dias_pacto: int = UMBRAL_DIAS_PACTO,
     verbose: bool = True
 ) -> pd.DataFrame:
     """
@@ -434,8 +639,11 @@ def generar_tabla_final_inversiones(
     
     Esta función realiza el UNION ALL de:
     - 6 flujos de instrumentos (GobCLP, GobCLF, DPF, DPR, BBC, LCH)
-    - Cartera de garantías (opcional)
-    - Cartera de pactos (opcional)
+    - Cartera de garantías (desde RF_base_Completa_Hist)
+    - Pactos fuera de plazo (>90 días, desde RF_PLI_001d_CarteraInv_Pcto)
+    
+    NOTA: Los pactos con Dias_Pacto > 90 no entran en el modelo de liquidación
+    (horizonte de 90 días), por lo que se agregan directamente aquí con VP = Monto.
     
     SQL de referencia:
         SELECT * FROM RF_PLI_008b_CarteraGobCLP_Final
@@ -453,7 +661,9 @@ def generar_tabla_final_inversiones(
             Valores: DataFrames con columnas [Dia, Monto_Liquidar, ...]
         fecha_proceso: Fecha de proceso.
         df_base: Tabla RF_base_Completa_Hist para extraer garantías (opcional).
-        df_pactos: DataFrame con pactos FB (opcional).
+        df_cartera_inv_pacto: Tabla RF_PLI_001d_CarteraInv_Pcto para pactos (opcional).
+            Se filtrarán pactos con Dias_Pacto > umbral_dias_pacto.
+        umbral_dias_pacto: Umbral para pactos fuera de plazo (default 90).
         verbose: Si True, muestra mensajes de progreso.
         
     Returns:
@@ -472,7 +682,7 @@ def generar_tabla_final_inversiones(
         ...     flujos=flujos,
         ...     fecha_proceso=20260115,
         ...     df_base=tablas['RF_base_Completa_Hist'],
-        ...     df_pactos=df_pactos_fb
+        ...     df_cartera_inv_pacto=tablas['RF_PLI_001d_CarteraInv_Pcto']
         ... )
     """
     if verbose:
@@ -516,11 +726,16 @@ def generar_tabla_final_inversiones(
         if len(df_garantias) > 0:
             dfs_a_concatenar.append(df_garantias)
     
-    # Agregar pactos si se proporcionan
-    if df_pactos is not None:
-        df_pactos_fmt = generar_cartera_pactos(df_pactos, fecha_proceso, verbose)
-        if len(df_pactos_fmt) > 0:
-            dfs_a_concatenar.append(df_pactos_fmt)
+    # Agregar pactos fuera de plazo (>90 días) desde cartera de pactos
+    if df_cartera_inv_pacto is not None:
+        df_pactos_fuera = generar_pactos_fuera_plazo_todos(
+            df_cartera_pacto=df_cartera_inv_pacto,
+            fecha_proceso=fecha_proceso,
+            umbral_dias=umbral_dias_pacto,
+            verbose=verbose
+        )
+        if len(df_pactos_fuera) > 0:
+            dfs_a_concatenar.append(df_pactos_fuera)
     
     # Concatenar todo
     if len(dfs_a_concatenar) == 0:

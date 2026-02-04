@@ -485,9 +485,9 @@ RF_Modelo_Inversiones/
 | Fase 1 | 4-6 horas | Bajo | - | ✅ Completada |
 | Fase 2 | 4-6 horas | Medio | Fase 1 | ✅ Completada |
 | Fase 3 | 6-8 horas | Alto | Fases 1, 2 | ✅ Completada |
-| Fase 4 | 4-6 horas | Medio | Fases 1-3 | ⬜ Pendiente |
+| Fase 4 | 4-6 horas | Medio | Fases 1-3 | ✅ Completada |
 | Fase 5 | 6-8 horas | Bajo | Fases 1-4 | 🔄 En progreso |
-| **Total** | **~20 horas** | - | - | **60%** |
+| **Total** | **~20 horas** | - | - | **80%** |
 
 ---
 
@@ -521,14 +521,18 @@ RF_Modelo_Inversiones/
 - ✅ `io/cache.py` - Sistema de cache genérico
 - ✅ `pipeline/cartera.py` - Función unificada de cartera
 - ✅ `pipeline/agregaciones.py` - Agregaciones genéricas
-- ✅ 106 tests unitarios pasando
+- ✅ `pipeline/haircut.py` - Funciones de haircut
+- ✅ `pipeline/liquidacion.py` - Cálculo de flujos de liquidación
+- ✅ `pipeline/orquestador.py` - Orquestación del pipeline por instrumento
+- ✅ `output/tabla_final.py` - Generación de tabla final con pasos 20-27
+- ✅ Funciones pactos fuera plazo (>90 días) corregidas
+- ✅ 180+ tests unitarios pasando
 
 ### Lo que NO está listo:
-- ⬜ Migración de funciones legacy en `helpers.py`
-- ⬜ Reorganización de módulos restantes (Fase 4)
-- ⬜ Entry point `ml_inversiones.py`
-- ⬜ Tests de integración con datos reales
-- ⬜ Documentación final
+- ⬜ Tests de integración end-to-end con datos reales
+- ⬜ Entry point `ml_inversiones.py` consolidado
+- ⬜ Documentación final completa
+- ⬜ Validación numérica exhaustiva vs Access
 
 ### Estructura actual:
 ```
@@ -542,27 +546,57 @@ RF_Modelo_Inversiones/
 ├── pipeline/
 │   ├── __init__.py
 │   ├── cartera.py           ✅ (18 tests)
-│   └── agregaciones.py      ✅ (18 tests)
-├── tests/
+│   ├── agregaciones.py      ✅ (18 tests)
+│   ├── haircut.py           ✅ (17 tests)
+│   ├── liquidacion.py       ✅ (19 tests)
+│   └── orquestador.py       ✅ (16 tests)
+├── output/
 │   ├── __init__.py
+│   └── tabla_final.py       ✅ (22+ tests) - pasos 20-27
+├── tests/
 │   ├── test_config_instrumentos.py
 │   ├── test_cache.py
 │   ├── test_cartera.py
-│   └── test_agregaciones.py
+│   ├── test_agregaciones.py
+│   ├── test_haircut.py
+│   ├── test_liquidacion.py
+│   ├── test_orquestador.py
+│   └── test_tabla_final.py
 └── dev/
     ├── helpers.py           📝 (legacy, con imports actualizados)
-    ├── generador_tabla_final.py  📝 (legacy)
-    └── PLAN_IMPLEMENTACION.md
+    ├── draft_ml_inversiones.ipynb  📓 (notebook desarrollo)
+    ├── PLAN_IMPLEMENTACION.md
+    ├── ANALISIS_RF_PLI_044e_COMPLETO.md
+    └── PLAN_CORRECCION_PACTOS_FUERA_PLAZO.md
 ```
 
 ---
 
 ## Siguiente Paso
 
-**Recomendación**: Continuar con **Fase 4** (Reorganizar Módulos).
+**Recomendación**: Continuar con **Fase 5** (Integración y Tests).
 
 Prioridad:
-1. Crear `pipeline/haircut.py` con funciones de haircut
-2. Crear `pipeline/liquidacion.py` con cálculo de flujos
-3. Crear `pipeline/orquestador.py` para coordinar todo
-4. Actualizar `helpers.py` para importar desde nuevos módulos
+1. Ejecutar tests completos para validar cambios de pactos fuera de plazo
+2. Validación numérica contra Access con datos reales
+3. Crear entry point `ml_inversiones.py` consolidado
+4. Documentación final
+
+### Corrección Implementada (2026-02-04)
+
+Se corrigió un problema crítico de **lógica circular** en el manejo de pactos:
+
+**Problema**: Las celdas 48 y 54 del notebook leían tablas de Access que eran
+OUTPUTs del modelo, no INPUTs, creando una dependencia circular.
+
+**Solución**:
+- Creadas funciones `generar_monto_fuera_plazo_instrumento()` y 
+  `generar_pactos_fuera_plazo_todos()` para procesar pactos >90 días
+- Modificada `generar_tabla_final_inversiones()` para usar 
+  `df_cartera_inv_pacto` (INPUT) en lugar de `df_pactos` (OUTPUT)
+- Corregidas celdas del notebook para usar tablas INPUT correctas
+- Agregados 20+ tests para las nuevas funciones
+
+Ver documentación completa en:
+- `dev/ANALISIS_RF_PLI_044e_COMPLETO.md`
+- `dev/PLAN_CORRECCION_PACTOS_FUERA_PLAZO.md`

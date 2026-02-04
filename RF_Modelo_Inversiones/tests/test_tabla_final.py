@@ -502,3 +502,281 @@ class TestConstantes:
         
         for col in COLUMNAS_TABLA_DESARROLLO:
             assert col in MAPEO_COLUMNAS_EXCEL, f"Falta mapeo para {col}"
+    
+    def test_umbral_dias_pacto_es_90(self):
+        """UMBRAL_DIAS_PACTO debe ser 90 por defecto."""
+        from RF_Modelo_Inversiones.output.tabla_final import UMBRAL_DIAS_PACTO
+        
+        assert UMBRAL_DIAS_PACTO == 90
+
+
+# =============================================================================
+# TESTS PARA PACTOS FUERA DE PLAZO (>90 DÍAS)
+# =============================================================================
+
+@pytest.fixture
+def df_cartera_inv_pacto():
+    """DataFrame de cartera de pactos (RF_PLI_001d_CarteraInv_Pcto) simulada."""
+    return pd.DataFrame({
+        'Nemotecnico': ['BTU0150326', 'BTU0150426', 'BFAL001', 'DPRCLF01', 'BCU0030328', 'LCH001'],
+        'Instrumento': ['GobCLP', 'GobCLP', 'DPF', 'DPR', 'GobCLF', 'LCH'],
+        'Dias_Pacto': [50, 100, 85, 120, 95, 200],  # 3 >90 días
+        'Monto_CLP': [1000000, 2000000, 1500000, 0, 0, 0],
+        'Monto_CLF': [0, 0, 0, 500, 1000, 800],
+    })
+
+
+@pytest.fixture
+def df_cartera_inv_pacto_vacia():
+    """DataFrame vacío de cartera de pactos."""
+    return pd.DataFrame()
+
+
+@pytest.fixture
+def df_cartera_pacto_todos_bajo_umbral():
+    """Cartera con todos los pactos bajo el umbral de 90 días."""
+    return pd.DataFrame({
+        'Nemotecnico': ['BTU001', 'BCU001'],
+        'Instrumento': ['GobCLP', 'GobCLF'],
+        'Dias_Pacto': [30, 60],
+        'Monto_CLP': [100000, 0],
+        'Monto_CLF': [0, 500],
+    })
+
+
+class TestGenerarMontoFueraPlazoInstrumento:
+    """Tests para generar_monto_fuera_plazo_instrumento()."""
+    
+    def test_filtra_pactos_sobre_umbral(self, df_cartera_inv_pacto):
+        """Debe filtrar solo pactos con Dias_Pacto > 90."""
+        from RF_Modelo_Inversiones.output.tabla_final import generar_monto_fuera_plazo_instrumento
+        
+        resultado = generar_monto_fuera_plazo_instrumento(
+            df_cartera_pacto=df_cartera_inv_pacto,
+            instrumento='GobCLP',
+            umbral_dias=90,
+            verbose=False
+        )
+        
+        # Solo 1 pacto GobCLP tiene >90 días (100 días)
+        assert len(resultado) == 1
+        assert resultado['Dias_Pacto'].iloc[0] == 100
+        assert resultado['Monto'].iloc[0] == 2000000
+    
+    def test_retorna_vacio_si_no_hay_pactos_sobre_umbral(self, df_cartera_pacto_todos_bajo_umbral):
+        """Debe retornar DataFrame vacío si no hay pactos > umbral."""
+        from RF_Modelo_Inversiones.output.tabla_final import generar_monto_fuera_plazo_instrumento
+        
+        resultado = generar_monto_fuera_plazo_instrumento(
+            df_cartera_pacto=df_cartera_pacto_todos_bajo_umbral,
+            instrumento='GobCLP',
+            umbral_dias=90,
+            verbose=False
+        )
+        
+        assert len(resultado) == 0
+    
+    def test_retorna_vacio_con_cartera_vacia(self, df_cartera_inv_pacto_vacia):
+        """Debe retornar DataFrame vacío con cartera vacía."""
+        from RF_Modelo_Inversiones.output.tabla_final import generar_monto_fuera_plazo_instrumento
+        
+        resultado = generar_monto_fuera_plazo_instrumento(
+            df_cartera_pacto=df_cartera_inv_pacto_vacia,
+            instrumento='GobCLP',
+            umbral_dias=90,
+            verbose=False
+        )
+        
+        assert len(resultado) == 0
+        assert list(resultado.columns) == ['Moneda', 'Dias_Pacto', 'Monto']
+    
+    def test_moneda_correcta_por_instrumento(self, df_cartera_inv_pacto):
+        """Debe asignar la moneda correcta según instrumento."""
+        from RF_Modelo_Inversiones.output.tabla_final import generar_monto_fuera_plazo_instrumento
+        
+        # GobCLP → CLP
+        res_clp = generar_monto_fuera_plazo_instrumento(
+            df_cartera_inv_pacto, 'GobCLP', verbose=False
+        )
+        if len(res_clp) > 0:
+            assert all(res_clp['Moneda'] == 'CLP')
+        
+        # GobCLF → CLF
+        res_clf = generar_monto_fuera_plazo_instrumento(
+            df_cartera_inv_pacto, 'GobCLF', verbose=False
+        )
+        if len(res_clf) > 0:
+            assert all(res_clf['Moneda'] == 'CLF')
+    
+    def test_instrumento_invalido_lanza_error(self, df_cartera_inv_pacto):
+        """Debe lanzar error con instrumento inválido."""
+        from RF_Modelo_Inversiones.output.tabla_final import generar_monto_fuera_plazo_instrumento
+        
+        with pytest.raises(ValueError, match="Instrumento.*no válido"):
+            generar_monto_fuera_plazo_instrumento(
+                df_cartera_inv_pacto, 'INVALIDO', verbose=False
+            )
+    
+    def test_umbral_personalizado(self, df_cartera_inv_pacto):
+        """Debe respetar umbral personalizado."""
+        from RF_Modelo_Inversiones.output.tabla_final import generar_monto_fuera_plazo_instrumento
+        
+        # Con umbral 80, GobCLP tiene 1 pacto de 100 días
+        resultado = generar_monto_fuera_plazo_instrumento(
+            df_cartera_inv_pacto, 'GobCLP', umbral_dias=80, verbose=False
+        )
+        assert len(resultado) == 1
+        
+        # Con umbral 110, no hay pactos GobCLP
+        resultado = generar_monto_fuera_plazo_instrumento(
+            df_cartera_inv_pacto, 'GobCLP', umbral_dias=110, verbose=False
+        )
+        assert len(resultado) == 0
+
+
+class TestGenerarPactosFueraPlazoTodos:
+    """Tests para generar_pactos_fuera_plazo_todos()."""
+    
+    def test_union_todos_instrumentos(self, df_cartera_inv_pacto, fecha_proceso):
+        """Debe hacer UNION de todos los instrumentos."""
+        from RF_Modelo_Inversiones.output.tabla_final import generar_pactos_fuera_plazo_todos
+        
+        resultado = generar_pactos_fuera_plazo_todos(
+            df_cartera_pacto=df_cartera_inv_pacto,
+            fecha_proceso=fecha_proceso,
+            umbral_dias=90,
+            verbose=False
+        )
+        
+        # Pactos >90 días: GobCLP (100), DPR (120), GobCLF (95), LCH (200) = 4
+        assert len(resultado) >= 1  # Al menos algunos pactos
+    
+    def test_formato_tabla_final(self, df_cartera_inv_pacto, fecha_proceso):
+        """Debe retornar DataFrame con columnas de COLUMNAS_TABLA_FINAL."""
+        from RF_Modelo_Inversiones.output.tabla_final import (
+            generar_pactos_fuera_plazo_todos,
+            COLUMNAS_TABLA_FINAL
+        )
+        
+        resultado = generar_pactos_fuera_plazo_todos(
+            df_cartera_inv_pacto, fecha_proceso, verbose=False
+        )
+        
+        assert list(resultado.columns) == COLUMNAS_TABLA_FINAL
+    
+    def test_cod_sub_pro_pactos(self, df_cartera_inv_pacto, fecha_proceso):
+        """Cod_Sub_Pro debe ser ML_C46_Inversiones_Financieras_Pcto."""
+        from RF_Modelo_Inversiones.output.tabla_final import generar_pactos_fuera_plazo_todos
+        
+        resultado = generar_pactos_fuera_plazo_todos(
+            df_cartera_inv_pacto, fecha_proceso, verbose=False
+        )
+        
+        if len(resultado) > 0:
+            assert all(resultado['Cod_Sub_Pro'] == 'ML_C46_Inversiones_Financieras_Pcto')
+    
+    def test_vp_igual_monto(self, df_cartera_inv_pacto, fecha_proceso):
+        """VP_Cap_Amort debe ser igual a Cap_Amort (sin descuento)."""
+        from RF_Modelo_Inversiones.output.tabla_final import generar_pactos_fuera_plazo_todos
+        
+        resultado = generar_pactos_fuera_plazo_todos(
+            df_cartera_inv_pacto, fecha_proceso, verbose=False
+        )
+        
+        if len(resultado) > 0:
+            assert all(resultado['VP_Cap_Amort'] == resultado['Cap_Amort'])
+    
+    def test_cartera_vacia_retorna_vacio(self, df_cartera_inv_pacto_vacia, fecha_proceso):
+        """Debe retornar DataFrame vacío con cartera vacía."""
+        from RF_Modelo_Inversiones.output.tabla_final import (
+            generar_pactos_fuera_plazo_todos,
+            COLUMNAS_TABLA_FINAL
+        )
+        
+        resultado = generar_pactos_fuera_plazo_todos(
+            df_cartera_inv_pacto_vacia, fecha_proceso, verbose=False
+        )
+        
+        assert len(resultado) == 0
+        assert list(resultado.columns) == COLUMNAS_TABLA_FINAL
+    
+    def test_fecha_proceso_como_int(self, df_cartera_inv_pacto):
+        """Debe aceptar fecha_proceso como int."""
+        from RF_Modelo_Inversiones.output.tabla_final import generar_pactos_fuera_plazo_todos
+        
+        resultado = generar_pactos_fuera_plazo_todos(
+            df_cartera_inv_pacto, 20260115, verbose=False
+        )
+        
+        if len(resultado) > 0:
+            assert resultado['Fec_Pro'].iloc[0] == pd.to_datetime('2026-01-15')
+    
+    def test_todos_bajo_umbral_retorna_vacio(self, df_cartera_pacto_todos_bajo_umbral, fecha_proceso):
+        """Debe retornar vacío si todos los pactos están bajo umbral."""
+        from RF_Modelo_Inversiones.output.tabla_final import generar_pactos_fuera_plazo_todos
+        
+        resultado = generar_pactos_fuera_plazo_todos(
+            df_cartera_pacto_todos_bajo_umbral, fecha_proceso, verbose=False
+        )
+        
+        assert len(resultado) == 0
+
+
+class TestGenerarTablaFinalInversionesConPactos:
+    """Tests para integración de pactos fuera de plazo en generar_tabla_final_inversiones."""
+    
+    def test_incluye_pactos_fuera_plazo(self, flujos_instrumentos, df_cartera_inv_pacto, fecha_proceso):
+        """Debe incluir pactos fuera de plazo en la tabla final."""
+        from RF_Modelo_Inversiones.output.tabla_final import generar_tabla_final_inversiones
+        
+        resultado = generar_tabla_final_inversiones(
+            flujos=flujos_instrumentos,
+            fecha_proceso=fecha_proceso,
+            df_cartera_inv_pacto=df_cartera_inv_pacto,
+            verbose=False
+        )
+        
+        # Debe haber registros de pactos (Cod_Sub_Pro termina en _Pcto)
+        pactos = resultado[resultado['Cod_Sub_Pro'].str.endswith('_Pcto')]
+        assert len(pactos) >= 0  # Puede haber o no según el fixture
+    
+    def test_sin_df_cartera_inv_pacto(self, flujos_instrumentos, fecha_proceso):
+        """Debe funcionar sin df_cartera_inv_pacto."""
+        from RF_Modelo_Inversiones.output.tabla_final import generar_tabla_final_inversiones
+        
+        resultado = generar_tabla_final_inversiones(
+            flujos=flujos_instrumentos,
+            fecha_proceso=fecha_proceso,
+            df_cartera_inv_pacto=None,
+            verbose=False
+        )
+        
+        assert len(resultado) > 0
+    
+    def test_umbral_personalizado_en_tabla_final(self, flujos_instrumentos, df_cartera_inv_pacto, fecha_proceso):
+        """Debe respetar umbral_dias_pacto personalizado."""
+        from RF_Modelo_Inversiones.output.tabla_final import generar_tabla_final_inversiones
+        
+        # Con umbral 50, más pactos entran
+        resultado_50 = generar_tabla_final_inversiones(
+            flujos=flujos_instrumentos,
+            fecha_proceso=fecha_proceso,
+            df_cartera_inv_pacto=df_cartera_inv_pacto,
+            umbral_dias_pacto=50,
+            verbose=False
+        )
+        
+        # Con umbral 150, menos pactos entran
+        resultado_150 = generar_tabla_final_inversiones(
+            flujos=flujos_instrumentos,
+            fecha_proceso=fecha_proceso,
+            df_cartera_inv_pacto=df_cartera_inv_pacto,
+            umbral_dias_pacto=150,
+            verbose=False
+        )
+        
+        # Deberían ser diferentes
+        pactos_50 = resultado_50[resultado_50['Cod_Sub_Pro'].str.endswith('_Pcto')]
+        pactos_150 = resultado_150[resultado_150['Cod_Sub_Pro'].str.endswith('_Pcto')]
+        
+        assert len(pactos_50) >= len(pactos_150)

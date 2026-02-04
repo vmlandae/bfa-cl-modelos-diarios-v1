@@ -14,10 +14,13 @@ from .tabla_final import (
     CODIGO_EMPRESA,
     CODIGO_ACTIVO_PASIVO,
     CODIGO_PRODUCTO,
+    UMBRAL_DIAS_PACTO,
     # Funciones principales
     formatear_flujo_instrumento,
     generar_cartera_garantias,
     generar_cartera_pactos,
+    generar_monto_fuera_plazo_instrumento,
+    generar_pactos_fuera_plazo_todos,
     generar_tabla_final_inversiones,
     # Funciones de integración
     generar_precios_dia,
@@ -35,10 +38,13 @@ __all__ = [
     'CODIGO_EMPRESA',
     'CODIGO_ACTIVO_PASIVO',
     'CODIGO_PRODUCTO',
+    'UMBRAL_DIAS_PACTO',
     # Funciones principales
     'formatear_flujo_instrumento',
     'generar_cartera_garantias',
     'generar_cartera_pactos',
+    'generar_monto_fuera_plazo_instrumento',
+    'generar_pactos_fuera_plazo_todos',
     'generar_tabla_final_inversiones',
     # Funciones de integración
     'generar_precios_dia',
