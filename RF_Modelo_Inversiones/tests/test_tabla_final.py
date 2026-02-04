@@ -280,17 +280,18 @@ class TestGenerarTablaFinalInversiones:
         
         assert any('Gtia' in str(c) for c in resultado['Cod_Sub_Pro'].unique())
     
-    def test_incluye_pactos(self, flujos_instrumentos, df_pactos, fecha_proceso):
+    def test_incluye_pactos(self, flujos_instrumentos, df_cartera_inv_pacto, fecha_proceso):
         """Debe incluir pactos si se proporcionan."""
         from RF_Modelo_Inversiones.output.tabla_final import generar_tabla_final_inversiones
         
         resultado = generar_tabla_final_inversiones(
             flujos=flujos_instrumentos,
             fecha_proceso=fecha_proceso,
-            df_pactos=df_pactos,
+            df_cartera_inv_pacto=df_cartera_inv_pacto,
             verbose=False
         )
         
+        # Pactos fuera de plazo (>90 días) generan registros con _Pcto
         assert any('Pcto' in str(c) for c in resultado['Cod_Sub_Pro'].unique())
     
     def test_columnas_correctas(self, flujos_instrumentos, fecha_proceso):

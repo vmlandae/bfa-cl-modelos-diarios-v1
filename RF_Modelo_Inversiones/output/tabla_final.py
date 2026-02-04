@@ -1026,7 +1026,7 @@ def ejecutar_pasos_20_a_27(
     flujos: Dict[str, pd.DataFrame],
     tablas: Dict[str, pd.DataFrame],
     fecha_proceso: Union[int, str, datetime],
-    df_pactos: Optional[pd.DataFrame] = None,
+    df_cartera_inv_pacto: Optional[pd.DataFrame] = None,
     verbose: bool = True
 ) -> Dict[str, pd.DataFrame]:
     """
@@ -1036,7 +1036,7 @@ def ejecutar_pasos_20_a_27(
         flujos: Diccionario con flujos por instrumento.
         tablas: Diccionario con tablas linkeadas (RF_Base_Diaria_Precios, etc.).
         fecha_proceso: Fecha de proceso.
-        df_pactos: DataFrame con pactos (opcional).
+        df_cartera_inv_pacto: Cartera de pactos (RF_PLI_001d) para filtrar >90 días.
         verbose: Si True, muestra mensajes.
         
     Returns:
@@ -1066,7 +1066,7 @@ def ejecutar_pasos_20_a_27(
         flujos=flujos,
         fecha_proceso=fecha_proceso,
         df_base=df_base,
-        df_pactos=df_pactos,
+        df_cartera_inv_pacto=df_cartera_inv_pacto,
         verbose=verbose
     )
     
