@@ -1,0 +1,4 @@
+﻿query;tipo;es_entrypoint;nivel_profundidad;queries_padre;dependencias_directas;num_dependencias;hash_sha1;sql
+RF_PLI_022_LimpiaFlujDPF;Type32;Si;0;;;0;5cb6376f29f5a568f184a63531514ec6806ba611;"DELETE Flujo_DPF.*
+FROM Flujo_DPF;
+"

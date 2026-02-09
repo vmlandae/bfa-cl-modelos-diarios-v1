@@ -1,0 +1,4 @@
+﻿query;tipo;es_entrypoint;nivel_profundidad;queries_padre;dependencias_directas;num_dependencias;hash_sha1;sql
+RF_PLI_015_LimpiaFlujGobCLP;Type32;Si;0;;;0;e67e947fb3a44964eb397d27d0fc955f03f18814;"DELETE Flujo_GobCLF.*
+FROM Flujo_GobCLF;
+"

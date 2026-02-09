@@ -112,4 +112,4 @@ test/
 config/parametros_input_modelos.xlsx
 
 # query_flow analysis en el modelo de inversiones
-RF_Modelo_Inversiones/dev/query_flows/
+RF_Modelo_Inversiones/dev/query_flows/tmpclaude-*

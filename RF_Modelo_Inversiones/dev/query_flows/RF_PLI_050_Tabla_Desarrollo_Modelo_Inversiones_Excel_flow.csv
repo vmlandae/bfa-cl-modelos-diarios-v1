@@ -1,0 +1,172 @@
+﻿query;tipo;es_entrypoint;nivel_profundidad;queries_padre;dependencias_directas;num_dependencias;hash_sha1;sql
+RF_PLI_050_Tabla_Desarrollo_Modelo_Inversiones_Excel;DDL;Si;0;;RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones;1;edd8d07a6a4a21a3031106524fa1771bed63319d;"SELECT RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[FECHA PROCESO], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[CODIGO_EMPRESA], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[OPERACION], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[COD ACT/PAS], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[MONEDA_ORIGEN], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[MONEDA_COMPENSACION], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[COMPENSACION], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[CODIGO_PRODUCTO], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[CODIGO_SUBPRODUCTO], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[FECHA CREACION], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[NUMERO_CUOTA], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[FECHA_INICIO_CUOTA], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[FECHA_VENCIMIENTO_CUOTA], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[FECHA PAGO], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[FECHA_REPRICING], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[AMORTIZACION], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[INTERES], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[INTERES_DEVENGADO], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[VP_AMORTIZACION], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[VP_INTERES], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[FACTOR DE RIESGO], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[TIPO_CUOTA], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[AREA NEGOCIO], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[CODIGO_ EJECUTIVO], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[CODIGO_ESTRATEGIA], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[CLASIFICACION_CONTABLE], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[TIPO TASA], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[INDEXADOR], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[TASA], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[TASA CF], RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones.[SPREAD] INTO RF_Tabla_Desarrollo_Final
+FROM RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones;
+"
+RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones;Type128;No;1;RF_PLI_050_Tabla_Desarrollo_Modelo_Inversiones_Excel;RF_PLI_044f_CarteraInv_FFMM, RF_PLI_044g_CarteraInv_RT, RF_PLI_044i_CarteraInv_HTM, RF_PLI_046_Modelo_Inversiones_Final_CLP;4;2bb37e4cf2479d921bb3735e63a64766325acf9a;"SELECT 
+RF_PLI_046_Modelo_Inversiones_Final_CLP.Fec_Pro AS [FECHA PROCESO], 
+RF_PLI_046_Modelo_Inversiones_Final_CLP.Cod_Emp AS CODIGO_EMPRESA, 
+"""" AS OPERACION, 
+RF_PLI_046_Modelo_Inversiones_Final_CLP.Cod_A_P AS [COD ACT/PAS], 
+RF_PLI_046_Modelo_Inversiones_Final_CLP.Moneda AS MONEDA_ORIGEN, 
+RF_PLI_046_Modelo_Inversiones_Final_CLP.Moneda AS MONEDA_COMPENSACION, 
+""C"" AS COMPENSACION, 
+RF_PLI_046_Modelo_Inversiones_Final_CLP.Cod_Pro AS CODIGO_PRODUCTO, 
+RF_PLI_046_Modelo_Inversiones_Final_CLP.Cod_Sub_Pro AS CODIGO_SUBPRODUCTO, 
+"""" AS [FECHA CREACION], """" AS NUMERO_CUOTA, """" AS FECHA_INICIO_CUOTA, 
+RF_PLI_046_Modelo_Inversiones_Final_CLP.Fec_Pago AS FECHA_VENCIMIENTO_CUOTA, 
+RF_PLI_046_Modelo_Inversiones_Final_CLP.Fec_Pago AS [FECHA PAGO], 
+RF_PLI_046_Modelo_Inversiones_Final_CLP.Fec_Pago AS FECHA_REPRICING, 
+RF_PLI_046_Modelo_Inversiones_Final_CLP.Cap_Amort AS AMORTIZACION, 
+RF_PLI_046_Modelo_Inversiones_Final_CLP.Int_Total_Cont AS INTERES, 
+0 AS INTERES_DEVENGADO, 
+RF_PLI_046_Modelo_Inversiones_Final_CLP.VP_Cap_Amort AS VP_AMORTIZACION, 
+RF_PLI_046_Modelo_Inversiones_Final_CLP.VP_Int_Total_Cont AS VP_INTERES, 
+"""" AS [FACTOR DE RIESGO], 
+1 AS TIPO_CUOTA, 
+""TRADING TASAS"" AS [AREA NEGOCIO], 
+"""" AS [CODIGO_ EJECUTIVO], 
+""TRADING TASAS"" AS CODIGO_ESTRATEGIA, 
+""P&L"" AS CLASIFICACION_CONTABLE, 
+1 AS [TIPO TASA], 
+"""" AS INDEXADOR, 
+"""" AS TASA, 
+"""" AS [TASA CF], 
+"""" AS SPREAD
+
+FROM RF_PLI_046_Modelo_Inversiones_Final_CLP
+
+UNION ALL SELECT 
+RF_PLI_044f_CarteraInv_FFMM.Fec_Pro AS [FECHA PROCESO], 
+RF_PLI_044f_CarteraInv_FFMM.Cod_Emp AS [CODIGO_EMPRESA], 
+"""" AS [OPERACION], 
+RF_PLI_044f_CarteraInv_FFMM.Cod_A_P AS [COD ACT/PAS], 
+RF_PLI_044f_CarteraInv_FFMM.Moneda AS [MONEDA_ORIGEN], 
+RF_PLI_044f_CarteraInv_FFMM.Moneda AS [MONEDA_COMPENSACION], 
+""C"" AS [COMPENSACION], 
+RF_PLI_044f_CarteraInv_FFMM.Cod_Pro AS [CODIGO_PRODUCTO], 
+RF_PLI_044f_CarteraInv_FFMM.Cod_Sub_Pro AS [CODIGO_SUBPRODUCTO], 
+"""" AS [FECHA CREACION], 
+"""" AS [NUMERO_CUOTA], 
+"""" AS [FECHA_INICIO_CUOTA], 
+RF_PLI_044f_CarteraInv_FFMM.Fec_Vcto_Cup AS [FECHA_VENCIMIENTO_CUOTA], 
+RF_PLI_044f_CarteraInv_FFMM.Fec_Vcto_Cup AS [FECHA PAGO], 
+RF_PLI_044f_CarteraInv_FFMM.Fec_Vcto AS [FECHA_REPRICING], 
+RF_PLI_044f_CarteraInv_FFMM.Cap_Amort AS [AMORTIZACION], 
+RF_PLI_044f_CarteraInv_FFMM.Int_Total_Cont AS [INTERES], 
+0 AS [INTERES_DEVENGADO], 
+RF_PLI_044f_CarteraInv_FFMM.VP_Cap_Amort AS [VP_AMORTIZACION], 
+RF_PLI_044f_CarteraInv_FFMM.VP_Int_Total AS [VP_INTERES], 
+"""" AS [FACTOR DE RIESGO], 
+1 AS [TIPO_CUOTA], 
+RF_PLI_044f_CarteraInv_FFMM.Cod_Estrategia AS [AREA NEGOCIO], 
+"""" AS [CODIGO_ EJECUTIVO], 
+RF_PLI_044f_CarteraInv_FFMM.Cod_Estrategia AS [CODIGO_ESTRATEGIA], 
+RF_PLI_044f_CarteraInv_FFMM.Clasificacion_Contable AS [CLASIFICACION_CONTABLE], 
+1 AS [TIPO TASA], 
+"""" AS [INDEXADOR], 
+"""" AS [TASA], 
+"""" AS [TASA CF], 
+"""" AS [SPREAD]
+
+FROM RF_PLI_044f_CarteraInv_FFMM
+
+UNION ALL SELECT 
+RF_PLI_044g_CarteraInv_RT.Fec_Pro AS [FECHA PROCESO], 
+RF_PLI_044g_CarteraInv_RT.Cod_Emp AS [CODIGO_EMPRESA], 
+"""" AS [OPERACION], 
+RF_PLI_044g_CarteraInv_RT.Cod_A_P AS [COD ACT/PAS], 
+RF_PLI_044g_CarteraInv_RT.Moneda AS [MONEDA_ORIGEN], 
+RF_PLI_044g_CarteraInv_RT.Moneda AS [MONEDA_COMPENSACION], 
+""C"" AS [COMPENSACION], 
+RF_PLI_044g_CarteraInv_RT.Cod_Pro AS [CODIGO_PRODUCTO], 
+RF_PLI_044g_CarteraInv_RT.Cod_Sub_Pro AS [CODIGO_SUBPRODUCTO], 
+"""" AS [FECHA CREACION], 
+"""" AS [NUMERO_CUOTA], 
+"""" AS [FECHA_INICIO_CUOTA], 
+RF_PLI_044g_CarteraInv_RT.Fec_Vcto AS [FECHA_VENCIMIENTO_CUOTA], 
+RF_PLI_044g_CarteraInv_RT.Fec_Vcto AS [FECHA PAGO], 
+RF_PLI_044g_CarteraInv_RT.Fec_Vcto AS [FECHA_REPRICING], 
+RF_PLI_044g_CarteraInv_RT.Cap_Amort AS [AMORTIZACION], 
+RF_PLI_044g_CarteraInv_RT.Int_Total_Cont AS [INTERES], 
+0 AS [INTERES_DEVENGADO], 
+RF_PLI_044g_CarteraInv_RT.VP_Cap_Amort AS [VP_AMORTIZACION], 
+RF_PLI_044g_CarteraInv_RT.VP_Int_Total AS [VP_INTERES], 
+"""" AS [FACTOR DE RIESGO], 
+1 AS [TIPO_CUOTA], 
+RF_PLI_044g_CarteraInv_RT.Cod_Estrategia AS [AREA NEGOCIO], 
+"""" AS [CODIGO_ EJECUTIVO], 
+RF_PLI_044g_CarteraInv_RT.Cod_Estrategia AS [CODIGO_ESTRATEGIA], 
+RF_PLI_044g_CarteraInv_RT.Clasificacion_Contable AS [CLASIFICACION_CONTABLE], 
+1 AS [TIPO TASA], 
+"""" AS [INDEXADOR], 
+"""" AS [TASA], 
+"""" AS [TASA CF], 
+"""" AS [SPREAD]
+
+FROM RF_PLI_044g_CarteraInv_RT
+
+UNION ALL SELECT 
+RF_PLI_044i_CarteraInv_HTM.Fec_Pro AS [FECHA PROCESO], 
+RF_PLI_044i_CarteraInv_HTM.Cod_Emp AS [CODIGO_EMPRESA], 
+"""" AS [OPERACION], 
+RF_PLI_044i_CarteraInv_HTM.Cod_A_P AS [COD ACT/PAS], 
+RF_PLI_044i_CarteraInv_HTM.Moneda AS [MONEDA_ORIGEN], 
+RF_PLI_044i_CarteraInv_HTM.Moneda AS [MONEDA_COMPENSACION], 
+""C"" AS [COMPENSACION], 
+RF_PLI_044i_CarteraInv_HTM.Cod_Pro AS [CODIGO_PRODUCTO], 
+RF_PLI_044i_CarteraInv_HTM.Cod_Sub_Pro AS [CODIGO_SUBPRODUCTO], 
+"""" AS [FECHA CREACION], 
+"""" AS [NUMERO_CUOTA], 
+"""" AS [FECHA_INICIO_CUOTA], 
+RF_PLI_044i_CarteraInv_HTM.Fec_Vcto AS [FECHA_VENCIMIENTO_CUOTA], 
+RF_PLI_044i_CarteraInv_HTM.Fec_Vcto AS [FECHA PAGO], 
+RF_PLI_044i_CarteraInv_HTM.Fec_Vcto AS [FECHA_REPRICING], 
+RF_PLI_044i_CarteraInv_HTM.Cap_Amort AS [AMORTIZACION], 
+RF_PLI_044i_CarteraInv_HTM.Int_Total_Cont AS [INTERES], 
+0 AS [INTERES_DEVENGADO], 
+RF_PLI_044i_CarteraInv_HTM.VP_Cap_Amort AS [VP_AMORTIZACION], 
+RF_PLI_044i_CarteraInv_HTM.VP_Int_Total AS [VP_INTERES], 
+"""" AS [FACTOR DE RIESGO], 
+1 AS [TIPO_CUOTA], 
+RF_PLI_044i_CarteraInv_HTM.Cod_Estrategia AS [AREA NEGOCIO], 
+"""" AS [CODIGO_ EJECUTIVO], 
+RF_PLI_044i_CarteraInv_HTM.Cod_Estrategia AS [CODIGO_ESTRATEGIA], 
+RF_PLI_044i_CarteraInv_HTM.Clasificacion_Contable AS [CLASIFICACION_CONTABLE], 
+1 AS [TIPO TASA], 
+"""" AS [INDEXADOR], 
+"""" AS [TASA], 
+"""" AS [TASA CF], 
+"""" AS [SPREAD]
+
+FROM RF_PLI_044i_CarteraInv_HTM;
+"
+RF_PLI_044f_CarteraInv_FFMM;Select;No;2;RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones;;0;22055a1820729bb1c3db5b56d269e83c10247fd3;"SELECT RF_base_Completa_Hist.Fec_Pro, RF_base_Completa_Hist.Cod_Emp, RF_base_Completa_Hist.Moneda, RF_base_Completa_Hist.Cod_A_P, ""ML_C46_Inversiones_Financieras"" AS Cod_Pro, ""ML_C46_Inversiones_Financieras_FFMM"" AS Cod_Sub_Pro, RF_base_Completa_Hist.Num_Oper, RF_base_Completa_Hist.Num_Cup, RF_base_Completa_Hist.Emisor, RF_base_Completa_Hist.Nemotecnico, RF_base_Completa_Hist.Tasa_Emi, RF_base_Completa_Hist.Compensacion, RF_base_Completa_Hist.Fec_Cre, RF_base_Completa_Hist.Fec_Ini_Cup, RF_base_Completa_Hist.Fec_Vcto_Cup, RF_base_Completa_Hist.Fec_Rep, RF_base_Completa_Hist.Fec_Vcto, RF_base_Completa_Hist.Dias_Liq, RF_base_Completa_Hist.Dias_Vcto, RF_base_Completa_Hist.Cap_Amort, RF_base_Completa_Hist.Int_Total_Cont, 0 AS Int_Devengado, RF_base_Completa_Hist.Tasa_Cont, RF_base_Completa_Hist.VP_Cap_Amort, RF_base_Completa_Hist.VP_Int_Total, RF_base_Completa_Hist.Tipo_Cupon, RF_base_Completa_Hist.Cod_Area_Neg, RF_base_Completa_Hist.Cod_Estrategia, RF_base_Completa_Hist.Tipo_Book, RF_base_Completa_Hist.Clasificacion_Contable, RF_base_Completa_Hist.RUT_cli, RF_base_Completa_Hist.Nombre_Cli, RF_base_Completa_Hist.Moneda_Liq, RF_base_Completa_Hist.Dias_Pacto, """" AS Factor_Riesgo, """" AS Codigo_Ejecutivo, """" AS Indexador, """" AS tasa, """" AS tasa_CF, """" AS spread
+FROM RF_Fecha_Proceso_Carteras INNER JOIN RF_base_Completa_Hist ON RF_Fecha_Proceso_Carteras.Fecha = RF_base_Completa_Hist.Fec_Pro
+WHERE RF_base_Completa_Hist.Cod_Pro <>""Spot""  AND  RF_base_Completa_Hist.Cod_Pro Like ""INVERSIONES FINANCIERAS FONDOS MUTUOS"";
+"
+RF_PLI_044g_CarteraInv_RT;Select;No;2;RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones;;0;fa07c521134f706c23f68012d7da9ed05fd7a86c;"SELECT RF_base_Completa_Hist.Fec_Pro, RF_base_Completa_Hist.Cod_Emp, RF_base_Completa_Hist.Moneda, RF_base_Completa_Hist.Cod_A_P, ""ML_C46_Inversiones_Financieras"" AS Cod_Pro, ""ML_C46_Inversiones_Financieras_RT"" AS Cod_Sub_Pro, RF_base_Completa_Hist.Num_Oper, RF_base_Completa_Hist.Num_Cup, RF_base_Completa_Hist.Emisor, RF_base_Completa_Hist.Nemotecnico, RF_base_Completa_Hist.Tasa_Emi, RF_base_Completa_Hist.Compensacion, RF_base_Completa_Hist.Fec_Cre, RF_base_Completa_Hist.Fec_Ini_Cup, RF_base_Completa_Hist.Fec_Vcto_Cup, RF_base_Completa_Hist.Fec_Rep, RF_base_Completa_Hist.Fec_Vcto, RF_base_Completa_Hist.Dias_Liq, RF_base_Completa_Hist.Dias_Vcto, RF_base_Completa_Hist.Cap_Amort, RF_base_Completa_Hist.Int_Total_Cont, 0 AS Int_Devengado, RF_base_Completa_Hist.Tasa_Cont, RF_base_Completa_Hist.VP_Cap_Amort, RF_base_Completa_Hist.VP_Int_Total, RF_base_Completa_Hist.Tipo_Cupon, RF_base_Completa_Hist.Cod_Area_Neg, RF_base_Completa_Hist.Cod_Estrategia, RF_base_Completa_Hist.Tipo_Book, RF_base_Completa_Hist.Clasificacion_Contable, RF_base_Completa_Hist.RUT_cli, RF_base_Completa_Hist.Nombre_Cli, RF_base_Completa_Hist.Moneda_Liq, RF_base_Completa_Hist.Dias_Pacto, """" AS Factor_Riesgo, """" AS Codigo_Ejecutivo, """" AS Indexador, """" AS tasa, """" AS tasa_CF, """" AS spread
+FROM RF_Fecha_Proceso_Carteras INNER JOIN RF_base_Completa_Hist ON RF_Fecha_Proceso_Carteras.Fecha = RF_base_Completa_Hist.Fec_Pro
+WHERE RF_base_Completa_Hist.Cod_Pro <>""Spot""  AND  RF_base_Completa_Hist.Cod_Sub_Pro Like ""*RT*"";
+"
+RF_PLI_044i_CarteraInv_HTM;Select;No;2;RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones;;0;a9577894501525a4a083ceb25d871ea66303a7af;"SELECT RF_base_Completa_Hist_Input.Fec_Pro, RF_base_Completa_Hist_Input.Cod_Emp, RF_base_Completa_Hist_Input.Moneda, RF_base_Completa_Hist_Input.Cod_A_P, ""ML_C46_Inversiones_Financieras"" AS Cod_Pro, IIf(
+        RF_base_Completa_Hist_Input.Cod_Sub_Pro LIKE ""*LCHR*"",
+        ""ML_C46_Inversiones_Financieras_LCHR"",
+        IIf(
+            RF_base_Completa_Hist_Input.Cod_Sub_Pro LIKE ""*BBC*"",
+            ""ML_C46_Inversiones_Financieras_BBC"",
+            ""ML_C46_Inversiones_Financieras_Gob""
+        )
+    ) AS Cod_Sub_Pro, RF_base_Completa_Hist_Input.Num_Oper, RF_base_Completa_Hist_Input.Num_Cup, RF_base_Completa_Hist_Input.Emisor, RF_base_Completa_Hist_Input.Nemotecnico, RF_base_Completa_Hist_Input.Tasa_Emi, RF_base_Completa_Hist_Input.Compensacion, RF_base_Completa_Hist_Input.Fec_Cre, RF_base_Completa_Hist_Input.Fec_Ini_Cup, RF_base_Completa_Hist_Input.Fec_Vcto_Cup, RF_base_Completa_Hist_Input.Fec_Rep, RF_base_Completa_Hist_Input.Fec_Vcto, RF_base_Completa_Hist_Input.Dias_Liq, RF_base_Completa_Hist_Input.Dias_Vcto, RF_base_Completa_Hist_Input.Cap_Amort, RF_base_Completa_Hist_Input.Int_Total_Cont, 0 AS Int_Devengado, RF_base_Completa_Hist_Input.Tasa_Cont, RF_base_Completa_Hist_Input.VP_Cap_Amort, RF_base_Completa_Hist_Input.VP_Int_Total, RF_base_Completa_Hist_Input.Tipo_Cupon, RF_base_Completa_Hist_Input.Cod_Area_Neg, RF_base_Completa_Hist_Input.Cod_Estrategia, RF_base_Completa_Hist_Input.Tipo_Book, RF_base_Completa_Hist_Input.Clasificacion_Contable, RF_base_Completa_Hist_Input.RUT_cli, RF_base_Completa_Hist_Input.Nombre_Cli, RF_base_Completa_Hist_Input.Moneda_Liq, RF_base_Completa_Hist_Input.Dias_Pacto, """" AS Factor_Riesgo, """" AS Codigo_Ejecutivo, """" AS Indexador, """" AS tasa, """" AS tasa_CF, """" AS spread
+FROM RF_Fecha_Proceso_Carteras INNER JOIN RF_base_Completa_Hist_Input ON RF_Fecha_Proceso_Carteras.Fecha = RF_base_Completa_Hist_Input.Fec_Pro
+WHERE RF_base_Completa_Hist_Input.Cod_Pro <> ""Spot""
+    AND RF_base_Completa_Hist_Input.Cod_Pro <> ""IRS""
+    AND RF_base_Completa_Hist_Input.Clasificacion_Contable = ""HTM""
+    AND Left(RF_base_Completa_Hist_Input.Cod_Pro, 5) <> ""Venta""
+    AND Right(RF_base_Completa_Hist_Input.Cod_Sub_Pro, 8) <> 'TGR_Pcto'
+    AND RF_base_Completa_Hist_Input.Cod_Sub_Pro NOT LIKE ""*RT*""
+    AND Right(RF_base_Completa_Hist_Input.Cod_Sub_Pro, 4) <> 'Gtia'
+    AND Right(RF_base_Completa_Hist_Input.Cod_Sub_Pro, 8) <> 'Gtia_Liq';
+"
+RF_PLI_046_Modelo_Inversiones_Final_CLP;Select;No;2;RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones;;0;f4532f4ed197b5157bd7fe8a2c68511a25258f58;"SELECT RF_PLI_Modelo_Inversiones_Final_CLP.Fec_Pro, RF_PLI_Modelo_Inversiones_Final_CLP.Cod_Emp, RF_PLI_Modelo_Inversiones_Final_CLP.Moneda, RF_PLI_Modelo_Inversiones_Final_CLP.Cod_A_P, RF_PLI_Modelo_Inversiones_Final_CLP.Cod_Pro, RF_PLI_Modelo_Inversiones_Final_CLP.Cod_Sub_Pro, RF_PLI_Modelo_Inversiones_Final_CLP.Fec_Pago, RF_PLI_Modelo_Inversiones_Final_CLP.Dias_Pago, RF_PLI_Modelo_Inversiones_Final_CLP.Cap_Amort, RF_PLI_Modelo_Inversiones_Final_CLP.Int_Total_Cont, RF_PLI_Modelo_Inversiones_Final_CLP.VP_Cap_Amort, RF_PLI_Modelo_Inversiones_Final_CLP.VP_Int_Total_Cont, Precios_Dia.Precio_Mid, (RF_PLI_Modelo_Inversiones_Final_CLP.Cap_Amort+RF_PLI_Modelo_Inversiones_Final_CLP.Int_Total_Cont)*Precios_Dia.Precio_Mid AS Flujo_CLP
+FROM Precios_Dia INNER JOIN RF_PLI_Modelo_Inversiones_Final_CLP ON Precios_Dia.NEMOTECNICO = RF_PLI_Modelo_Inversiones_Final_CLP.Moneda;
+"

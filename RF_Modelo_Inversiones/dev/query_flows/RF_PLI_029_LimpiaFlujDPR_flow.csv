@@ -1,0 +1,4 @@
+﻿query;tipo;es_entrypoint;nivel_profundidad;queries_padre;dependencias_directas;num_dependencias;hash_sha1;sql
+RF_PLI_029_LimpiaFlujDPR;Type32;Si;0;;;0;a47788f59cb66ebe8884716fafe063a77e83ef00;"DELETE Flujo_DPR.*
+FROM Flujo_DPR;
+"

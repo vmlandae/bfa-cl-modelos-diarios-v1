@@ -1,0 +1,4 @@
+﻿query;tipo;es_entrypoint;nivel_profundidad;queries_padre;dependencias_directas;num_dependencias;hash_sha1;sql
+RF_PLI_043_LimpiaFlujBBC;Type32;Si;0;;;0;96461654bfeed8930a9dde914508c5149e5e6836;"DELETE Flujo_BBC.*
+FROM Flujo_BBC;
+"

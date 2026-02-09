@@ -1,0 +1,16 @@
+﻿query;tipo;es_entrypoint;nivel_profundidad;queries_padre;dependencias_directas;num_dependencias;hash_sha1;sql
+RF_PLI_018_GenerCartDPF_Pond;DDL;Si;0;;RF_PLI_016_CarteraDPF, RF_PLI_017_CarteraDPF_MonTotal;2;2aab6e79b6633f85e89dff98829e49b356e5d07c;"SELECT RF_PLI_016_CarteraDPF.Fec_Pro, RF_PLI_016_CarteraDPF.Cod_Emp, RF_PLI_016_CarteraDPF.Moneda, RF_PLI_016_CarteraDPF.Cod_Pro, RF_PLI_016_CarteraDPF.Cod_Sub_Pro, RF_PLI_016_CarteraDPF.Nemotecnico, RF_PLI_016_CarteraDPF.Instrumento, RF_PLI_016_CarteraDPF.VP_Cap_Amort, RF_PLI_016_CarteraDPF.VP_Int_Total, RF_PLI_016_CarteraDPF.Dias_Vcto, (RF_PLI_016_CarteraDPF.VP_Cap_Amort+RF_PLI_016_CarteraDPF.VP_Int_Total)/RF_PLI_017_CarteraDPF_MonTotal.VP_Flujo AS Ponderador INTO RF_CarteraDPF_Pond
+FROM RF_PLI_016_CarteraDPF INNER JOIN RF_PLI_017_CarteraDPF_MonTotal ON (RF_PLI_016_CarteraDPF.Moneda = RF_PLI_017_CarteraDPF_MonTotal.Moneda) AND (RF_PLI_016_CarteraDPF.Cod_Pro = RF_PLI_017_CarteraDPF_MonTotal.Cod_Pro);
+"
+RF_PLI_016_CarteraDPF;Select;No;1;RF_PLI_017_CarteraDPF_MonTotal, RF_PLI_018_GenerCartDPF_Pond;RF_PLI_001_CarteraInv;1;2df28777495e0e12d98299355208c2f9fbf08714;"SELECT RF_PLI_001_CarteraInv.Fec_Pro, RF_PLI_001_CarteraInv.Cod_Emp, RF_PLI_001_CarteraInv.Moneda, RF_PLI_001_CarteraInv.Cod_Pro, RF_PLI_001_CarteraInv.Cod_Sub_Pro, RF_PLI_001_CarteraInv.Nemotecnico, RF_PLI_001_CarteraInv.Instrumento, RF_PLI_001_CarteraInv.VP_Cap_Amort, RF_PLI_001_CarteraInv.VP_Int_Total, RF_PLI_001_CarteraInv.Dias_Vcto
+FROM RF_PLI_001_CarteraInv
+WHERE RF_PLI_001_CarteraInv.Instrumento='DPF';
+"
+RF_PLI_017_CarteraDPF_MonTotal;Select;No;1;RF_PLI_018_GenerCartDPF_Pond;RF_PLI_016_CarteraDPF;1;dde7c49dd919975d48975b744f5b1e21cf4e779e;"SELECT RF_PLI_016_CarteraDPF.Fec_Pro, RF_PLI_016_CarteraDPF.Moneda, RF_PLI_016_CarteraDPF.Cod_Pro, Sum(RF_PLI_016_CarteraDPF.VP_Cap_Amort+RF_PLI_016_CarteraDPF.VP_Int_Total) AS VP_Flujo
+FROM RF_PLI_016_CarteraDPF
+GROUP BY RF_PLI_016_CarteraDPF.Fec_Pro, RF_PLI_016_CarteraDPF.Moneda, RF_PLI_016_CarteraDPF.Cod_Pro;
+"
+RF_PLI_001_CarteraInv;Select;No;2;RF_PLI_016_CarteraDPF;;0;63b03d443da056b95b5fe18cd7e40b63d12d4293;"SELECT RF_base_Completa_Hist.Fec_Pro, RF_base_Completa_Hist.Cod_Emp, RF_base_Completa_Hist.Moneda, IIf(RF_base_Completa_Hist.Cod_Pro='INVERSIONES FINANCIERAS FONDOS MUTUOS' Or RF_base_Completa_Hist.Cod_Pro='INVERSIONES FINANCIERAS FONDOS MUTUOS DERIVADOS','Inversion Financiera Privado',RF_base_Completa_Hist.Cod_Pro) AS Cod_Pro, RF_base_Completa_Hist.Cod_Sub_Pro, RF_base_Completa_Hist.Nemotecnico, Left(RF_base_Completa_Hist.Nemotecnico,3) AS Instrumento, RF_base_Completa_Hist.VP_Cap_Amort, RF_base_Completa_Hist.VP_Int_Total, RF_base_Completa_Hist.Dias_Vcto
+FROM RF_Fecha_Proceso_Carteras INNER JOIN RF_base_Completa_Hist ON RF_Fecha_Proceso_Carteras.Fecha = RF_base_Completa_Hist.Fec_Pro
+WHERE Left(RF_base_Completa_Hist.Nemotecnico,3)<>'LCH' And (Left(RF_base_Completa_Hist.Cod_Pro,20)='Inversion Financiera' Or Left(RF_base_Completa_Hist.Cod_Pro,23)='INVERSIONES FINANCIERAS') And (Right(RF_base_Completa_Hist.Cod_Sub_Pro,4)='Disp' Or Right(RF_base_Completa_Hist.Cod_Sub_Pro,8)='Disp_Liq' Or Right(RF_base_Completa_Hist.Cod_Sub_Pro,6)='MUTUOS') And RF_base_Completa_Hist.Clasificacion_Contable<>""HTM"";
+"

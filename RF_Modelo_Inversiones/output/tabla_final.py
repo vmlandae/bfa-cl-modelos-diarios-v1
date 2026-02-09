@@ -697,7 +697,7 @@ def generar_tabla_final_inversiones(
         'DPF': ('CLP', 'ML_C46_Inversiones_Financieras_DPFCLP'),
         'DPR': ('CLF', 'ML_C46_Inversiones_Financieras_DPRCLF'),
         'BBC': ('CLP', 'ML_C46_Inversiones_Financieras_CORPCLP'),
-        'LCH': ('CLF', 'ML_C46_Inversiones_Financieras_LCHR'),
+        'LCH': ('CLF', 'ML_C46_Inversiones_Financieras_CORPCLF'),
     }
     
     dfs_a_concatenar = []

@@ -1,0 +1,156 @@
+﻿query;tipo;es_entrypoint;nivel_profundidad;queries_padre;dependencias_directas;num_dependencias;hash_sha1;sql
+RF_PLI_044e_Modelo_Inversiones_Tabla_Final;DDL;Si;0;;RF_PLI_044d_Modelo_Inversiones_Full;1;e45b24b7630c2b5faa70daff054181cb4a875490;"SELECT RF_PLI_044d_Modelo_Inversiones_Full.* INTO RF_PLI_Modelo_Inversiones_Final_CLP
+FROM RF_PLI_044d_Modelo_Inversiones_Full;
+"
+RF_PLI_044d_Modelo_Inversiones_Full;Type128;No;1;RF_PLI_044e_Modelo_Inversiones_Tabla_Final;RF_PLI_044_Modelo_Inversiones_Final, RF_PLI_044c_Modelo_Inversiones_Pacto_FB;2;40440cd3a66ea296572fe84098fd67b7c8848a2b;"SELECT * FROM RF_PLI_044_Modelo_Inversiones_Final
+UNION ALL SELECT * FROM RF_PLI_044c_Modelo_Inversiones_Pacto_FB;
+"
+RF_PLI_044_Modelo_Inversiones_Final;Type128;No;2;RF_PLI_044d_Modelo_Inversiones_Full;RF_PLI_001c_CarteraInv_Gtia, RF_PLI_008b_CarteraGobCLP_Final, RF_PLI_015b_CarteraGobCLF_Final, RF_PLI_022b_CarteraDPF_Final, RF_PLI_029b_CarteraDPR_Final, RF_PLI_036b_CarteraLCH_Final, RF_PLI_043b_CarteraBBC_Final;7;fe3ba7dbdf9d01bc988616742f13522224907fca;"SELECT * FROM RF_PLI_008b_CarteraGobCLP_Final
+UNION ALL 
+SELECT * FROM RF_PLI_015b_CarteraGobCLF_Final
+UNION ALL 
+SELECT * FROM RF_PLI_022b_CarteraDPF_Final
+UNION ALL 
+SELECT * FROM RF_PLI_029b_CarteraDPR_Final
+UNION ALL 
+SELECT * FROM RF_PLI_036b_CarteraLCH_Final
+UNION ALL 
+SELECT * FROM RF_PLI_043b_CarteraBBC_Final
+UNION ALL SELECT * FROM RF_PLI_001c_CarteraInv_Gtia;
+"
+RF_PLI_044c_Modelo_Inversiones_Pacto_FB;Select;No;2;RF_PLI_044d_Modelo_Inversiones_Full;RF_PLI_044b_Modelo_Inversiones_Pacto_FB;1;5c6dae5e873ea818d18a882afcb1a05583c114f1;"SELECT RF_Fecha_Proceso_Carteras.Fecha AS Fec_Pro, 1 AS Cod_Emp, RF_PLI_044b_Modelo_Inversiones_Pacto_FB.Moneda, 'ACT' AS Cod_A_P, 'ML_C46_Inversiones_Financieras' AS Cod_Pro, 'ML_C46_Inversiones_Financieras_Pcto' AS Cod_Sub_Pro, RF_Fecha_Proceso_Carteras.Fecha+RF_PLI_044b_Modelo_Inversiones_Pacto_FB.Dias_Pacto AS Fec_Pago, RF_PLI_044b_Modelo_Inversiones_Pacto_FB.Dias_Pacto AS Dias_Pago, RF_PLI_044b_Modelo_Inversiones_Pacto_FB.Monto AS Cap_Amort, 0 AS Int_Total_Cont, RF_PLI_044b_Modelo_Inversiones_Pacto_FB.Monto AS VP_Cap_Amort, 0 AS VP_Int_Total_Cont
+FROM RF_Fecha_Proceso_Carteras, RF_PLI_044b_Modelo_Inversiones_Pacto_FB;
+"
+RF_PLI_001c_CarteraInv_Gtia;Select;No;3;RF_PLI_044_Modelo_Inversiones_Final;RF_PLI_001b_CarteraInv_Gtia;1;dc94a99214713347fe60039edb555b04a6cae118;"SELECT RF_PLI_001b_CarteraInv_Gtia.Fec_Pro, RF_PLI_001b_CarteraInv_Gtia.Cod_Emp, RF_PLI_001b_CarteraInv_Gtia.Moneda, 'ACT' AS Cod_A_P, 'ML_C46_Inversiones_Financieras_Gtia' AS Cod_Pro, 'ML_C46_Inversiones_Financieras_Gtia' AS Cod_Sub_Pro, RF_PLI_001b_CarteraInv_Gtia.Fec_Pro+RF_PLI_001b_CarteraInv_Gtia.Dias_Liq AS Fec_Pago, RF_PLI_001b_CarteraInv_Gtia.Dias_Liq AS Dias_Pago, SUM(RF_PLI_001b_CarteraInv_Gtia.Cap_Amort) AS Cap_Amort, SUM(RF_PLI_001b_CarteraInv_Gtia.Int_Total_Cont) AS Int_Total_Cont, sum(RF_PLI_001b_CarteraInv_Gtia.VP_Cap_Amort) AS VP_Cap_Amort, SUM(RF_PLI_001b_CarteraInv_Gtia.VP_Int_Total) AS VP_Int_Total_Cont
+FROM RF_PLI_001b_CarteraInv_Gtia
+GROUP BY RF_PLI_001b_CarteraInv_Gtia.Fec_Pro, RF_PLI_001b_CarteraInv_Gtia.Cod_Emp, RF_PLI_001b_CarteraInv_Gtia.Moneda, RF_PLI_001b_CarteraInv_Gtia.Dias_Liq;
+"
+RF_PLI_008b_CarteraGobCLP_Final;Select;No;3;RF_PLI_044_Modelo_Inversiones_Final;;0;891ce52018a06cd7c08bfd69446d90550c1a36f8;"SELECT RF_Fecha_Proceso_Carteras.Fecha AS Fec_Pro, 1 AS Cod_Emp, 'CLP' AS Moneda, 'ACT' AS Cod_A_P, 'ML_C46_Inversiones_Financieras' AS Cod_Pro, 'ML_C46_Inversiones_Financieras_GOBCLP' AS Cod_Sub_Pro, RF_Fecha_Proceso_Carteras.Fecha + Flujo_GobCLP.Dia AS Fec_Pago, Flujo_GobCLP.Dia AS Dias_Pago, Flujo_GobCLP.Monto_Liquidar AS Cap_Amort, 0 AS Int_Total_Cont, Flujo_GobCLP.Monto_Liquidar AS VP_Cap_Amort, 0 AS VP_Int_Total_Cont
+FROM Flujo_GobCLP, RF_Fecha_Proceso_Carteras
+WHERE Flujo_GobCLP.Dia>0 AND Flujo_GobCLP.Monto_Liquidar>0;
+"
+RF_PLI_015b_CarteraGobCLF_Final;Select;No;3;RF_PLI_044_Modelo_Inversiones_Final;;0;5d3a639179cdea54b912604ee14cdd53e75b5d5b;"SELECT RF_Fecha_Proceso_Carteras.Fecha AS Fec_Pro, 1 AS Cod_Emp, 'CLF' AS Moneda, 'ACT' AS Cod_A_P, 'ML_C46_Inversiones_Financieras' AS Cod_Pro, 'ML_C46_Inversiones_Financieras_GOBCLF' AS Cod_Sub_Pro, RF_Fecha_Proceso_Carteras.Fecha+Flujo_GobCLF.Dia AS Fec_Pago, Flujo_GobCLF.Dia AS Dias_Pago, Flujo_GobCLF.Monto_Liquidar AS Cap_Amort, 0 AS Int_Total_Cont, Flujo_GobCLF.Monto_Liquidar AS VP_Cap_Amort, 0 AS VP_Int_Total_Cont
+FROM Flujo_GobCLF, RF_Fecha_Proceso_Carteras
+WHERE Flujo_GobCLF.Dia>0 AND Flujo_GobCLF.Monto_Liquidar>0;
+"
+RF_PLI_022b_CarteraDPF_Final;Select;No;3;RF_PLI_044_Modelo_Inversiones_Final;;0;8dd130ab01dbeaca90a218d7cb0dc3dda25c6cf4;"SELECT RF_Fecha_Proceso_Carteras.Fecha AS Fec_Pro, 1 AS Cod_Emp, 'CLP' AS Moneda, 'ACT' AS Cod_A_P, 'ML_C46_Inversiones_Financieras' AS Cod_Pro, 'ML_C46_Inversiones_Financieras_DPFCLP' AS Cod_Sub_Pro, RF_Fecha_Proceso_Carteras.Fecha+Flujo_DPF.Dia AS Fec_Pago, Flujo_DPF.Dia AS Dias_Pago, Flujo_DPF.Monto_Liquidar AS Cap_Amort, 0 AS Int_Total_Cont, Flujo_DPF.Monto_Liquidar AS VP_Cap_Amort, 0 AS VP_Int_Total_Cont
+FROM Flujo_DPF, RF_Fecha_Proceso_Carteras
+WHERE Flujo_DPF.Dia>0 AND Flujo_DPF.Monto_Liquidar>0;
+"
+RF_PLI_029b_CarteraDPR_Final;Select;No;3;RF_PLI_044_Modelo_Inversiones_Final;;0;7e8c6745e4bc30b180c82b329e698fbcc543cc0a;"SELECT RF_Fecha_Proceso_Carteras.Fecha AS Fec_Pro, 1 AS Cod_Emp, 'CLF' AS Moneda, 'ACT' AS Cod_A_P, 'ML_C46_Inversiones_Financieras' AS Cod_Pro, 'ML_C46_Inversiones_Financieras_DPRCLF' AS Cod_Sub_Pro, RF_Fecha_Proceso_Carteras.Fecha+Flujo_DPR.Dia AS Fec_Pago, Flujo_DPR.Dia AS Dias_Pago, Flujo_DPR.Monto_Liquidar AS Cap_Amort, 0 AS Int_Total_Cont, Flujo_DPR.Monto_Liquidar AS VP_Cap_Amort, 0 AS VP_Int_Total_Cont
+FROM Flujo_DPR, RF_Fecha_Proceso_Carteras
+WHERE Flujo_DPR.Dia>0 AND Flujo_DPR.Monto_Liquidar>0;
+"
+RF_PLI_036b_CarteraLCH_Final;Select;No;3;RF_PLI_044_Modelo_Inversiones_Final;;0;7ba0402b7ab1009bd38ea9f722a3123d560e2ac8;"SELECT RF_Fecha_Proceso_Carteras.Fecha AS Fec_Pro, 1 AS Cod_Emp, 'CLF' AS Moneda, 'ACT' AS Cod_A_P, 'ML_C46_Inversiones_Financieras' AS Cod_Pro, 'ML_C46_Inversiones_Financieras_CORPCLF' AS Cod_Sub_Pro, RF_Fecha_Proceso_Carteras.Fecha+Flujo_LCH.Dia AS Fec_Pago, Flujo_LCH.Dia AS Dias_Pago, Flujo_LCH.Monto_Liquidar AS Cap_Amort, 0 AS Int_Total_Cont, Flujo_LCH.Monto_Liquidar AS VP_Cap_Amort, 0 AS VP_Int_Total_Cont
+FROM Flujo_LCH, RF_Fecha_Proceso_Carteras
+WHERE Flujo_LCH.Dia>0 AND Flujo_LCH.Monto_Liquidar>0;
+"
+RF_PLI_043b_CarteraBBC_Final;Select;No;3;RF_PLI_044_Modelo_Inversiones_Final;;0;32eab0ed18d2f2b478c07714a3d7df61c529a282;"SELECT RF_Fecha_Proceso_Carteras.Fecha AS Fec_Pro, 1 AS Cod_Emp, 'CLP' AS Moneda, 'ACT' AS Cod_A_P, 'ML_C46_Inversiones_Financieras' AS Cod_Pro, 'ML_C46_Inversiones_Financieras_CORPCLP' AS Cod_Sub_Pro, RF_Fecha_Proceso_Carteras.Fecha+Flujo_BBC.Dia AS Fec_Pago, Flujo_BBC.Dia AS Dias_Pago, Flujo_BBC.Monto_Liquidar AS Cap_Amort, 0 AS Int_Total_Cont, Flujo_BBC.Monto_Liquidar AS VP_Cap_Amort, 0 AS VP_Int_Total_Cont
+FROM Flujo_BBC, RF_Fecha_Proceso_Carteras
+WHERE Flujo_BBC.Dia>0 AND Flujo_BBC.Monto_Liquidar>0;
+"
+RF_PLI_044b_Modelo_Inversiones_Pacto_FB;Type128;No;3;RF_PLI_044c_Modelo_Inversiones_Pacto_FB;RF_PLI_003c_Monto_FueraPlazo, RF_PLI_010c_Monto_FueraPlazo, RF_PLI_017c_Monto_FueraPlazo, RF_PLI_024c_Monto_FueraPlazo, RF_PLI_031c_Monto_FueraPlazo, RF_PLI_038c_Monto_FueraPlazo;6;e085679cb47b96614262a6a4b4929db3d7b2d7b0;"SELECT * FROM RF_PLI_003c_Monto_FueraPlazo
+UNION ALL 
+SELECT * FROM RF_PLI_010c_Monto_FueraPlazo
+UNION ALL 
+SELECT * FROM RF_PLI_017c_Monto_FueraPlazo
+UNION ALL 
+SELECT * FROM RF_PLI_024c_Monto_FueraPlazo
+UNION ALL 
+SELECT * FROM RF_PLI_031c_Monto_FueraPlazo
+UNION ALL SELECT * FROM RF_PLI_038c_Monto_FueraPlazo;
+"
+RF_PLI_001b_CarteraInv_Gtia;Select;No;4;RF_PLI_001c_CarteraInv_Gtia;;0;d4a3326e678d85aba4e3ab24f50047802f6a5a49;"SELECT RF_base_Completa_Hist_Input.Fec_Pro, RF_base_Completa_Hist_Input.Cod_Emp, RF_base_Completa_Hist_Input.Moneda, RF_base_Completa_Hist_Input.Cod_Pro, RF_base_Completa_Hist_Input.Cod_Sub_Pro, RF_base_Completa_Hist_Input.Nemotecnico, Left(RF_base_Completa_Hist_Input.Nemotecnico,3) AS Instrumento, RF_base_Completa_Hist_Input.Cap_Amort, RF_base_Completa_Hist_Input.Int_Total_Cont, RF_base_Completa_Hist_Input.Dias_Vcto, RF_base_Completa_Hist_Input.VP_Cap_Amort, RF_base_Completa_Hist_Input.VP_Int_Total, RF_base_Completa_Hist_Input.Dias_Liq
+FROM RF_Fecha_Proceso_Carteras INNER JOIN RF_base_Completa_Hist_Input ON RF_Fecha_Proceso_Carteras.Fecha = RF_base_Completa_Hist_Input.Fec_Pro
+WHERE Left(RF_base_Completa_Hist_Input.Cod_Pro,20)='Inversion Financiera' And (Right(RF_base_Completa_Hist_Input.Cod_Sub_Pro,4)='Gtia' Or Right(RF_base_Completa_Hist_Input.Cod_Sub_Pro,8)='Gtia_Liq');
+"
+RF_PLI_003c_Monto_FueraPlazo;Select;No;4;RF_PLI_044b_Modelo_Inversiones_Pacto_FB;RF_PLI_003b_GobCLP_MontoPlazo_Pacto;1;098173b9a274a3e267e1504cfaf8330a85d8a082;"SELECT RF_PLI_003b_GobCLP_MontoPlazo_Pacto.Dias_Pacto, sum(RF_PLI_003b_GobCLP_MontoPlazo_Pacto.Monto) AS Monto, 'CLP' AS Moneda
+FROM RF_PLI_003b_GobCLP_MontoPlazo_Pacto
+WHERE RF_PLI_003b_GobCLP_MontoPlazo_Pacto.Dias_Pacto>90
+GROUP BY RF_PLI_003b_GobCLP_MontoPlazo_Pacto.Dias_Pacto;
+"
+RF_PLI_010c_Monto_FueraPlazo;Select;No;4;RF_PLI_044b_Modelo_Inversiones_Pacto_FB;RF_PLI_010b_GobCLF_MontoPlazo_Pacto;1;2a30b0b720f39b7a0d39d1ae9c185148a4b24ec3;"SELECT RF_PLI_010b_GobCLF_MontoPlazo_Pacto.Dias_Pacto, sum(RF_PLI_010b_GobCLF_MontoPlazo_Pacto.Monto) AS Monto, 'CLF' AS Moneda
+FROM RF_PLI_010b_GobCLF_MontoPlazo_Pacto
+WHERE RF_PLI_010b_GobCLF_MontoPlazo_Pacto.Dias_Pacto>90
+GROUP BY RF_PLI_010b_GobCLF_MontoPlazo_Pacto.Dias_Pacto;
+"
+RF_PLI_017c_Monto_FueraPlazo;Select;No;4;RF_PLI_044b_Modelo_Inversiones_Pacto_FB;RF_PLI_017b_DPF_MontoPlazo_Pacto;1;783b9ecc3bd4652cb180f06c442e54c6b902d822;"SELECT RF_PLI_017b_DPF_MontoPlazo_Pacto.Dias_Pacto, sum(RF_PLI_017b_DPF_MontoPlazo_Pacto.Monto) AS Monto, 'CLP' AS Moneda
+FROM RF_PLI_017b_DPF_MontoPlazo_Pacto
+WHERE RF_PLI_017b_DPF_MontoPlazo_Pacto.Dias_Pacto>90
+GROUP BY RF_PLI_017b_DPF_MontoPlazo_Pacto.Dias_Pacto;
+"
+RF_PLI_024c_Monto_FueraPlazo;Select;No;4;RF_PLI_044b_Modelo_Inversiones_Pacto_FB;RF_PLI_024b_DPR_MontoPlazo_Pacto;1;b629982eecc9ac01573371e844e0156415a5b9c7;"SELECT RF_PLI_024b_DPR_MontoPlazo_Pacto.Dias_Pacto, sum(RF_PLI_024b_DPR_MontoPlazo_Pacto.Monto) AS Monto, 'CLF' AS Moneda
+FROM RF_PLI_024b_DPR_MontoPlazo_Pacto
+WHERE RF_PLI_024b_DPR_MontoPlazo_Pacto.Dias_Pacto>90
+GROUP BY RF_PLI_024b_DPR_MontoPlazo_Pacto.Dias_Pacto;
+"
+RF_PLI_031c_Monto_FueraPlazo;Select;No;4;RF_PLI_044b_Modelo_Inversiones_Pacto_FB;RF_PLI_031b_LCH_MontoPlazo_Pacto;1;5c1d86db83205a2e29d7ef190ddf27766150a71c;"SELECT RF_PLI_031b_LCH_MontoPlazo_Pacto.Dias_Pacto, sum(RF_PLI_031b_LCH_MontoPlazo_Pacto.Monto) AS Monto, 'CLF' AS Moneda
+FROM RF_PLI_031b_LCH_MontoPlazo_Pacto
+WHERE RF_PLI_031b_LCH_MontoPlazo_Pacto.Dias_Pacto>90
+GROUP BY RF_PLI_031b_LCH_MontoPlazo_Pacto.Dias_Pacto;
+"
+RF_PLI_038c_Monto_FueraPlazo;Select;No;4;RF_PLI_044b_Modelo_Inversiones_Pacto_FB;RF_PLI_038b_BBC_CLP_MontoPlazo_Pacto;1;e84d1c71e1a9432eb267555f8221fa33847da34c;"SELECT RF_PLI_038b_BBC_CLP_MontoPlazo_Pacto.Dias_Pacto, sum(RF_PLI_038b_BBC_CLP_MontoPlazo_Pacto.Monto) AS Monto, 'CLP' AS Moneda
+FROM RF_PLI_038b_BBC_CLP_MontoPlazo_Pacto
+WHERE RF_PLI_038b_BBC_CLP_MontoPlazo_Pacto.Dias_Pacto>90
+GROUP BY RF_PLI_038b_BBC_CLP_MontoPlazo_Pacto.Dias_Pacto;
+"
+RF_PLI_003b_GobCLP_MontoPlazo_Pacto;Select;No;5;RF_PLI_003c_Monto_FueraPlazo;RF_PLI_002_CarteraGobCLP_Pacto;1;aeab7c1f0799fd4a6488cf73d8916adb055b1a2f;"SELECT RF_PLI_002_CarteraGobCLP_Pacto.Dias_Pacto, sum(RF_PLI_002_CarteraGobCLP_Pacto.VP_Cap_Amort+RF_PLI_002_CarteraGobCLP_Pacto.VP_Int_Total) AS Monto
+FROM RF_PLI_002_CarteraGobCLP_Pacto
+GROUP BY RF_PLI_002_CarteraGobCLP_Pacto.Dias_Pacto
+ORDER BY RF_PLI_002_CarteraGobCLP_Pacto.Dias_Pacto;
+"
+RF_PLI_010b_GobCLF_MontoPlazo_Pacto;Select;No;5;RF_PLI_010c_Monto_FueraPlazo;RF_PLI_009_CarteraGobCLF_Pacto;1;c126f2a3c738c48aef165999b532969ae9bd07bc;"SELECT RF_PLI_009_CarteraGobCLF_Pacto.Dias_Pacto, sum(RF_PLI_009_CarteraGobCLF_Pacto.VP_Cap_Amort+RF_PLI_009_CarteraGobCLF_Pacto.VP_Int_Total) AS Monto
+FROM RF_PLI_009_CarteraGobCLF_Pacto
+GROUP BY RF_PLI_009_CarteraGobCLF_Pacto.Dias_Pacto
+ORDER BY RF_PLI_009_CarteraGobCLF_Pacto.Dias_Pacto;
+"
+RF_PLI_017b_DPF_MontoPlazo_Pacto;Select;No;5;RF_PLI_017c_Monto_FueraPlazo;RF_PLI_016_CarteraDPF_Pacto;1;4c8c06f33c4ef0af23642ac36004f4072e105b38;"SELECT RF_PLI_016_CarteraDPF_Pacto.Dias_Pacto, sum(RF_PLI_016_CarteraDPF_Pacto.VP_Cap_Amort+RF_PLI_016_CarteraDPF_Pacto.VP_Int_Total) AS Monto
+FROM RF_PLI_016_CarteraDPF_Pacto
+GROUP BY RF_PLI_016_CarteraDPF_Pacto.Dias_Pacto
+ORDER BY RF_PLI_016_CarteraDPF_Pacto.Dias_Pacto;
+"
+RF_PLI_024b_DPR_MontoPlazo_Pacto;Select;No;5;RF_PLI_024c_Monto_FueraPlazo;RF_PLI_023_CarteraDPR_Pacto;1;c19abe59eca6f083f4dc4d32fbdd8765d3938106;"SELECT RF_PLI_023_CarteraDPR_Pacto.Dias_Pacto, sum(RF_PLI_023_CarteraDPR_Pacto.VP_Cap_Amort+RF_PLI_023_CarteraDPR_Pacto.VP_Int_Total) AS Monto
+FROM RF_PLI_023_CarteraDPR_Pacto
+GROUP BY RF_PLI_023_CarteraDPR_Pacto.Dias_Pacto
+ORDER BY RF_PLI_023_CarteraDPR_Pacto.Dias_Pacto;
+"
+RF_PLI_031b_LCH_MontoPlazo_Pacto;Select;No;5;RF_PLI_031c_Monto_FueraPlazo;RF_PLI_030_CarteraLCH_Pacto;1;020405155b01dacdaff2c99a2a4e65d233e7206e;"SELECT RF_PLI_030_CarteraLCH_Pacto.Dias_Pacto, sum(RF_PLI_030_CarteraLCH_Pacto.VP_Cap_Amort+RF_PLI_030_CarteraLCH_Pacto.VP_Int_Total) AS Monto
+FROM RF_PLI_030_CarteraLCH_Pacto
+GROUP BY RF_PLI_030_CarteraLCH_Pacto.Dias_Pacto
+ORDER BY RF_PLI_030_CarteraLCH_Pacto.Dias_Pacto;
+"
+RF_PLI_038b_BBC_CLP_MontoPlazo_Pacto;Select;No;5;RF_PLI_038c_Monto_FueraPlazo;RF_PLI_037_CarteraBBC_CLP_Pacto;1;6b91009c8f645df7c30fd98e58e7f8a459d42cfd;"SELECT RF_PLI_037_CarteraBBC_CLP_Pacto.Dias_Pacto, sum(RF_PLI_037_CarteraBBC_CLP_Pacto.VP_Cap_Amort+RF_PLI_037_CarteraBBC_CLP_Pacto.VP_Int_Total) AS Monto
+FROM RF_PLI_037_CarteraBBC_CLP_Pacto
+GROUP BY RF_PLI_037_CarteraBBC_CLP_Pacto.Dias_Pacto
+ORDER BY RF_PLI_037_CarteraBBC_CLP_Pacto.Dias_Pacto;
+"
+RF_PLI_002_CarteraGobCLP_Pacto;Select;No;6;RF_PLI_003b_GobCLP_MontoPlazo_Pacto;RF_PLI_001d_CarteraInv_Pcto;1;96e7034e92234aecdb49b3bb17b6dde5a2ec2620;"SELECT RF_PLI_001d_CarteraInv_Pcto.Fec_Pro, RF_PLI_001d_CarteraInv_Pcto.Cod_Emp, RF_PLI_001d_CarteraInv_Pcto.Moneda, RF_PLI_001d_CarteraInv_Pcto.Cod_Pro, RF_PLI_001d_CarteraInv_Pcto.Cod_Sub_Pro, RF_PLI_001d_CarteraInv_Pcto.Nemotecnico, RF_PLI_001d_CarteraInv_Pcto.Instrumento, RF_PLI_001d_CarteraInv_Pcto.VP_Cap_Amort, RF_PLI_001d_CarteraInv_Pcto.VP_Int_Total, RF_PLI_001d_CarteraInv_Pcto.Dias_Vcto, RF_PLI_001d_CarteraInv_Pcto.Dias_Pacto
+FROM RF_PLI_001d_CarteraInv_Pcto
+WHERE RF_PLI_001d_CarteraInv_Pcto.Instrumento='BCP' OR RF_PLI_001d_CarteraInv_Pcto.Instrumento='BTP' or RF_PLI_001d_CarteraInv_Pcto.Instrumento='PDB';
+"
+RF_PLI_009_CarteraGobCLF_Pacto;Select;No;6;RF_PLI_010b_GobCLF_MontoPlazo_Pacto;RF_PLI_001d_CarteraInv_Pcto;1;26b40c13cbdd1ba8f56d03885ab55d7ef0b751d3;"SELECT RF_PLI_001d_CarteraInv_Pcto.Fec_Pro, RF_PLI_001d_CarteraInv_Pcto.Cod_Emp, RF_PLI_001d_CarteraInv_Pcto.Moneda, RF_PLI_001d_CarteraInv_Pcto.Cod_Pro, RF_PLI_001d_CarteraInv_Pcto.Cod_Sub_Pro, RF_PLI_001d_CarteraInv_Pcto.Nemotecnico, RF_PLI_001d_CarteraInv_Pcto.Instrumento, RF_PLI_001d_CarteraInv_Pcto.VP_Cap_Amort, RF_PLI_001d_CarteraInv_Pcto.VP_Int_Total, RF_PLI_001d_CarteraInv_Pcto.Dias_Vcto, RF_PLI_001d_CarteraInv_Pcto.Dias_Pacto
+FROM RF_PLI_001d_CarteraInv_Pcto
+WHERE RF_PLI_001d_CarteraInv_Pcto.Instrumento='BCU' OR RF_PLI_001d_CarteraInv_Pcto.Instrumento='BTU' or RF_PLI_001d_CarteraInv_Pcto.Instrumento='CER';
+"
+RF_PLI_016_CarteraDPF_Pacto;Select;No;6;RF_PLI_017b_DPF_MontoPlazo_Pacto;RF_PLI_001d_CarteraInv_Pcto;1;232027168bb38f0a5cfdc59d0f2cd2c87670f6b7;"SELECT RF_PLI_001d_CarteraInv_Pcto.Fec_Pro, RF_PLI_001d_CarteraInv_Pcto.Cod_Emp, RF_PLI_001d_CarteraInv_Pcto.Moneda, RF_PLI_001d_CarteraInv_Pcto.Cod_Pro, RF_PLI_001d_CarteraInv_Pcto.Cod_Sub_Pro, RF_PLI_001d_CarteraInv_Pcto.Nemotecnico, RF_PLI_001d_CarteraInv_Pcto.Instrumento, RF_PLI_001d_CarteraInv_Pcto.VP_Cap_Amort, RF_PLI_001d_CarteraInv_Pcto.VP_Int_Total, RF_PLI_001d_CarteraInv_Pcto.Dias_Vcto, RF_PLI_001d_CarteraInv_Pcto.Dias_Pacto
+FROM RF_PLI_001d_CarteraInv_Pcto
+WHERE RF_PLI_001d_CarteraInv_Pcto.Instrumento='DPF' 
+OR 
+RF_PLI_001d_CarteraInv_Pcto.Instrumento='FFM';
+"
+RF_PLI_023_CarteraDPR_Pacto;Select;No;6;RF_PLI_024b_DPR_MontoPlazo_Pacto;RF_PLI_001d_CarteraInv_Pcto;1;dbfa56f8da2e473b27be95838a4c3eefbf6a0a38;"SELECT RF_PLI_001d_CarteraInv_Pcto.Fec_Pro, RF_PLI_001d_CarteraInv_Pcto.Cod_Emp, RF_PLI_001d_CarteraInv_Pcto.Moneda, RF_PLI_001d_CarteraInv_Pcto.Cod_Pro, RF_PLI_001d_CarteraInv_Pcto.Cod_Sub_Pro, RF_PLI_001d_CarteraInv_Pcto.Nemotecnico, RF_PLI_001d_CarteraInv_Pcto.Instrumento, RF_PLI_001d_CarteraInv_Pcto.VP_Cap_Amort, RF_PLI_001d_CarteraInv_Pcto.VP_Int_Total, RF_PLI_001d_CarteraInv_Pcto.Dias_Vcto, RF_PLI_001d_CarteraInv_Pcto.Dias_Pacto
+FROM RF_PLI_001d_CarteraInv_Pcto
+WHERE RF_PLI_001d_CarteraInv_Pcto.Instrumento='DPR';
+"
+RF_PLI_030_CarteraLCH_Pacto;Select;No;6;RF_PLI_031b_LCH_MontoPlazo_Pacto;RF_PLI_001d_CarteraInv_Pcto;1;52a4a8a91fbbe42f625fa8a4bb8a861a1990c72a;"SELECT RF_PLI_001d_CarteraInv_Pcto.Fec_Pro, RF_PLI_001d_CarteraInv_Pcto.Cod_Emp, RF_PLI_001d_CarteraInv_Pcto.Moneda, RF_PLI_001d_CarteraInv_Pcto.Cod_Pro, RF_PLI_001d_CarteraInv_Pcto.Cod_Sub_Pro, RF_PLI_001d_CarteraInv_Pcto.Nemotecnico, RF_PLI_001d_CarteraInv_Pcto.Instrumento, RF_PLI_001d_CarteraInv_Pcto.VP_Cap_Amort, RF_PLI_001d_CarteraInv_Pcto.VP_Int_Total, RF_PLI_001d_CarteraInv_Pcto.Dias_Vcto, RF_PLI_001d_CarteraInv_Pcto.Dias_Pacto
+FROM RF_PLI_001d_CarteraInv_Pcto
+WHERE RF_PLI_001d_CarteraInv_Pcto.Moneda='CLF' AND (RF_PLI_001d_CarteraInv_Pcto.Instrumento='LCH' or RF_PLI_001d_CarteraInv_Pcto.Instrumento='BBC');
+"
+RF_PLI_037_CarteraBBC_CLP_Pacto;Select;No;6;RF_PLI_038b_BBC_CLP_MontoPlazo_Pacto;RF_PLI_001d_CarteraInv_Pcto;1;9326a2aaa1239cc2fa93f222af69eea1ac227ef3;"SELECT RF_PLI_001d_CarteraInv_Pcto.Fec_Pro, RF_PLI_001d_CarteraInv_Pcto.Cod_Emp, RF_PLI_001d_CarteraInv_Pcto.Moneda, RF_PLI_001d_CarteraInv_Pcto.Cod_Pro, RF_PLI_001d_CarteraInv_Pcto.Cod_Sub_Pro, RF_PLI_001d_CarteraInv_Pcto.Nemotecnico, RF_PLI_001d_CarteraInv_Pcto.Instrumento, RF_PLI_001d_CarteraInv_Pcto.VP_Cap_Amort, RF_PLI_001d_CarteraInv_Pcto.VP_Int_Total, RF_PLI_001d_CarteraInv_Pcto.Dias_Vcto, RF_PLI_001d_CarteraInv_Pcto.Dias_Pacto
+FROM RF_PLI_001d_CarteraInv_Pcto
+WHERE RF_PLI_001d_CarteraInv_Pcto.Moneda='CLP' AND (RF_PLI_001d_CarteraInv_Pcto.Instrumento='BBC');
+"
+RF_PLI_001d_CarteraInv_Pcto;Select;No;7;RF_PLI_002_CarteraGobCLP_Pacto, RF_PLI_009_CarteraGobCLF_Pacto, RF_PLI_016_CarteraDPF_Pacto, RF_PLI_023_CarteraDPR_Pacto, RF_PLI_030_CarteraLCH_Pacto, RF_PLI_037_CarteraBBC_CLP_Pacto;;0;b8a1ce46ce94e85d8be873c17424fd41a2b9dda8;"SELECT RF_base_Completa_Hist.Fec_Pro, RF_base_Completa_Hist.Cod_Emp, RF_base_Completa_Hist.Moneda, IIf(RF_base_Completa_Hist.Cod_Pro='INVERSIONES FINANCIERAS FONDOS MUTUOS','Inversion Financiera Privado',RF_base_Completa_Hist.Cod_Pro) AS Cod_Pro, RF_base_Completa_Hist.Cod_Sub_Pro, RF_base_Completa_Hist.Nemotecnico, Left(RF_base_Completa_Hist.Nemotecnico,3) AS Instrumento, RF_base_Completa_Hist.VP_Cap_Amort, RF_base_Completa_Hist.VP_Int_Total, RF_base_Completa_Hist.Dias_Vcto, RF_base_Completa_Hist.Dias_Pacto
+FROM RF_Fecha_Proceso_Carteras INNER JOIN RF_base_Completa_Hist ON RF_Fecha_Proceso_Carteras.Fecha = RF_base_Completa_Hist.Fec_Pro
+WHERE (Left(RF_base_Completa_Hist.Cod_Pro,20)='Inversion Financiera' Or Left(RF_base_Completa_Hist.Cod_Pro,23)='INVERSIONES FINANCIERAS') And (Right(RF_base_Completa_Hist.Cod_Sub_Pro,4)='Pcto' Or Right(RF_base_Completa_Hist.Cod_Sub_Pro,8)='Pcto_Liq');
+"
