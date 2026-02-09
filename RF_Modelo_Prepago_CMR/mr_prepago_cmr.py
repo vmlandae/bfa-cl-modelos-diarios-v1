@@ -9,7 +9,7 @@ import bfa_cl_utilidades as ut
 
 # # Para una ejecucion directa del script
 # BASE_DIR = Path(__file__).resolve().parent.parent
-# if str(BASE_BASE_DIR) not in sys.path:
+# if str(BASE_DIR) not in sys.path:
 #     sys.path.insert(0, str(BASE_DIR))
 
 # Importar configuraciones
@@ -333,7 +333,7 @@ def procesamiento_y_guardado(fecha_t: datetime.datetime,
         (interfaz_de_datos_t['FECHA_VENCIMIENTO_CUOTA'].dt.month == 2)
     )
 
-    # Cambiar el día a 28 para SAV en febrero (o el día que necesites)
+    # Cambiar el día a 28 para SAV en febrero
     interfaz_de_datos_t.loc[mask_sav_febrero, 'DIA_FACTURACION_AJUSTADO'] = interfaz_de_datos_t.loc[mask_sav_febrero, 'DIA_FACTURACION_AJUSTADO'].replace({28:30})
 
     # Procesamiento por cada tipo de subproducto (SAV / NO_SAV)
@@ -355,7 +355,12 @@ def procesamiento_y_guardado(fecha_t: datetime.datetime,
 
 
             # Construcción del vector de fechas del modelo
-            fecha_ini = datetime.datetime(fecha_t.year,fecha_t.month,fecha_facturacion)
+            if fecha_t.month == 2 and fecha_facturacion==30:
+                fecha_ant = fecha_t - pd.DateOffset(months=1)
+                fecha_ini = datetime.datetime(fecha_ant.year,fecha_ant.month, fecha_facturacion)
+            else:
+                fecha_ini = datetime.datetime(fecha_t.year,fecha_t.month,fecha_facturacion)
+            
 
             # Este cálculo de fechas considera que siempre en febrero la fecha de facturación es el 28 (caso años bisiestos)
             # Se generan 200 periodos mensuales para cubrir toda la vida útil potencial de las operaciones
@@ -365,6 +370,7 @@ def procesamiento_y_guardado(fecha_t: datetime.datetime,
                     else fecha_ini + pd.DateOffset(months=i) 
                     for i in range(200)
                 ], columns=["FECHA_VENCIMIENTO_CUOTA_MODELO"])
+
             # Filtrar solo fechas futuras respecto a la fecha de proceso
             fechas_vector_smm = fechas_vector_smm[fechas_vector_smm['FECHA_VENCIMIENTO_CUOTA_MODELO'] > fecha_t]
             # Hacer merge con los datos reales y completar con ceros donde no hay datos
@@ -525,7 +531,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     fecha_proceso_str = sys.argv[1]
-    # fecha_proceso_str = "2025-12-16"
+    # fecha_proceso_str = "2026-02-02"
 
     try:
         fecha_proceso = datetime.datetime.strptime(fecha_proceso_str, "%Y-%m-%d")

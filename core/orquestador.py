@@ -71,6 +71,14 @@ class OrquestadorModelos:
                 "orden": 8,
                 "tiene_carga_gcp": True,
                 "tiene_carga_gcp_historica": True
+            },
+            "ml_lc": {
+                "nombre": "Modelo Linea de Credito",
+                "modulo": "RF_Modelo_Linea_de_Credito.ml_lc",
+                "activado": True,
+                "orden": 8,
+                "tiene_carga_gcp": True,
+                "tiene_carga_gcp_historica": True
             }
         }
         
