@@ -111,3 +111,9 @@ test/
 
 # Archivos específicos del proyecto
 config/parametros_input_modelos.xlsx
+
+# Archivos generados por Claude
+tmpclaude-*
+
+# Sandbox de pruebas
+sandbox/
