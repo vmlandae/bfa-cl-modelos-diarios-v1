@@ -56,6 +56,14 @@ from .orquestador import (
     listar_tipos_instrumento,
 )
 
+# Post-proceso y cuadratura
+from .post_proceso import (
+    sumar_flujo_clp,
+    obtener_monto_contable,
+    reportar_diferencia_modelo_vs_contable,
+    CATEGORIAS_CONTABLES,
+)
+
 __all__ = [
     # Cartera
     'genera_cartera_inv',
@@ -87,4 +95,9 @@ __all__ = [
     # Orquestador
     'generar_flujo_liquidacion_instrumento',
     'listar_tipos_instrumento',
+    # Post-proceso y cuadratura
+    'sumar_flujo_clp',
+    'obtener_monto_contable',
+    'reportar_diferencia_modelo_vs_contable',
+    'CATEGORIAS_CONTABLES',
 ]
