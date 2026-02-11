@@ -3,7 +3,13 @@ Modelo de Inversiones - Banco Falabella
 ========================================
 
 Este módulo implementa el modelo de inversiones para el proceso diario
-de Banco Falabella.
+de Banco Falabella. Orquesta el pipeline completo:
+
+1. Carga de datos (Access/pickle/BQ)
+2. Pipeline de liquidación (27 pasos de Access → Python)
+3. Generación de tabla final y tabla de desarrollo
+4. Post-proceso "Maestro" (RepasaCodigoSubProducto, CartAdcnl, cuadratura)
+5. Exportación a Excel ("Modelo de Inversiones.xlsx") y CSV
 
 Autor: Modelos & Metodologías
 Fecha: 2026-02
@@ -26,6 +32,24 @@ if str(BASE_DIR) not in sys.path:
 # Importación de módulos internos
 from config import config_rutas as cr  # Configuración de rutas del proyecto
 
+# Importación de módulos del modelo de inversiones
+from RF_Modelo_Inversiones.output.tabla_final import ejecutar_pasos_20_a_27
+from RF_Modelo_Inversiones.output.excel_writer import (
+    generar_hoja_modelo_inversiones,
+    generar_hoja_interfaz,
+    generar_hoja_ml_access,
+    exportar_excel_modelo_inversiones,
+)
+from RF_Modelo_Inversiones.output.cartera_adicional import (
+    generar_hoja_cartera_adicional,
+    exportar_csv_cartera_adicional,
+)
+from RF_Modelo_Inversiones.pipeline.post_proceso import (
+    sumar_flujo_clp,
+    obtener_monto_contable,
+    reportar_diferencia_modelo_vs_contable,
+)
+
 
 # Carga de configuración desde archivo YAML
 with open(cr.CONFIG / 'config_rutas_ext_y_archivos.yaml', 'r') as file:
@@ -38,212 +62,144 @@ with open(cr.CONFIG / 'config_rutas_ext_y_archivos.yaml', 'r') as file:
 # RUTA_OUTPUT_MODELO = cr.resolver_ruta(config_ext['modelos']['ml_inversiones']['excel_output'])
 
 
-# =============================================================================
-# FUNCIONES DE CARGA DE DATOS
-# =============================================================================
-
-def cargar_datos_inversiones(fecha_t: datetime) -> pd.DataFrame:
-    """
-    Carga los datos de inversiones desde la fuente de datos.
-    
-    Args:
-        fecha_t: Fecha de proceso en formato datetime
-        
-    Returns:
-        pd.DataFrame: DataFrame con los datos de inversiones cargados
-        
-    Raises:
-        Exception: Si hay error en la carga de datos
-    """
-    print("      • Ejecutando consulta de datos de inversiones...")
-    
-    # TODO: Implementar query específica del modelo
-    query = """
-    SELECT
-        *
-    FROM
-        tabla_inversiones
-    WHERE
-        fecha_proceso = #{}#
-    """.format(fecha_t.strftime('%Y-%m-%d'))
-    
-    # TODO: Descomentar cuando esté configurada la ruta
-    # data = ut.lectura_datos_ms_access(ARCHIVO_INPUT, query)
-    # data = ut.estandariza_nombre_columnas_dataframe(data)
-    
-    # Placeholder para desarrollo
-    data = pd.DataFrame()
-    
-    print(f"        - Datos de inversiones cargados: {len(data):,} registros")
-    print("          ✓ Datos de inversiones procesados exitosamente")
-    
-    return data
-
-
-def cargar_parametros() -> dict:
-    """
-    Carga los parámetros del modelo desde archivo Excel.
-    
-    Returns:
-        dict: Diccionario con los parámetros del modelo
-        
-    Raises:
-        Exception: Si hay error en la carga de parámetros
-    """
-    print("      • Cargando parámetros del modelo...")
-    
-    # TODO: Implementar carga de parámetros específicos
-    # parametros = pd.read_excel(RUTA_PARAMETROS, sheet_name='Parametros')
-    
-    parametros = {}
-    
-    print("          ✓ Parámetros cargados exitosamente")
-    
-    return parametros
-
 
 # =============================================================================
-# FUNCIONES DE PROCESAMIENTO
+# POST-PROCESO "MAESTRO" (ActualizaModeloInversiones)
 # =============================================================================
 
-def validar_datos(data: pd.DataFrame) -> bool:
+def ejecutar_maestro_inversiones(
+    resultados_pasos_20_27: dict,
+    fecha_proceso: datetime,
+    ruta_output_excel: Path,
+    ruta_csv_cartera_adicional: Path,
+    ruta_balance: Path = None,
+    verbose: bool = True,
+) -> dict:
     """
-    Valida la integridad y calidad de los datos de entrada.
-    
+    Orquesta el post-proceso del Maestro Modelo de Inversiones.
+
+    Replica la macro ActualizaModeloInversiones del archivo
+    "Maestro Modelo de Inversiones.xlsm". Toma los resultados de los
+    pasos 20-27 (ya calculados) y genera:
+    1. Hoja MODELO_INVERSIONES (14 cols con Precio_Mid y Flujo_CLP)
+    2. Hoja ML_ACCESS (31 cols, códigos de sub-producto originales)
+    3. Hoja INTERFAZ (31 cols, con RepasaCodigoSubProducto aplicado)
+    4. Hoja CartAdcnl (54 cols, cartera adicional expandida)
+    5. Archivo Excel "Modelo de Inversiones.xlsx"
+    6. Archivo CSV de cartera adicional
+    7. Cuadratura contra balance contable
+
     Args:
-        data: DataFrame con los datos a validar
-        
+        resultados_pasos_20_27: Dict retornado por ejecutar_pasos_20_a_27().
+        fecha_proceso: Fecha de proceso.
+        ruta_output_excel: Ruta del archivo Excel de salida.
+        ruta_csv_cartera_adicional: Directorio para el CSV de cartera adicional.
+        ruta_balance: Ruta al archivo RF_Generador_Balance_Carteras.xlsm (opcional).
+        verbose: Si True, muestra mensajes de progreso.
+
     Returns:
-        bool: True si los datos son válidos, False en caso contrario
+        Dict con:
+        - 'df_interfaz': Hoja INTERFAZ_MODELO_INVERSIONES
+        - 'df_modelo_inversiones': Hoja MODELO_INVERSIONES
+        - 'df_ml_access': Hoja ML_ACCESS
+        - 'df_cart_adcnl': Hoja CartAdcnl
+        - 'ruta_excel': Path del Excel generado
+        - 'ruta_csv': Path del CSV generado
+        - 'flujo_clp_total': Suma de Flujo_CLP
+        - 'monto_contable': Monto contable del balance
+        - 'diferencia': Diferencia modelo vs contable
     """
-    print("      • Validando datos de entrada...")
-    
-    # TODO: Implementar validaciones específicas
-    # Ejemplo de validaciones:
-    # - Verificar que no haya registros nulos en columnas críticas
-    # - Verificar rangos de valores válidos
-    # - Verificar consistencia de fechas
-    
-    es_valido = True
-    
-    if es_valido:
-        print("          ✓ Datos validados correctamente")
-    else:
-        print("          ✗ Se encontraron errores en la validación")
-    
-    return es_valido
+    if verbose:
+        print("\n" + "=" * 60)
+        print("POST-PROCESO: Maestro Modelo de Inversiones")
+        print("=" * 60)
 
+    resultado_maestro = {}
 
-def aplicar_modelo(data: pd.DataFrame, parametros: dict) -> pd.DataFrame:
-    """
-    Aplica la lógica principal del modelo de inversiones.
-    
-    Args:
-        data: DataFrame con los datos de entrada
-        parametros: Diccionario con los parámetros del modelo
-        
-    Returns:
-        pd.DataFrame: DataFrame con los resultados del modelo
-    """
-    print("      • Aplicando modelo de inversiones...")
-    
-    # TODO: Implementar lógica específica del modelo
-    # Ejemplo de pasos típicos:
-    # 1. Calcular métricas base
-    # 2. Aplicar factores de ajuste
-    # 3. Calcular proyecciones
-    # 4. Agregar resultados
-    
-    resultado = data.copy()
-    
-    print("          ✓ Modelo aplicado exitosamente")
-    
-    return resultado
+    # --- 1. Generar hoja MODELO_INVERSIONES (14 cols) ---
+    if verbose:
+        print("\n  [1/7] Generando hoja MODELO_INVERSIONES...")
+    df_tabla_desarrollo = resultados_pasos_20_27['tabla_desarrollo']
+    df_modelo_inv = generar_hoja_modelo_inversiones(df_tabla_desarrollo)
+    resultado_maestro['df_modelo_inversiones'] = df_modelo_inv
+    if verbose:
+        print(f"    ✓ {len(df_modelo_inv):,} filas, {len(df_modelo_inv.columns)} columnas")
 
+    # --- 2. Generar hoja ML_ACCESS (31 cols, sin RepasaCodigo) ---
+    if verbose:
+        print("\n  [2/7] Generando hoja ML_ACCESS...")
+    df_tabla_excel = resultados_pasos_20_27['tabla_excel']
+    df_ml_access = generar_hoja_ml_access(df_tabla_excel)
+    resultado_maestro['df_ml_access'] = df_ml_access
+    if verbose:
+        print(f"    ✓ {len(df_ml_access):,} filas, {len(df_ml_access.columns)} columnas")
 
-def calcular_metricas(data: pd.DataFrame) -> pd.DataFrame:
-    """
-    Calcula las métricas principales del modelo.
-    
-    Args:
-        data: DataFrame con los datos procesados
-        
-    Returns:
-        pd.DataFrame: DataFrame con las métricas calculadas
-    """
-    print("      • Calculando métricas...")
-    
-    # TODO: Implementar cálculo de métricas específicas
-    
-    print("          ✓ Métricas calculadas exitosamente")
-    
-    return data
+    # --- 3. Generar hoja INTERFAZ (31 cols, con RepasaCodigo) ---
+    if verbose:
+        print("\n  [3/7] Generando hoja INTERFAZ (RepasaCodigoSubProducto)...")
+    df_interfaz = generar_hoja_interfaz(df_tabla_excel)
+    resultado_maestro['df_interfaz'] = df_interfaz
+    if verbose:
+        n_reemplazados = (df_interfaz['CODIGO_SUBPRODUCTO'] != df_ml_access['CODIGO_SUBPRODUCTO']).sum()
+        print(f"    ✓ {len(df_interfaz):,} filas, {n_reemplazados:,} códigos reemplazados")
 
+    # --- 4. Generar hoja CartAdcnl (54 cols, códigos originales) ---
+    # VBA: CarteraAdicional se ejecuta ANTES de RepasaCodigoSubProducto,
+    # por lo que CartAdcnl usa los códigos originales (pre-RepasaCodigo).
+    if verbose:
+        print("\n  [4/7] Generando hoja CartAdcnl...")
+    df_cart_adcnl = generar_hoja_cartera_adicional(df_ml_access)
+    resultado_maestro['df_cart_adcnl'] = df_cart_adcnl
+    if verbose:
+        print(f"    ✓ {len(df_cart_adcnl):,} filas, {len(df_cart_adcnl.columns)} columnas")
 
-# =============================================================================
-# FUNCIONES DE GENERACIÓN DE OUTPUT
-# =============================================================================
+    # --- 5. Exportar Excel ---
+    if verbose:
+        print("\n  [5/7] Exportando Excel...")
+    ruta_excel = exportar_excel_modelo_inversiones(
+        df_interfaz=df_interfaz,
+        df_modelo_inversiones=df_modelo_inv,
+        df_ml_access=df_ml_access,
+        df_cart_adcnl=df_cart_adcnl,
+        ruta_output=ruta_output_excel,
+        verbose=verbose,
+    )
+    resultado_maestro['ruta_excel'] = ruta_excel
 
-def generar_tabla_output(data: pd.DataFrame, fecha_t: datetime) -> pd.DataFrame:
-    """
-    Genera la tabla de output con el formato requerido para el reporte.
-    
-    Args:
-        data: DataFrame con los resultados del modelo
-        fecha_t: Fecha de proceso
-        
-    Returns:
-        pd.DataFrame: DataFrame formateado para output
-    """
-    print("      • Generando tabla de output...")
-    
-    # TODO: Implementar generación de tabla de output
-    # Incluir columnas estándar:
-    # - FEC_PRO: Fecha de proceso
-    # - Columnas específicas del modelo
-    
-    tabla_output = data.copy()
-    tabla_output['FEC_PRO'] = fecha_t
-    
-    print(f"        - Registros generados: {len(tabla_output):,}")
-    print("          ✓ Tabla de output generada exitosamente")
-    
-    return tabla_output
+    # --- 6. Exportar CSV cartera adicional ---
+    if verbose:
+        print("\n  [6/7] Exportando CSV cartera adicional...")
+    ruta_csv = exportar_csv_cartera_adicional(
+        df_cart_adcnl=df_cart_adcnl,
+        fecha_proceso=fecha_proceso,
+        ruta_directorio=ruta_csv_cartera_adicional,
+        verbose=verbose,
+    )
+    resultado_maestro['ruta_csv'] = ruta_csv
 
+    # --- 7. Cuadratura contra balance contable ---
+    if verbose:
+        print("\n  [7/7] Cuadratura modelo vs balance...")
+    flujo_clp_total = sumar_flujo_clp(df_modelo_inv, verbose=verbose)
+    resultado_maestro['flujo_clp_total'] = flujo_clp_total
 
-def guardar_resultados(tabla_output: pd.DataFrame, fecha_t: datetime) -> bool:
-    """
-    Guarda los resultados del modelo en el archivo Excel de output.
-    
-    Args:
-        tabla_output: DataFrame con los resultados a guardar
-        fecha_t: Fecha de proceso
-        
-    Returns:
-        bool: True si se guardó exitosamente, False en caso contrario
-    """
-    print("      • Guardando resultados...")
-    
-    try:
-        # TODO: Descomentar cuando esté configurada la ruta de output
-        # formatos_excel = {
-        #     'FEC_PRO': 'fecha',
-        #     # Agregar formatos específicos de columnas
-        # }
-        
-        # ut.cargar_datos_xlsm(
-        #     ruta_archivo=RUTA_OUTPUT_MODELO,
-        #     nombre_hoja="OUTPUT",
-        #     datos=tabla_output,
-        #     formatos_columnas=formatos_excel
-        # )
-        
-        print("          ✓ Resultados guardados exitosamente")
-        return True
-        
-    except Exception as e:
-        print(f"          ✗ Error al guardar resultados: {str(e)}")
-        return False
+    monto_contable = 0.0
+    if ruta_balance is not None:
+        monto_contable = obtener_monto_contable(ruta_balance, verbose=verbose)
+    elif verbose:
+        print("    ⚠ Ruta de balance no proporcionada, cuadratura omitida")
+    resultado_maestro['monto_contable'] = monto_contable
+
+    diferencia, _ = reportar_diferencia_modelo_vs_contable(
+        flujo_clp_total, monto_contable, verbose=verbose)
+    resultado_maestro['diferencia'] = diferencia
+
+    if verbose:
+        print("\n" + "=" * 60)
+        print("POST-PROCESO COMPLETADO")
+        print("=" * 60)
+
+    return resultado_maestro
 
 
 # =============================================================================
@@ -253,6 +209,10 @@ def guardar_resultados(tabla_output: pd.DataFrame, fecha_t: datetime) -> bool:
 def ejecutar_modelo(fecha_t: datetime) -> bool:
     """
     Función principal que orquesta la ejecución completa del modelo.
+
+    TODO: Integrar con pipeline completo (Fase F).
+    Por ahora, el flujo real se invoca llamando directamente a
+    ejecutar_pasos_20_a_27() y luego ejecutar_maestro_inversiones().
     
     Args:
         fecha_t: Fecha de proceso en formato datetime
@@ -266,38 +226,18 @@ def ejecutar_modelo(fecha_t: datetime) -> bool:
     print("=" * 60)
     
     try:
-        # Paso 1: Cargar datos
-        print("\n   [1/5] CARGA DE DATOS")
-        print("   " + "-" * 40)
-        data = cargar_datos_inversiones(fecha_t)
-        parametros = cargar_parametros()
+        # TODO: Fase F — integrar con pipeline completo:
+        # 1. Carga de datos desde Access/BQ
+        # 2. Pipeline de liquidación (pasos 1-19)
+        # 3. ejecutar_pasos_20_a_27() → resultados
+        # 4. ejecutar_maestro_inversiones(resultados, ...) → Excel + CSV + cuadratura
+        # 5. Carga a GCP/BigQuery
         
-        # Paso 2: Validar datos
-        print("\n   [2/5] VALIDACIÓN DE DATOS")
-        print("   " + "-" * 40)
-        if not validar_datos(data):
-            raise Exception("Error en validación de datos")
-        
-        # Paso 3: Aplicar modelo
-        print("\n   [3/5] APLICACIÓN DEL MODELO")
-        print("   " + "-" * 40)
-        resultado = aplicar_modelo(data, parametros)
-        
-        # Paso 4: Calcular métricas
-        print("\n   [4/5] CÁLCULO DE MÉTRICAS")
-        print("   " + "-" * 40)
-        resultado = calcular_metricas(resultado)
-        
-        # Paso 5: Generar y guardar output
-        print("\n   [5/5] GENERACIÓN DE OUTPUT")
-        print("   " + "-" * 40)
-        tabla_output = generar_tabla_output(resultado, fecha_t)
-        guardar_resultados(tabla_output, fecha_t)
+        print("  ⚠ Pipeline completo aún no integrado.")
+        print("  Use ejecutar_maestro_inversiones() directamente para el post-proceso.")
         
         print("\n" + "=" * 60)
-        print("PROCESO FINALIZADO EXITOSAMENTE")
-        print(f"Registros finales generados: {len(tabla_output):,}")
-        # print(f"Archivo guardado en: {RUTA_OUTPUT_MODELO}")
+        print("PROCESO FINALIZADO")
         print("=" * 60)
         
         return True
