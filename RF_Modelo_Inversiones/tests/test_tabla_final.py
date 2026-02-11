@@ -325,6 +325,8 @@ class TestAgregarPrecioYFlujoCLP:
         df_inversiones = pd.DataFrame({
             'Moneda': ['CLP', 'CLF'],
             'Cap_Amort': [100000, 50000],
+            'VP_Cap_Amort': [95000, 45000],
+            'VP_Int_Total_Cont': [5000, 5000],
         })
         
         resultado = agregar_precio_y_flujo_clp(
@@ -332,37 +334,43 @@ class TestAgregarPrecioYFlujoCLP:
         )
         
         assert 'Precio_Mid' in resultado.columns
-        assert all(resultado['Precio_Mid'] == 38500.50)
+        # CLP → 1.0, CLF → precio UF
+        assert resultado.loc[resultado['Moneda'] == 'CLP', 'Precio_Mid'].iloc[0] == 1.0
+        assert resultado.loc[resultado['Moneda'] == 'CLF', 'Precio_Mid'].iloc[0] == 38500.50
     
     def test_calcula_flujo_clp_para_clp(self, df_precios_dia):
-        """Para CLP, Flujo_CLP = Cap_Amort (sin conversión)."""
+        """Para CLP, Flujo_CLP = (VP_Cap_Amort + VP_Int_Total_Cont) * 1.0."""
         from RF_Modelo_Inversiones.output.tabla_final import agregar_precio_y_flujo_clp
         
         df_inversiones = pd.DataFrame({
             'Moneda': ['CLP'],
             'Cap_Amort': [100000],
+            'VP_Cap_Amort': [95000],
+            'VP_Int_Total_Cont': [5000],
         })
         
         resultado = agregar_precio_y_flujo_clp(
             df_inversiones, df_precios_dia, verbose=False
         )
         
-        assert resultado['Flujo_CLP'].iloc[0] == 100000
+        assert resultado['Flujo_CLP'].iloc[0] == 100000  # (95000+5000)*1.0
     
     def test_calcula_flujo_clp_para_clf(self, df_precios_dia):
-        """Para CLF, Flujo_CLP = Cap_Amort * Precio_Mid."""
+        """Para CLF, Flujo_CLP = (VP_Cap_Amort + VP_Int_Total_Cont) * Precio_Mid."""
         from RF_Modelo_Inversiones.output.tabla_final import agregar_precio_y_flujo_clp
         
         df_inversiones = pd.DataFrame({
             'Moneda': ['CLF'],
             'Cap_Amort': [100],  # 100 UF
+            'VP_Cap_Amort': [90],
+            'VP_Int_Total_Cont': [10],
         })
         
         resultado = agregar_precio_y_flujo_clp(
             df_inversiones, df_precios_dia, verbose=False
         )
         
-        expected = 100 * 38500.50
+        expected = (90 + 10) * 38500.50
         assert resultado['Flujo_CLP'].iloc[0] == expected
 
 

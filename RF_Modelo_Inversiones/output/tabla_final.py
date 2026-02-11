@@ -61,23 +61,70 @@ COLUMNAS_TABLA_DESARROLLO: List[str] = [
 ]
 """Columnas de la tabla de desarrollo interna."""
 
+# Columnas esperadas al extraer cartera FFMM desde RF_base_Completa_Hist
+# corresponde a la lista de campos seleccionados en la consulta SQL de la
+# especificación. Se usan como referencia para seleccionar/ordenar columnas.
+COLUMNAS_FFMM_EXTRACCION: List[str] = [
+    'Fec_Pro', 'Cod_Emp', 'Moneda', 'Cod_A_P', 'Cod_Pro', 'Cod_Sub_Pro',
+    'Num_Oper', 'Num_Cup', 'Emisor', 'Nemotecnico', 'Tasa_Emi', 'Compensacion',
+    'Fec_Cre', 'Fec_Ini_Cup', 'Fec_Vcto_Cup', 'Fec_Rep', 'Fec_Vcto',
+    'Dias_Liq', 'Dias_Vcto', 'Cap_Amort', 'Int_Total_Cont', 'Int_Devengado',
+    'Tasa_Cont', 'VP_Cap_Amort', 'VP_Int_Total', 'Tipo_Cupon', 'Cod_Area_Neg',
+    'Cod_Estrategia', 'Tipo_Book', 'Clasificacion_Contable', 'RUT_cli',
+    'Nombre_Cli', 'Moneda_Liq', 'Dias_Pacto', 'Factor_Riesgo',
+    'Codigo_Ejecutivo', 'Indexador', 'tasa', 'tasa_CF', 'spread'
+]
+
 MAPEO_COLUMNAS_EXCEL: Dict[str, str] = {
     'Fec_Pro': 'FECHA PROCESO',
     'Cod_Emp': 'CODIGO_EMPRESA',
     'Moneda': 'MONEDA_ORIGEN',
     'Cod_A_P': 'COD ACT/PAS',
-    'Cod_Pro': 'COD_PRO',
-    'Cod_Sub_Pro': 'COD_SUB_PRO',
-    'Fec_Pago': 'FECHA DE PAGO',
-    'Dias_Pago': 'PLAZO_PAGO',
-    'Cap_Amort': 'FLUJO_CAPITAL',
-    'Int_Total_Cont': 'FLUJO_INTERES',
-    'VP_Cap_Amort': 'VP_CAP',
-    'VP_Int_Total_Cont': 'VP_INT_CONT',
-    'Precio_Mid': 'PRECIO_MID',
-    'Flujo_CLP': 'FLUJO_CLP',
+    'Cod_Pro': 'CODIGO_PRODUCTO',
+    'Cod_Sub_Pro': 'CODIGO_SUBPRODUCTO',
+    'Fec_Pago': 'FECHA PAGO',
+    'Cap_Amort': 'AMORTIZACION',
+    'Int_Total_Cont': 'INTERES',
+    'VP_Cap_Amort': 'VP_AMORTIZACION',
+    'VP_Int_Total_Cont': 'VP_INTERES',
+    'VP_Int_Total': 'VP_INTERES',
 }
-"""Mapeo de columnas internas a nombres para Excel."""
+"""Mapeo de columnas internas a nombres para Excel (RF_PLI_049)."""
+
+COLUMNAS_EXCEL_FINAL: List[str] = [
+    'FECHA PROCESO',
+    'CODIGO_EMPRESA',
+    'OPERACION',
+    'COD ACT/PAS',
+    'MONEDA_ORIGEN',
+    'MONEDA_COMPENSACION',
+    'COMPENSACION',
+    'CODIGO_PRODUCTO',
+    'CODIGO_SUBPRODUCTO',
+    'FECHA CREACION',
+    'NUMERO_CUOTA',
+    'FECHA_INICIO_CUOTA',
+    'FECHA_VENCIMIENTO_CUOTA',
+    'FECHA PAGO',
+    'FECHA_REPRICING',
+    'AMORTIZACION',
+    'INTERES',
+    'INTERES_DEVENGADO',
+    'VP_AMORTIZACION',
+    'VP_INTERES',
+    'FACTOR DE RIESGO',
+    'TIPO_CUOTA',
+    'AREA NEGOCIO',
+    'CODIGO_ EJECUTIVO',
+    'CODIGO_ESTRATEGIA',
+    'CLASIFICACION_CONTABLE',
+    'TIPO TASA',
+    'INDEXADOR',
+    'TASA',
+    'TASA CF',
+    'SPREAD',
+]
+"""Columnas del Excel final (RF_Tabla_Desarrollo_Final / RF_PLI_050)."""
 
 CODIGO_EMPRESA: int = 1
 """Código de empresa (constante en el modelo)."""
@@ -793,14 +840,17 @@ def agregar_precio_y_flujo_clp(
         precio_uf = 0
     
     df = df_inversiones.copy()
-    df['Precio_Mid'] = precio_uf
-    
-    # Calcular Flujo_CLP según moneda
-    df['Flujo_CLP'] = np.where(
+
+    # Precio_Mid: UF para CLF, 1.0 para CLP (y otras monedas en CLP)
+    df['Precio_Mid'] = np.where(
         df['Moneda'] == 'CLF',
-        df['Cap_Amort'] * precio_uf,
-        df['Cap_Amort']
+        precio_uf,
+        1.0
     )
+    
+    # Calcular Flujo_CLP = (VP_Cap_Amort + VP_Int_Total_Cont) * Precio_Mid
+    # Misma fórmula que FFMM/HTM/RT en tabla_desarrollo
+    df['Flujo_CLP'] = (df['VP_Cap_Amort'] + df['VP_Int_Total_Cont']) * df['Precio_Mid']
     
     if verbose:
         print(f"  ✓ Precio UF aplicado: {precio_uf:,.4f}")
@@ -808,44 +858,252 @@ def agregar_precio_y_flujo_clp(
     
     return df
 
-
-def extraer_cartera_especial(
+def extrae_cartera_ffmm(
     df_cartera: pd.DataFrame,
-    tipo: Literal['FFMM', 'HTM', 'RT'],
     fecha_proceso: Union[int, str, datetime],
+    columnas_relevantes: Optional[List[str]] = COLUMNAS_FFMM_EXTRACCION,
     verbose: bool = True
 ) -> pd.DataFrame:
     """
-    Extrae cartera especial (FFMM, HTM o RT) de la cartera de inversiones.
+    Extrae cartera de fondos mutuos (FFMM) de la cartera de inversiones.
     
-    Estos tipos NO pasan por el modelo de liquidación porque:
-    - FFMM: Liquidez inmediata (T+0/T+1)
-    - HTM: Held-to-Maturity, compromiso de no venta
-    - RT: Renta en tránsito, ya comprometida
+    Estos instrumentos NO pasan por el modelo de liquidación porque tienen liquidez inmediata (T+0/T+1).
     
     Args:
         df_cartera: Cartera de inversiones completa.
-        tipo: Tipo de cartera a extraer ('FFMM', 'HTM', 'RT').
         fecha_proceso: Fecha de proceso.
+        columnas_relevantes: Lista de columnas a seleccionar para la cartera FFMM.
         verbose: Si True, muestra mensajes.
         
     Returns:
-        DataFrame con cartera especial formateada.
+        DataFrame con cartera FFMM formateada.
+
+    SQL de referencia:
+SELECT
+    RF_base_Completa_Hist.Fec_Pro,
+    RF_base_Completa_Hist.Cod_Emp,
+    RF_base_Completa_Hist.Moneda,
+    RF_base_Completa_Hist.Cod_A_P,
+    "ML_C46_Inversiones_Financieras" AS Cod_Pro,
+    "ML_C46_Inversiones_Financieras_FFMM" AS Cod_Sub_Pro,
+    RF_base_Completa_Hist.Num_Oper,
+    RF_base_Completa_Hist.Num_Cup,
+    RF_base_Completa_Hist.Emisor,
+    RF_base_Completa_Hist.Nemotecnico,
+    RF_base_Completa_Hist.Tasa_Emi,
+    RF_base_Completa_Hist.Compensacion,
+    RF_base_Completa_Hist.Fec_Cre,
+    RF_base_Completa_Hist.Fec_Ini_Cup,
+    RF_base_Completa_Hist.Fec_Vcto_Cup,
+    RF_base_Completa_Hist.Fec_Rep,
+    RF_base_Completa_Hist.Fec_Vcto,
+    RF_base_Completa_Hist.Dias_Liq,
+    RF_base_Completa_Hist.Dias_Vcto,
+    RF_base_Completa_Hist.Cap_Amort,
+    RF_base_Completa_Hist.Int_Total_Cont,
+    0 AS Int_Devengado,
+    RF_base_Completa_Hist.Tasa_Cont,
+    RF_base_Completa_Hist.VP_Cap_Amort,
+    RF_base_Completa_Hist.VP_Int_Total,
+    RF_base_Completa_Hist.Tipo_Cupon,
+    RF_base_Completa_Hist.Cod_Area_Neg,
+    RF_base_Completa_Hist.Cod_Estrategia,
+    RF_base_Completa_Hist.Tipo_Book,
+    RF_base_Completa_Hist.Clasificacion_Contable,
+    RF_base_Completa_Hist.RUT_cli,
+    RF_base_Completa_Hist.Nombre_Cli,
+    RF_base_Completa_Hist.Moneda_Liq,
+    RF_base_Completa_Hist.Dias_Pacto,
+    "" AS Factor_Riesgo,
+    "" AS Codigo_Ejecutivo,
+    "" AS Indexador,
+    "" AS tasa,
+    "" AS tasa_CF,
+    "" AS spread
+FROM
+    RF_Fecha_Proceso_Carteras
+    INNER JOIN RF_base_Completa_Hist ON RF_Fecha_Proceso_Carteras.Fecha = RF_base_Completa_Hist.Fec_Pro
+WHERE
+    RF_base_Completa_Hist.Cod_Pro <> "Spot"
+    AND RF_base_Completa_Hist.Cod_Pro LIKE "INVERSIONES FINANCIERAS FONDOS MUTUOS";
+
+
+    Es decir, 
+    se toma la tabla RF_base_Completa_Hist,
+      se seleccionan las columnas relevantes,
+      se filtra por fecha de proceso, 
+      se filtra que Cod_Pro sea distinto de "Spot", # condición redundante que sacamos 
+      y que cumpla 'Cod_Pro LIKE "INVERSIONES FINANCIERAS FONDOS MUTUOS"'
+      # en Access, el LIKE es case-insensitive por defecto, 
+      # y además, si no tiene wildcards, actúa como un igual a.
+      # por tanto lo más parecido es un fullmatch
+      y finalmente, se llenan las columnas Cod_Pro y Cod_Sub_Pro con los valores fijos indicados
+      y se llenan las columnas adicionales con valores vacíos o ceros según corresponda.
+
+
+
     """
+    # Normalizar fecha
+    if isinstance(fecha_proceso, int):
+        fecha = pd.to_datetime(str(fecha_proceso), format='%Y%m%d')
+    elif isinstance(fecha_proceso, str):
+        fecha = pd.to_datetime(fecha_proceso)
+    else:        
+        fecha = fecha_proceso
     if verbose:
-        print(f"\n  Extrayendo cartera {tipo}...")
-    
-    FILTROS = {
-        'FFMM': {'patron': 'MUTUOS', 'cod_sub_pro': 'ML_C46_Inversiones_Financieras_FFMM'},
-        'HTM': {'patron': 'HTM', 'cod_sub_pro': 'ML_C46_Inversiones_Financieras_HTM'},
-        'RT': {'patron': 'RT|Transito', 'cod_sub_pro': 'ML_C46_Inversiones_Financieras_RT'},
+        print(f"\n  Extrayendo cartera FFMM para fecha {fecha.date()}...")
+
+    # Filtrar por fecha de proceso
+    df = df_cartera.copy()
+    if 'Fec_Pro' in df.columns:
+        df['Fec_Pro'] = pd.to_datetime(df['Fec_Pro'])
+        df = df[df['Fec_Pro'] == fecha]
+    # Filtrar por Cod_Pro
+    mask = df['Cod_Pro'].astype(str).str.fullmatch('INVERSIONES FINANCIERAS FONDOS MUTUOS', na=False, case=False)
+    df = df.loc[mask].copy()
+    # Se llenan las columnas Cod_Pro y Cod_Sub_Pro con los valores fijos indicados
+    df['Cod_Pro'] = 'ML_C46_Inversiones_Financieras'
+    df['Cod_Sub_Pro'] = 'ML_C46_Inversiones_Financieras_FFMM'
+    # Se llenan las columnas adicionales con valores vacíos o ceros según corresponda.
+    #  0 AS Int_Devengado,    "" AS Factor_Riesgo, "" AS Codigo_Ejecutivo, "" AS Indexador,
+    # "" AS tasa, "" AS tasa_CF, "" AS spread
+    columnas_adicionales = {
+        'Int_Devengado': 0,
+        'Factor_Riesgo': "",
+        'Codigo_Ejecutivo': "",
+        'Indexador': "",
+        'tasa': "",
+        'tasa_CF': "",
+        'spread': ""
     }
+    for col, valor in columnas_adicionales.items():
+        df[col] = valor
+    if len(df) == 0:
+        if verbose:
+            print(f"    ⚠ Sin registros FFMM")
+        return pd.DataFrame(columns=columnas_relevantes)
+    else:
+        if verbose:
+            print(f"    ✓ FFMM: {len(df)} registros encontrados")
+        return df[columnas_relevantes].copy()
+def extraer_cartera_ffmm_para_tabla_desarrollo(df_extrae_cartera_ffmm: pd.DataFrame,
+                                               
+                                               df_precios_dia: pd.DataFrame,
+                                               columnas_relevantes: Optional[List[str]] = COLUMNAS_TABLA_DESARROLLO,
+                                               verbose: bool = True) -> pd.DataFrame:
+    """
+    función para replicar esta query:
+    INSERT INTO 
+    RF_Tabla_Desarrollo_Interna ( Fec_Pro, Cod_Emp, Moneda, Cod_A_P, Cod_Pro, Cod_Sub_Pro, Fec_Pago, Dias_Pago, Cap_Amort, Int_Total_Cont, VP_Cap_Amort, VP_Int_Total_Cont, Precio_Mid, Flujo_CLP )
+    SELECT
+      RF_PLI_044f_CarteraInv_FFMM.Fec_Pro, RF_PLI_044f_CarteraInv_FFMM.Cod_Emp,
+        RF_PLI_044f_CarteraInv_FFMM.Moneda, RF_PLI_044f_CarteraInv_FFMM.Cod_A_P,
+        RF_PLI_044f_CarteraInv_FFMM.Cod_Pro, RF_PLI_044f_CarteraInv_FFMM.Cod_Sub_Pro,
+          RF_PLI_044f_CarteraInv_FFMM.Fec_Vcto_Cup AS Fec_Pago, 
+          RF_PLI_044f_CarteraInv_FFMM.Dias_Liq AS Dias_Pago,
+            RF_PLI_044f_CarteraInv_FFMM.Cap_Amort, 
+            RF_PLI_044f_CarteraInv_FFMM.Int_Total_Cont,
+              RF_PLI_044f_CarteraInv_FFMM.VP_Cap_Amort,
+                RF_PLI_044f_CarteraInv_FFMM.VP_Int_Total AS VP_Int_Total_Cont,
+                  Precios_Dia.Precio_Mid,
+                    ([RF_PLI_044f_CarteraInv_FFMM].[VP_Cap_Amort]+[RF_PLI_044f_CarteraInv_FFMM].[VP_Int_Total])*[Precios_Dia].[Precio_Mid] AS Flujo_CLP
+    FROM 
+    Precios_Dia 
+    INNER JOIN 
+    RF_PLI_044f_CarteraInv_FFMM 
+    ON 
+    Precios_Dia.NEMOTECNICO = RF_PLI_044f_CarteraInv_FFMM.Moneda;
+
+    """
+    # Fec_Vcto_Cup AS Fec_Pago,
+    # Dias_Liq AS Dias_Pago,
+    # VP_Int_Total AS VP_Int_Total_Cont,
+    # ([RF_PLI_044f_CarteraInv_FFMM].[VP_Cap_Amort]+[RF_PLI_044f_CarteraInv_FFMM].[VP_Int_Total])*[Precios_Dia].[Precio_Mid] AS Flujo_CLP
+    if verbose:
+        print(f"\n  Formateando cartera FFMM para tabla de desarrollo...")
+    df = df_extrae_cartera_ffmm.copy()
+    # Cambio de nombres de columnas según SQL de referencia
+    df = df.rename(columns={
+        'Fec_Vcto_Cup': 'Fec_Pago',
+        'Dias_Liq': 'Dias_Pago',
+        'VP_Int_Total': 'VP_Int_Total_Cont'
+    })
+    # Agregar Precio_Mid desde df_precios_dia
+    if len(df_precios_dia) > 0:
+        # buscamos por la moneda, ya que  Precios_Dia.NEMOTECNICO = RF_PLI_044f_CarteraInv_FFMM.Moneda;
+        df = df.merge(df_precios_dia[['NEMOTECNICO', 'Precio_Mid']], left_on='Moneda', right_on='NEMOTECNICO', how='left')
+    # construimos Flujo_CLP = (VP_Cap_Amort + VP_Int_Total_Cont) * Precio_Mid
+    df['Flujo_CLP'] = (df['VP_Cap_Amort'] + df['VP_Int_Total_Cont']) * df['Precio_Mid']
+    if verbose:
+        print(f"  ✓ Cartera FFMM formateada para tabla de desarrollo: {len(df)} registros")
+    return df[columnas_relevantes].copy()
+
+
+def extrae_cartera_htm(
+    df_cartera_input: pd.DataFrame,
+    fecha_proceso: Union[int, str, datetime],
+    columnas_relevantes: Optional[List[str]] = COLUMNAS_FFMM_EXTRACCION,
+    verbose: bool = True
+) -> pd.DataFrame:
+    """
+    Extrae cartera HTM (Held-to-Maturity) desde RF_base_Completa_Hist_Input.
     
-    if tipo not in FILTROS:
-        raise ValueError(f"Tipo '{tipo}' inválido. Válidos: {list(FILTROS.keys())}")
-    
-    filtro = FILTROS[tipo]
-    
+    IMPORTANTE: A diferencia de FFMM y RT, HTM usa la tabla _Input (sin procesar),
+    no RF_base_Completa_Hist.
+
+    SQL de referencia (RF_PLI_044i_CarteraInv_HTM):
+
+    SELECT RF_base_Completa_Hist_Input.Fec_Pro, RF_base_Completa_Hist_Input.Cod_Emp,
+        RF_base_Completa_Hist_Input.Moneda, RF_base_Completa_Hist_Input.Cod_A_P,
+        "ML_C46_Inversiones_Financieras" AS Cod_Pro,
+        IIf(
+            RF_base_Completa_Hist_Input.Cod_Sub_Pro LIKE "*LCHR*",
+            "ML_C46_Inversiones_Financieras_LCHR",
+            IIf(
+                RF_base_Completa_Hist_Input.Cod_Sub_Pro LIKE "*BBC*",
+                "ML_C46_Inversiones_Financieras_BBC",
+                "ML_C46_Inversiones_Financieras_Gob"
+            )
+        ) AS Cod_Sub_Pro,
+        RF_base_Completa_Hist_Input.Num_Oper, RF_base_Completa_Hist_Input.Num_Cup,
+        RF_base_Completa_Hist_Input.Emisor, RF_base_Completa_Hist_Input.Nemotecnico,
+        RF_base_Completa_Hist_Input.Tasa_Emi, RF_base_Completa_Hist_Input.Compensacion,
+        RF_base_Completa_Hist_Input.Fec_Cre, RF_base_Completa_Hist_Input.Fec_Ini_Cup,
+        RF_base_Completa_Hist_Input.Fec_Vcto_Cup, RF_base_Completa_Hist_Input.Fec_Rep,
+        RF_base_Completa_Hist_Input.Fec_Vcto,
+        RF_base_Completa_Hist_Input.Dias_Liq, RF_base_Completa_Hist_Input.Dias_Vcto,
+        RF_base_Completa_Hist_Input.Cap_Amort, RF_base_Completa_Hist_Input.Int_Total_Cont,
+        0 AS Int_Devengado,
+        RF_base_Completa_Hist_Input.Tasa_Cont,
+        RF_base_Completa_Hist_Input.VP_Cap_Amort, RF_base_Completa_Hist_Input.VP_Int_Total,
+        RF_base_Completa_Hist_Input.Tipo_Cupon, RF_base_Completa_Hist_Input.Cod_Area_Neg,
+        RF_base_Completa_Hist_Input.Cod_Estrategia, RF_base_Completa_Hist_Input.Tipo_Book,
+        RF_base_Completa_Hist_Input.Clasificacion_Contable,
+        RF_base_Completa_Hist_Input.RUT_cli, RF_base_Completa_Hist_Input.Nombre_Cli,
+        RF_base_Completa_Hist_Input.Moneda_Liq, RF_base_Completa_Hist_Input.Dias_Pacto,
+        "" AS Factor_Riesgo, "" AS Codigo_Ejecutivo, "" AS Indexador,
+        "" AS tasa, "" AS tasa_CF, "" AS spread
+    FROM RF_Fecha_Proceso_Carteras
+    INNER JOIN RF_base_Completa_Hist_Input
+        ON RF_Fecha_Proceso_Carteras.Fecha = RF_base_Completa_Hist_Input.Fec_Pro
+    WHERE RF_base_Completa_Hist_Input.Cod_Pro <> "Spot"
+        AND RF_base_Completa_Hist_Input.Cod_Pro <> "IRS"
+        AND RF_base_Completa_Hist_Input.Clasificacion_Contable = "HTM"
+        AND Left(RF_base_Completa_Hist_Input.Cod_Pro, 5) <> "Venta"
+        AND Right(RF_base_Completa_Hist_Input.Cod_Sub_Pro, 8) <> 'TGR_Pcto'
+        AND RF_base_Completa_Hist_Input.Cod_Sub_Pro NOT LIKE "*RT*"
+        AND Right(RF_base_Completa_Hist_Input.Cod_Sub_Pro, 4) <> 'Gtia'
+        AND Right(RF_base_Completa_Hist_Input.Cod_Sub_Pro, 8) <> 'Gtia_Liq';
+
+    Args:
+        df_cartera_input: Tabla RF_base_Completa_Hist_Input (sin procesar).
+        fecha_proceso: Fecha de proceso.
+        columnas_relevantes: Lista de columnas a seleccionar.
+        verbose: Si True, muestra mensajes.
+        
+    Returns:
+        DataFrame con cartera HTM formateada.
+    """
     # Normalizar fecha
     if isinstance(fecha_proceso, int):
         fecha = pd.to_datetime(str(fecha_proceso), format='%Y%m%d')
@@ -853,42 +1111,412 @@ def extraer_cartera_especial(
         fecha = pd.to_datetime(fecha_proceso)
     else:
         fecha = fecha_proceso
-    
-    df = df_cartera.copy()
-    
-    # Filtrar por patrón en Cod_Sub_Pro
-    mask = df['Cod_Sub_Pro'].str.contains(filtro['patron'], na=False, case=False, regex=True)
+    if verbose:
+        print(f"\n  Extrayendo cartera HTM para fecha {fecha.date()}...")
+
+    df = df_cartera_input.copy()
+
+    # Filtrar por fecha de proceso (INNER JOIN RF_Fecha_Proceso_Carteras ON Fecha = Fec_Pro)
+    if 'Fec_Pro' in df.columns:
+        df['Fec_Pro'] = pd.to_datetime(df['Fec_Pro'])
+        df = df[df['Fec_Pro'] == fecha]
+
+    # WHERE condiciones:
+    # 1. Cod_Pro <> "Spot"
+    mask = df['Cod_Pro'].astype(str) != 'Spot'
+    # 2. Cod_Pro <> "IRS"
+    mask = mask & (df['Cod_Pro'].astype(str) != 'IRS')
+    # 3. Clasificacion_Contable = "HTM"
+    mask = mask & (df['Clasificacion_Contable'].astype(str) == 'HTM')
+    # 4. Left(Cod_Pro, 5) <> "Venta"  (Cod_Pro no empieza con "Venta")
+    mask = mask & (~df['Cod_Pro'].astype(str).str[:5].eq('Venta'))
+    # 5. Right(Cod_Sub_Pro, 8) <> 'TGR_Pcto'  (Cod_Sub_Pro no termina en "TGR_Pcto")
+    cod_sub_pro_str = df['Cod_Sub_Pro'].astype(str)
+    mask = mask & (~cod_sub_pro_str.str[-8:].eq('TGR_Pcto'))
+    # 6. Cod_Sub_Pro NOT LIKE "*RT*"  (Cod_Sub_Pro no contiene "RT")
+    mask = mask & (~cod_sub_pro_str.str.contains('RT', na=False, case=False))
+    # 7. Right(Cod_Sub_Pro, 4) <> 'Gtia'  (Cod_Sub_Pro no termina en "Gtia")
+    mask = mask & (~cod_sub_pro_str.str[-4:].eq('Gtia'))
+    # 8. Right(Cod_Sub_Pro, 8) <> 'Gtia_Liq'  (Cod_Sub_Pro no termina en "Gtia_Liq")
+    mask = mask & (~cod_sub_pro_str.str[-8:].eq('Gtia_Liq'))
+
     df = df.loc[mask].copy()
-    
+
+    # Cod_Pro fijo
+    df['Cod_Pro'] = 'ML_C46_Inversiones_Financieras'
+
+    # Cod_Sub_Pro con lógica IIF:
+    # IIf(Cod_Sub_Pro LIKE "*LCHR*", "ML_C46_Inversiones_Financieras_LCHR",
+    #     IIf(Cod_Sub_Pro LIKE "*BBC*", "ML_C46_Inversiones_Financieras_BBC",
+    #         "ML_C46_Inversiones_Financieras_Gob"))
+    # Nota: Access LIKE "*X*" es case-insensitive y equivale a .str.contains("X", case=False)
+    # Usamos el Cod_Sub_Pro original (antes de sobreescribir Cod_Pro) que ya guardamos en cod_sub_pro_str
+    # pero necesitamos recalcular porque filtramos filas
+    cod_sub_pro_original = df['Cod_Sub_Pro'].astype(str)
+    cond_lchr = cod_sub_pro_original.str.contains('LCHR', na=False, case=False)
+    cond_bbc = cod_sub_pro_original.str.contains('BBC', na=False, case=False)
+    df['Cod_Sub_Pro'] = np.where(
+        cond_lchr, 'ML_C46_Inversiones_Financieras_LCHR',
+        np.where(
+            cond_bbc, 'ML_C46_Inversiones_Financieras_BBC',
+            'ML_C46_Inversiones_Financieras_Gob'
+        )
+    )
+
+    # Columnas adicionales con valores fijos (0 o "")
+    columnas_adicionales = {
+        'Int_Devengado': 0,
+        'Factor_Riesgo': "",
+        'Codigo_Ejecutivo': "",
+        'Indexador': "",
+        'tasa': "",
+        'tasa_CF': "",
+        'spread': ""
+    }
+    for col, valor in columnas_adicionales.items():
+        df[col] = valor
+
     if len(df) == 0:
         if verbose:
-            print(f"    ⚠ Sin registros {tipo}")
-        return pd.DataFrame(columns=COLUMNAS_TABLA_DESARROLLO)
-    
-    # Determinar columna de días
-    col_dias = 'Dias_Liq' if 'Dias_Liq' in df.columns else 'Dias_Vcto'
-    
-    # Formatear
-    resultado = pd.DataFrame({
-        'Fec_Pro': fecha,
-        'Cod_Emp': CODIGO_EMPRESA,
-        'Moneda': df['Moneda'].values,
-        'Cod_A_P': CODIGO_ACTIVO_PASIVO,
-        'Cod_Pro': CODIGO_PRODUCTO,
-        'Cod_Sub_Pro': filtro['cod_sub_pro'],
-        'Fec_Pago': fecha + pd.to_timedelta(df[col_dias].values, unit='D'),
-        'Dias_Pago': df[col_dias].values,
-        'Cap_Amort': df['Cap_Amort'].values if 'Cap_Amort' in df.columns else df['VP_Cap_Amort'].values,
-        'Int_Total_Cont': df['Int_Total_Cont'].values if 'Int_Total_Cont' in df.columns else 0,
-        'VP_Cap_Amort': df['VP_Cap_Amort'].values,
-        'VP_Int_Total_Cont': df['VP_Int_Total'].values if 'VP_Int_Total' in df.columns else 0,
-    })
-    
+            print(f"    ⚠ Sin registros HTM")
+        return pd.DataFrame(columns=columnas_relevantes)
+    else:
+        if verbose:
+            print(f"    ✓ HTM: {len(df)} registros encontrados")
+        return df[columnas_relevantes].copy()
+
+
+def extraer_cartera_htm_para_tabla_desarrollo(
+    df_extrae_cartera_htm: pd.DataFrame,
+    df_precios_dia: pd.DataFrame,
+    columnas_relevantes: Optional[List[str]] = COLUMNAS_TABLA_DESARROLLO,
+    verbose: bool = True
+) -> pd.DataFrame:
+    """
+    Formatea cartera HTM para insertar en RF_Tabla_Desarrollo_Interna.
+
+    DIFERENCIA vs FFMM: Fec_Pago = Fec_Vcto (NO Fec_Vcto_Cup)
+
+    SQL de referencia (RF_PLI_048b_Tabla_Desarrollo_Interna_Add_HTM):
+
+    INSERT INTO RF_Tabla_Desarrollo_Interna (
+        Fec_Pro, Cod_Emp, Moneda, Cod_A_P, Cod_Pro, Cod_Sub_Pro,
+        Fec_Pago, Dias_Pago, Cap_Amort, Int_Total_Cont,
+        VP_Cap_Amort, VP_Int_Total_Cont, Precio_Mid, Flujo_CLP
+    )
+    SELECT
+        RF_PLI_044i_CarteraInv_HTM.Fec_Pro,
+        RF_PLI_044i_CarteraInv_HTM.Cod_Emp,
+        RF_PLI_044i_CarteraInv_HTM.Moneda,
+        RF_PLI_044i_CarteraInv_HTM.Cod_A_P,
+        RF_PLI_044i_CarteraInv_HTM.Cod_Pro,
+        RF_PLI_044i_CarteraInv_HTM.Cod_Sub_Pro,
+        RF_PLI_044i_CarteraInv_HTM.Fec_Vcto AS Fec_Pago,      -- ¡Fec_Vcto, no Fec_Vcto_Cup!
+        RF_PLI_044i_CarteraInv_HTM.Dias_Liq AS Dias_Pago,
+        RF_PLI_044i_CarteraInv_HTM.Cap_Amort,
+        RF_PLI_044i_CarteraInv_HTM.Int_Total_Cont,
+        RF_PLI_044i_CarteraInv_HTM.VP_Cap_Amort,
+        RF_PLI_044i_CarteraInv_HTM.VP_Int_Total AS VP_Int_Total_Cont,
+        Precios_Dia.Precio_Mid,
+        ([RF_PLI_044i_CarteraInv_HTM].[VP_Cap_Amort]
+         + [RF_PLI_044i_CarteraInv_HTM].[VP_Int_Total])
+         * [Precios_Dia].[Precio_Mid] AS Flujo_CLP
+    FROM Precios_Dia
+    INNER JOIN RF_PLI_044i_CarteraInv_HTM
+        ON Precios_Dia.NEMOTECNICO = RF_PLI_044i_CarteraInv_HTM.Moneda;
+
+    Args:
+        df_extrae_cartera_htm: Cartera HTM extraída con extrae_cartera_htm().
+        df_precios_dia: Precios del día (filtrado por NEMOTECNICO si aplica).
+        columnas_relevantes: Columnas de salida.
+        verbose: Si True, muestra mensajes.
+
+    Returns:
+        DataFrame con columnas COLUMNAS_TABLA_DESARROLLO.
+    """
     if verbose:
-        total = resultado['Cap_Amort'].sum()
-        print(f"    ✓ {tipo}: {len(resultado)} registros, total={total:,.0f}")
+        print(f"\n  Formateando cartera HTM para tabla de desarrollo...")
+    df = df_extrae_cartera_htm.copy()
+    # Cambio de nombres de columnas según SQL de referencia:
+    # Fec_Vcto AS Fec_Pago  (¡NO Fec_Vcto_Cup como en FFMM!)
+    # Dias_Liq AS Dias_Pago
+    # VP_Int_Total AS VP_Int_Total_Cont
+    df = df.rename(columns={
+        'Fec_Vcto': 'Fec_Pago',
+        'Dias_Liq': 'Dias_Pago',
+        'VP_Int_Total': 'VP_Int_Total_Cont'
+    })
+    # Agregar Precio_Mid desde df_precios_dia
+    # INNER JOIN Precios_Dia ON Precios_Dia.NEMOTECNICO = CarteraInv_HTM.Moneda
+    if len(df_precios_dia) > 0:
+        df = df.merge(df_precios_dia[['NEMOTECNICO', 'Precio_Mid']], left_on='Moneda', right_on='NEMOTECNICO', how='inner')
+    # Flujo_CLP = (VP_Cap_Amort + VP_Int_Total_Cont) * Precio_Mid
+    df['Flujo_CLP'] = (df['VP_Cap_Amort'] + df['VP_Int_Total_Cont']) * df['Precio_Mid']
+    if verbose:
+        print(f"  ✓ Cartera HTM formateada para tabla de desarrollo: {len(df)} registros")
+    return df[columnas_relevantes].copy()
+
+
+def extrae_cartera_rt(
+    df_cartera: pd.DataFrame,
+    fecha_proceso: Union[int, str, datetime],
+    columnas_relevantes: Optional[List[str]] = COLUMNAS_FFMM_EXTRACCION,
+    verbose: bool = True
+) -> pd.DataFrame:
+    """
+    Extrae cartera de Renta en Tránsito (RT) de la cartera de inversiones.
+
+    SQL de referencia (RF_PLI_044g_CarteraInv_RT):
+
+    SELECT RF_base_Completa_Hist.Fec_Pro, RF_base_Completa_Hist.Cod_Emp,
+        RF_base_Completa_Hist.Moneda, RF_base_Completa_Hist.Cod_A_P,
+        "ML_C46_Inversiones_Financieras" AS Cod_Pro,
+        "ML_C46_Inversiones_Financieras_RT" AS Cod_Sub_Pro,
+        RF_base_Completa_Hist.Num_Oper, RF_base_Completa_Hist.Num_Cup,
+        RF_base_Completa_Hist.Emisor, RF_base_Completa_Hist.Nemotecnico,
+        RF_base_Completa_Hist.Tasa_Emi, RF_base_Completa_Hist.Compensacion,
+        RF_base_Completa_Hist.Fec_Cre, RF_base_Completa_Hist.Fec_Ini_Cup,
+        RF_base_Completa_Hist.Fec_Vcto_Cup, RF_base_Completa_Hist.Fec_Rep,
+        RF_base_Completa_Hist.Fec_Vcto,
+        RF_base_Completa_Hist.Dias_Liq, RF_base_Completa_Hist.Dias_Vcto,
+        RF_base_Completa_Hist.Cap_Amort, RF_base_Completa_Hist.Int_Total_Cont,
+        0 AS Int_Devengado,
+        RF_base_Completa_Hist.Tasa_Cont,
+        RF_base_Completa_Hist.VP_Cap_Amort, RF_base_Completa_Hist.VP_Int_Total,
+        RF_base_Completa_Hist.Tipo_Cupon, RF_base_Completa_Hist.Cod_Area_Neg,
+        RF_base_Completa_Hist.Cod_Estrategia, RF_base_Completa_Hist.Tipo_Book,
+        RF_base_Completa_Hist.Clasificacion_Contable,
+        RF_base_Completa_Hist.RUT_cli, RF_base_Completa_Hist.Nombre_Cli,
+        RF_base_Completa_Hist.Moneda_Liq, RF_base_Completa_Hist.Dias_Pacto,
+        "" AS Factor_Riesgo, "" AS Codigo_Ejecutivo, "" AS Indexador,
+        "" AS tasa, "" AS tasa_CF, "" AS spread
+    FROM RF_Fecha_Proceso_Carteras
+    INNER JOIN RF_base_Completa_Hist
+        ON RF_Fecha_Proceso_Carteras.Fecha = RF_base_Completa_Hist.Fec_Pro
+    WHERE RF_base_Completa_Hist.Cod_Pro <> "Spot"
+        AND RF_base_Completa_Hist.Cod_Sub_Pro Like "*RT*";
+
+    Es decir:
+    se toma la tabla RF_base_Completa_Hist,
+    se filtra por fecha de proceso,
+    se filtra que Cod_Pro sea distinto de "Spot",
+    y que Cod_Sub_Pro contenga "RT" (Access LIKE "*RT*" es contains case-insensitive).
+    Luego se llenan las columnas Cod_Pro y Cod_Sub_Pro con los valores fijos
+    y las columnas adicionales con valores vacíos o ceros.
+
+    Args:
+        df_cartera: Tabla RF_base_Completa_Hist (ya procesada).
+        fecha_proceso: Fecha de proceso.
+        columnas_relevantes: Lista de columnas a seleccionar.
+        verbose: Si True, muestra mensajes.
+
+    Returns:
+        DataFrame con cartera RT formateada.
+    """
+    # Normalizar fecha
+    if isinstance(fecha_proceso, int):
+        fecha = pd.to_datetime(str(fecha_proceso), format='%Y%m%d')
+    elif isinstance(fecha_proceso, str):
+        fecha = pd.to_datetime(fecha_proceso)
+    else:
+        fecha = fecha_proceso
+    if verbose:
+        print(f"\n  Extrayendo cartera RT para fecha {fecha.date()}...")
+
+    df = df_cartera.copy()
+
+    # Filtrar por fecha de proceso
+    if 'Fec_Pro' in df.columns:
+        df['Fec_Pro'] = pd.to_datetime(df['Fec_Pro'])
+        df = df[df['Fec_Pro'] == fecha]
+
+    # WHERE condiciones:
+    # 1. Cod_Pro <> "Spot"
+    mask = df['Cod_Pro'].astype(str) != 'Spot'
+    # 2. Cod_Sub_Pro Like "*RT*"  (Cod_Sub_Pro contiene "RT")
+    mask = mask & df['Cod_Sub_Pro'].astype(str).str.contains('RT', na=False, case=False)
+
+    df = df.loc[mask].copy()
+
+    # Cod_Pro y Cod_Sub_Pro fijos
+    df['Cod_Pro'] = 'ML_C46_Inversiones_Financieras'
+    df['Cod_Sub_Pro'] = 'ML_C46_Inversiones_Financieras_RT'
+
+    # Columnas adicionales con valores fijos
+    columnas_adicionales = {
+        'Int_Devengado': 0,
+        'Factor_Riesgo': "",
+        'Codigo_Ejecutivo': "",
+        'Indexador': "",
+        'tasa': "",
+        'tasa_CF': "",
+        'spread': ""
+    }
+    for col, valor in columnas_adicionales.items():
+        df[col] = valor
+
+    if len(df) == 0:
+        if verbose:
+            print(f"    ⚠ Sin registros RT")
+        return pd.DataFrame(columns=columnas_relevantes)
+    else:
+        if verbose:
+            print(f"    ✓ RT: {len(df)} registros encontrados")
+        return df[columnas_relevantes].copy()
+
+
+def extraer_cartera_rt_para_tabla_desarrollo(
+    df_extrae_cartera_rt: pd.DataFrame,
+    df_precios_dia: pd.DataFrame,
+    columnas_relevantes: Optional[List[str]] = COLUMNAS_TABLA_DESARROLLO,
+    verbose: bool = True
+) -> pd.DataFrame:
+    """
+    Formatea cartera RT para insertar en RF_Tabla_Desarrollo_Interna.
+
+    DIFERENCIA vs FFMM: Fec_Pago = Fec_Vcto (NO Fec_Vcto_Cup)
+
+    SQL de referencia (RF_PLI_048c_Tabla_Desarrollo_Interna_Add_RT):
+
+    INSERT INTO RF_Tabla_Desarrollo_Interna (
+        Fec_Pro, Cod_Emp, Moneda, Cod_A_P, Cod_Pro, Cod_Sub_Pro,
+        Fec_Pago, Dias_Pago, Cap_Amort, Int_Total_Cont,
+        VP_Cap_Amort, VP_Int_Total_Cont, Precio_Mid, Flujo_CLP
+    )
+    SELECT
+        RF_PLI_044g_CarteraInv_RT.Fec_Pro,
+        RF_PLI_044g_CarteraInv_RT.Cod_Emp,
+        RF_PLI_044g_CarteraInv_RT.Moneda,
+        RF_PLI_044g_CarteraInv_RT.Cod_A_P,
+        RF_PLI_044g_CarteraInv_RT.Cod_Pro,
+        RF_PLI_044g_CarteraInv_RT.Cod_Sub_Pro,
+        RF_PLI_044g_CarteraInv_RT.Fec_Vcto AS Fec_Pago,       -- ¡Fec_Vcto, no Fec_Vcto_Cup!
+        RF_PLI_044g_CarteraInv_RT.Dias_Liq AS Dias_Pago,
+        RF_PLI_044g_CarteraInv_RT.Cap_Amort,
+        RF_PLI_044g_CarteraInv_RT.Int_Total_Cont,
+        RF_PLI_044g_CarteraInv_RT.VP_Cap_Amort,
+        RF_PLI_044g_CarteraInv_RT.VP_Int_Total AS VP_Int_Total_Cont,
+        Precios_Dia.Precio_Mid,
+        ([RF_PLI_044g_CarteraInv_RT].[VP_Cap_Amort]
+         + [RF_PLI_044g_CarteraInv_RT].[VP_Int_Total])
+         * [Precios_Dia].[Precio_Mid] AS Flujo_CLP
+    FROM Precios_Dia
+    INNER JOIN RF_PLI_044g_CarteraInv_RT
+        ON Precios_Dia.NEMOTECNICO = RF_PLI_044g_CarteraInv_RT.Moneda;
+
+    Args:
+        df_extrae_cartera_rt: Cartera RT extraída con extrae_cartera_rt().
+        df_precios_dia: Precios del día.
+        columnas_relevantes: Columnas de salida.
+        verbose: Si True, muestra mensajes.
+
+    Returns:
+        DataFrame con columnas COLUMNAS_TABLA_DESARROLLO.
+    """
+    if verbose:
+        print(f"\n  Formateando cartera RT para tabla de desarrollo...")
+    df = df_extrae_cartera_rt.copy()
+    # Cambio de nombres de columnas según SQL de referencia:
+    # Fec_Vcto AS Fec_Pago  (¡NO Fec_Vcto_Cup como en FFMM!)
+    # Dias_Liq AS Dias_Pago
+    # VP_Int_Total AS VP_Int_Total_Cont
+    df = df.rename(columns={
+        'Fec_Vcto': 'Fec_Pago',
+        'Dias_Liq': 'Dias_Pago',
+        'VP_Int_Total': 'VP_Int_Total_Cont'
+    })
+    # Agregar Precio_Mid desde df_precios_dia
+    # INNER JOIN Precios_Dia ON Precios_Dia.NEMOTECNICO = CarteraInv_RT.Moneda
+    if len(df_precios_dia) > 0:
+        df = df.merge(df_precios_dia[['NEMOTECNICO', 'Precio_Mid']], left_on='Moneda', right_on='NEMOTECNICO', how='inner')
+    # Flujo_CLP = (VP_Cap_Amort + VP_Int_Total_Cont) * Precio_Mid
+    df['Flujo_CLP'] = (df['VP_Cap_Amort'] + df['VP_Int_Total_Cont']) * df['Precio_Mid']
+    if verbose:
+        print(f"  ✓ Cartera RT formateada para tabla de desarrollo: {len(df)} registros")
+    return df[columnas_relevantes].copy()
+
+
+# def extraer_cartera_especial(
+#     df_cartera: pd.DataFrame,
+#     tipo: Literal['FFMM', 'HTM', 'RT'],
+#     fecha_proceso: Union[int, str, datetime],
+#     columnas_relevantes: Optional[List[str]] = COLUMNAS_FFMM_EXTRACCION,
+#     verbose: bool = True
+# ) -> pd.DataFrame:
+#     """
+#     Extrae cartera especial (FFMM, HTM o RT) de la cartera de inversiones.
     
-    return resultado
+#     Estos tipos NO pasan por el modelo de liquidación porque:
+#     - FFMM: Liquidez inmediata (T+0/T+1)
+#     - HTM: Held-to-Maturity, compromiso de no venta
+#     - RT: Renta en tránsito, ya comprometida
+    
+#     Args:
+#         df_cartera: Cartera de inversiones completa.
+#         tipo: Tipo de cartera a extraer ('FFMM', 'HTM', 'RT').
+#         fecha_proceso: Fecha de proceso.
+#         columnas_relevantes: Columnas relevantes para la extracción.
+        
+#     Returns:
+#         DataFrame con cartera especial formateada.
+#     """
+#     if verbose:
+#         print(f"\n  Extrayendo cartera {tipo}...")
+    
+#     FILTROS = {
+#         'FFMM': {'patron': '^INVERSIONES FINANCIERAS FONDOS MUTUOS$', 'cod_sub_pro': 'ML_C46_Inversiones_Financieras_FFMM'},
+#         'HTM': {'patron': 'HTM', 'cod_sub_pro': 'ML_C46_Inversiones_Financieras_HTM'},
+#         'RT': {'patron': 'RT|Transito', 'cod_sub_pro': 'ML_C46_Inversiones_Financieras_RT'},
+#     }
+    
+#     if tipo not in FILTROS:
+#         raise ValueError(f"Tipo '{tipo}' inválido. Válidos: {list(FILTROS.keys())}")
+    
+#     filtro = FILTROS[tipo]
+    
+#     # Normalizar fecha
+#     if isinstance(fecha_proceso, int):
+#         fecha = pd.to_datetime(str(fecha_proceso), format='%Y%m%d')
+#     elif isinstance(fecha_proceso, str):
+#         fecha = pd.to_datetime(fecha_proceso)
+#     else:
+#         fecha = fecha_proceso
+    
+#     df = df_cartera.copy()
+    
+#     # Filtrar por patrón en Cod_Sub_Pro
+#     mask = df['Cod_Sub_Pro'].str.contains(filtro['patron'], na=False, case=False, regex=True)
+#     df = df.loc[mask].copy()
+    
+#     if len(df) == 0:
+#         if verbose:
+#             print(f"    ⚠ Sin registros {tipo}")
+#         return pd.DataFrame(columns=columnas_relevantes)
+    
+#     # Determinar columna de días
+#     col_dias = 'Dias_Liq' if 'Dias_Liq' in df.columns else 'Dias_Vcto'
+    
+#     # Formatear
+#     resultado = pd.DataFrame({
+#         'Fec_Pro': fecha,
+#         'Cod_Emp': CODIGO_EMPRESA,
+#         'Moneda': df['Moneda'].values,
+#         'Cod_A_P': CODIGO_ACTIVO_PASIVO,
+#         'Cod_Pro': CODIGO_PRODUCTO,
+#         'Cod_Sub_Pro': filtro['cod_sub_pro'],
+#         'Fec_Pago': fecha + pd.to_timedelta(df[col_dias].values, unit='D'),
+#         'Dias_Pago': df[col_dias].values,
+#         'Cap_Amort': df['Cap_Amort'].values if 'Cap_Amort' in df.columns else df['VP_Cap_Amort'].values,
+#         'Int_Total_Cont': df['Int_Total_Cont'].values if 'Int_Total_Cont' in df.columns else 0,
+#         'VP_Cap_Amort': df['VP_Cap_Amort'].values,
+#         'VP_Int_Total_Cont': df['VP_Int_Total'].values if 'VP_Int_Total' in df.columns else 0,
+#     })
+    
+#     if verbose:
+#         total = resultado['Cap_Amort'].sum()
+#         print(f"    ✓ {tipo}: {len(resultado)} registros, total={total:,.0f}")
+    
+#     return resultado
 
 
 def generar_tabla_desarrollo_completa(
@@ -904,12 +1532,18 @@ def generar_tabla_desarrollo_completa(
     
     Implementa pasos 22-26 del modelo de Access.
     
+    NOTA: df_cartera_ffmm, df_cartera_htm, df_cartera_rt deben venir ya 
+    formateados con las funciones extraer_cartera_X_para_tabla_desarrollo(),
+    es decir, ya tienen las columnas COLUMNAS_TABLA_DESARROLLO incluyendo
+    Precio_Mid y Flujo_CLP. Solo df_modelo_inversiones necesita que se le
+    aplique agregar_precio_y_flujo_clp.
+    
     Args:
         df_modelo_inversiones: Flujos del modelo de liquidación (paso 21).
         df_precios_dia: Precios TCRC del día.
-        df_cartera_ffmm: Cartera de fondos mutuos (opcional).
-        df_cartera_htm: Cartera held-to-maturity (opcional).
-        df_cartera_rt: Cartera renta en tránsito (opcional).
+        df_cartera_ffmm: Cartera FFMM ya formateada para desarrollo (opcional).
+        df_cartera_htm: Cartera HTM ya formateada para desarrollo (opcional).
+        df_cartera_rt: Cartera RT ya formateada para desarrollo (opcional).
         verbose: Si True, muestra mensajes.
         
     Returns:
@@ -930,32 +1564,29 @@ def generar_tabla_desarrollo_completa(
     if verbose:
         print(f"       ML: {len(df_ml):,} registros")
     
-    # Paso 24: Agregar FFMM
+    # Paso 24: Agregar FFMM (ya viene formateado con Precio_Mid y Flujo_CLP)
     if df_cartera_ffmm is not None and len(df_cartera_ffmm) > 0:
         if verbose:
-            print("\n  [24] Procesando FFMM...")
-        df_ffmm = agregar_precio_y_flujo_clp(df_cartera_ffmm, df_precios_dia, verbose=False)
-        dfs_a_concatenar.append(df_ffmm)
+            print("\n  [24] Agregando FFMM (ya formateado)...")
+        dfs_a_concatenar.append(df_cartera_ffmm)
         if verbose:
-            print(f"       FFMM: {len(df_ffmm):,} registros")
+            print(f"       FFMM: {len(df_cartera_ffmm):,} registros")
     
-    # Paso 25: Agregar HTM
+    # Paso 25: Agregar HTM (ya viene formateado con Precio_Mid y Flujo_CLP)
     if df_cartera_htm is not None and len(df_cartera_htm) > 0:
         if verbose:
-            print("\n  [25] Procesando HTM...")
-        df_htm = agregar_precio_y_flujo_clp(df_cartera_htm, df_precios_dia, verbose=False)
-        dfs_a_concatenar.append(df_htm)
+            print("\n  [25] Agregando HTM (ya formateado)...")
+        dfs_a_concatenar.append(df_cartera_htm)
         if verbose:
-            print(f"       HTM: {len(df_htm):,} registros")
+            print(f"       HTM: {len(df_cartera_htm):,} registros")
     
-    # Paso 26: Agregar RT
+    # Paso 26: Agregar RT (ya viene formateado con Precio_Mid y Flujo_CLP)
     if df_cartera_rt is not None and len(df_cartera_rt) > 0:
         if verbose:
-            print("\n  [26] Procesando RT...")
-        df_rt = agregar_precio_y_flujo_clp(df_cartera_rt, df_precios_dia, verbose=False)
-        dfs_a_concatenar.append(df_rt)
+            print("\n  [26] Agregando RT (ya formateado)...")
+        dfs_a_concatenar.append(df_cartera_rt)
         if verbose:
-            print(f"       RT: {len(df_rt):,} registros")
+            print(f"       RT: {len(df_cartera_rt):,} registros")
     
     # Consolidar
     resultado = pd.concat(dfs_a_concatenar, ignore_index=True)
@@ -970,52 +1601,221 @@ def generar_tabla_desarrollo_completa(
     return resultado
 
 
+def _formatear_ml_para_excel(df_tabla_final: pd.DataFrame) -> pd.DataFrame:
+    """
+    Formatea la parte ML (modelo de liquidación) de RF_PLI_049.
+    
+    Constantes fijas para AREA NEGOCIO, CODIGO_ESTRATEGIA, CLASIFICACION_CONTABLE.
+    Todas las fechas (FECHA PAGO, VENCIMIENTO_CUOTA, REPRICING) = Fec_Pago.
+    """
+    df = df_tabla_final.copy()
+    return pd.DataFrame({
+        'FECHA PROCESO': df['Fec_Pro'].values,
+        'CODIGO_EMPRESA': df['Cod_Emp'].values,
+        'OPERACION': "",
+        'COD ACT/PAS': df['Cod_A_P'].values,
+        'MONEDA_ORIGEN': df['Moneda'].values,
+        'MONEDA_COMPENSACION': df['Moneda'].values,
+        'COMPENSACION': "C",
+        'CODIGO_PRODUCTO': df['Cod_Pro'].values,
+        'CODIGO_SUBPRODUCTO': df['Cod_Sub_Pro'].values,
+        'FECHA CREACION': "",
+        'NUMERO_CUOTA': "",
+        'FECHA_INICIO_CUOTA': "",
+        'FECHA_VENCIMIENTO_CUOTA': df['Fec_Pago'].values,
+        'FECHA PAGO': df['Fec_Pago'].values,
+        'FECHA_REPRICING': df['Fec_Pago'].values,
+        'AMORTIZACION': df['Cap_Amort'].values,
+        'INTERES': df['Int_Total_Cont'].values,
+        'INTERES_DEVENGADO': 0,
+        'VP_AMORTIZACION': df['VP_Cap_Amort'].values,
+        'VP_INTERES': df['VP_Int_Total_Cont'].values,
+        'FACTOR DE RIESGO': "",
+        'TIPO_CUOTA': 1,
+        'AREA NEGOCIO': "TRADING TASAS",
+        'CODIGO_ EJECUTIVO': "",
+        'CODIGO_ESTRATEGIA': "TRADING TASAS",
+        'CLASIFICACION_CONTABLE': "P&L",
+        'TIPO TASA': 1,
+        'INDEXADOR': "",
+        'TASA': "",
+        'TASA CF': "",
+        'SPREAD': "",
+    })
+
+
+def _formatear_ffmm_para_excel(df_cartera_ffmm: pd.DataFrame) -> pd.DataFrame:
+    """
+    Formatea la parte FFMM de RF_PLI_049.
+    
+    DIFERENCIA vs ML:
+    - FECHA PAGO y FECHA_VENCIMIENTO_CUOTA = Fec_Vcto_Cup (no Fec_Pago)
+    - FECHA_REPRICING = Fec_Vcto (no Fec_Pago) 
+    - AREA NEGOCIO = Cod_Estrategia (dato de cartera, no constante)
+    - CODIGO_ESTRATEGIA = Cod_Estrategia (dato de cartera)
+    - CLASIFICACION_CONTABLE = Clasificacion_Contable (dato de cartera)
+    - VP_INTERES = VP_Int_Total (no VP_Int_Total_Cont)
+    """
+    df = df_cartera_ffmm.copy()
+    return pd.DataFrame({
+        'FECHA PROCESO': df['Fec_Pro'].values,
+        'CODIGO_EMPRESA': df['Cod_Emp'].values,
+        'OPERACION': "",
+        'COD ACT/PAS': df['Cod_A_P'].values,
+        'MONEDA_ORIGEN': df['Moneda'].values,
+        'MONEDA_COMPENSACION': df['Moneda'].values,
+        'COMPENSACION': "C",
+        'CODIGO_PRODUCTO': df['Cod_Pro'].values,
+        'CODIGO_SUBPRODUCTO': df['Cod_Sub_Pro'].values,
+        'FECHA CREACION': "",
+        'NUMERO_CUOTA': "",
+        'FECHA_INICIO_CUOTA': "",
+        'FECHA_VENCIMIENTO_CUOTA': df['Fec_Vcto_Cup'].values,
+        'FECHA PAGO': df['Fec_Vcto_Cup'].values,
+        'FECHA_REPRICING': df['Fec_Vcto'].values,
+        'AMORTIZACION': df['Cap_Amort'].values,
+        'INTERES': df['Int_Total_Cont'].values,
+        'INTERES_DEVENGADO': 0,
+        'VP_AMORTIZACION': df['VP_Cap_Amort'].values,
+        'VP_INTERES': df['VP_Int_Total'].values,
+        'FACTOR DE RIESGO': "",
+        'TIPO_CUOTA': 1,
+        'AREA NEGOCIO': df['Cod_Estrategia'].values,
+        'CODIGO_ EJECUTIVO': "",
+        'CODIGO_ESTRATEGIA': df['Cod_Estrategia'].values,
+        'CLASIFICACION_CONTABLE': df['Clasificacion_Contable'].values,
+        'TIPO TASA': 1,
+        'INDEXADOR': "",
+        'TASA': "",
+        'TASA CF': "",
+        'SPREAD': "",
+    })
+
+
+def _formatear_rt_htm_para_excel(df_cartera: pd.DataFrame) -> pd.DataFrame:
+    """
+    Formatea la parte RT o HTM de RF_PLI_049 (mismo esquema entre ambos).
+    
+    DIFERENCIA vs FFMM:
+    - FECHA PAGO, FECHA_VENCIMIENTO_CUOTA y FECHA_REPRICING = Fec_Vcto (las 3)
+    
+    DIFERENCIA vs ML:
+    - AREA NEGOCIO, CODIGO_ESTRATEGIA, CLASIFICACION_CONTABLE = datos de cartera
+    - VP_INTERES = VP_Int_Total (no VP_Int_Total_Cont)
+    """
+    df = df_cartera.copy()
+    return pd.DataFrame({
+        'FECHA PROCESO': df['Fec_Pro'].values,
+        'CODIGO_EMPRESA': df['Cod_Emp'].values,
+        'OPERACION': "",
+        'COD ACT/PAS': df['Cod_A_P'].values,
+        'MONEDA_ORIGEN': df['Moneda'].values,
+        'MONEDA_COMPENSACION': df['Moneda'].values,
+        'COMPENSACION': "C",
+        'CODIGO_PRODUCTO': df['Cod_Pro'].values,
+        'CODIGO_SUBPRODUCTO': df['Cod_Sub_Pro'].values,
+        'FECHA CREACION': "",
+        'NUMERO_CUOTA': "",
+        'FECHA_INICIO_CUOTA': "",
+        'FECHA_VENCIMIENTO_CUOTA': df['Fec_Vcto'].values,
+        'FECHA PAGO': df['Fec_Vcto'].values,
+        'FECHA_REPRICING': df['Fec_Vcto'].values,
+        'AMORTIZACION': df['Cap_Amort'].values,
+        'INTERES': df['Int_Total_Cont'].values,
+        'INTERES_DEVENGADO': 0,
+        'VP_AMORTIZACION': df['VP_Cap_Amort'].values,
+        'VP_INTERES': df['VP_Int_Total'].values,
+        'FACTOR DE RIESGO': "",
+        'TIPO_CUOTA': 1,
+        'AREA NEGOCIO': df['Cod_Estrategia'].values,
+        'CODIGO_ EJECUTIVO': "",
+        'CODIGO_ESTRATEGIA': df['Cod_Estrategia'].values,
+        'CLASIFICACION_CONTABLE': df['Clasificacion_Contable'].values,
+        'TIPO TASA': 1,
+        'INDEXADOR': "",
+        'TASA': "",
+        'TASA CF': "",
+        'SPREAD': "",
+    })
+
+
 def formatear_para_excel(
-    df_tabla_desarrollo: pd.DataFrame,
+    df_tabla_final: pd.DataFrame,
+    df_cartera_ffmm: Optional[pd.DataFrame] = None,
+    df_cartera_htm: Optional[pd.DataFrame] = None,
+    df_cartera_rt: Optional[pd.DataFrame] = None,
     verbose: bool = True
 ) -> pd.DataFrame:
     """
-    Formatea la tabla de desarrollo para exportación a Excel.
+    Formatea para exportación a Excel (RF_Tabla_Desarrollo_Final).
     
-    Implementa paso 27: RF_PLI_050_Tabla_Desarrollo_Modelo_Inversiones_Excel
+    Implementa RF_PLI_049_Tabla_Desarrollo_Modelo_Inversiones y
+    RF_PLI_050_Tabla_Desarrollo_Modelo_Inversiones_Excel.
     
+    ARQUITECTURA: Es un UNION ALL de 4 fuentes con mapeos DISTINTOS por fuente:
+    - ML (RF_PLI_046): constantes fijas para AREA NEGOCIO="TRADING TASAS",
+      CLASIFICACION_CONTABLE="P&L"; fechas todas = Fec_Pago
+    - FFMM (RF_PLI_044f): FECHA PAGO = Fec_Vcto_Cup, REPRICING = Fec_Vcto;
+      AREA NEGOCIO/ESTRATEGIA/CLASIFICACION desde datos de cartera
+    - RT (RF_PLI_044g): todas las fechas = Fec_Vcto; datos de cartera
+    - HTM (RF_PLI_044i): todas las fechas = Fec_Vcto; datos de cartera
+    
+    IMPORTANTE: Los inputs FFMM/HTM/RT deben ser las carteras completas
+    (output de extrae_cartera_ffmm/htm/rt), NO los _para_tabla_desarrollo,
+    porque se necesitan columnas como Cod_Estrategia, Clasificacion_Contable,
+    Fec_Vcto_Cup, Fec_Vcto que se pierden en el formateo intermedio.
+
     Args:
-        df_tabla_desarrollo: DataFrame con flujos consolidados.
+        df_tabla_final: Output del paso 21 (RF_PLI_Modelo_Inversiones_Final_CLP).
+        df_cartera_ffmm: Cartera FFMM (output de extrae_cartera_ffmm, columnas completas).
+        df_cartera_htm: Cartera HTM (output de extrae_cartera_htm, columnas completas).
+        df_cartera_rt: Cartera RT (output de extrae_cartera_rt, columnas completas).
         verbose: Si True, muestra mensajes.
         
     Returns:
-        DataFrame con columnas renombradas y adicionales para Excel.
+        DataFrame con 31 columnas según formato Excel (RF_Tabla_Desarrollo_Final).
     """
     if verbose:
-        print("\n[Paso 27] Formateando para Excel...")
+        print("\n[Paso 27] Formateando para Excel (RF_PLI_049 → RF_PLI_050)...")
     
-    df = df_tabla_desarrollo.copy()
+    dfs = []
     
-    # Agregar columnas constantes
-    df['OPERACION'] = 'INVERSIONES'
-    df['MONEDA_COMPENSACION'] = df['Moneda']
-    df['COMPENSACION'] = 'NO'
+    # 1. ML: modelo de liquidación (RF_PLI_046)
+    df_ml = _formatear_ml_para_excel(df_tabla_final)
+    dfs.append(df_ml)
+    if verbose:
+        print(f"  ML:   {len(df_ml):,} registros")
     
-    # Renombrar columnas
-    df = df.rename(columns=MAPEO_COLUMNAS_EXCEL)
+    # 2. FFMM (RF_PLI_044f)
+    if df_cartera_ffmm is not None and len(df_cartera_ffmm) > 0:
+        df_ffmm = _formatear_ffmm_para_excel(df_cartera_ffmm)
+        dfs.append(df_ffmm)
+        if verbose:
+            print(f"  FFMM: {len(df_ffmm):,} registros")
     
-    # Ordenar columnas según formato esperado
-    columnas_orden = [
-        'FECHA PROCESO', 'CODIGO_EMPRESA', 'OPERACION', 'COD ACT/PAS',
-        'MONEDA_ORIGEN', 'MONEDA_COMPENSACION', 'COMPENSACION',
-        'COD_PRO', 'COD_SUB_PRO', 'FECHA DE PAGO', 'PLAZO_PAGO',
-        'FLUJO_CAPITAL', 'FLUJO_INTERES', 'VP_CAP', 'VP_INT_CONT',
-        'PRECIO_MID', 'FLUJO_CLP'
-    ]
+    # 3. RT (RF_PLI_044g)
+    if df_cartera_rt is not None and len(df_cartera_rt) > 0:
+        df_rt = _formatear_rt_htm_para_excel(df_cartera_rt)
+        dfs.append(df_rt)
+        if verbose:
+            print(f"  RT:   {len(df_rt):,} registros")
     
-    # Solo incluir columnas que existen
-    columnas_existentes = [c for c in columnas_orden if c in df.columns]
-    df = df[columnas_existentes]
+    # 4. HTM (RF_PLI_044i)
+    if df_cartera_htm is not None and len(df_cartera_htm) > 0:
+        df_htm = _formatear_rt_htm_para_excel(df_cartera_htm)
+        dfs.append(df_htm)
+        if verbose:
+            print(f"  HTM:  {len(df_htm):,} registros")
+    
+    resultado = pd.concat(dfs, ignore_index=True)
+    
+    # Asegurar orden de columnas según RF_PLI_050
+    resultado = resultado[COLUMNAS_EXCEL_FINAL]
     
     if verbose:
-        print(f"  ✓ Formateado: {len(df):,} registros, {len(df.columns)} columnas")
+        print(f"  ✓ Formateado: {len(resultado):,} registros, {len(resultado.columns)} columnas")
     
-    return df
+    return resultado
 
 
 # =============================================================================
@@ -1034,7 +1834,10 @@ def ejecutar_pasos_20_a_27(
     
     Args:
         flujos: Diccionario con flujos por instrumento.
-        tablas: Diccionario con tablas linkeadas (RF_Base_Diaria_Precios, etc.).
+        tablas: Diccionario con tablas linkeadas. Requiere:
+            - 'RF_Base_Diaria_Precios'
+            - 'RF_base_Completa_Hist'
+            - 'RF_base_Completa_Hist_Input' (para HTM)
         fecha_proceso: Fecha de proceso.
         df_cartera_inv_pacto: Cartera de pactos (RF_PLI_001d) para filtrar >90 días.
         verbose: Si True, muestra mensajes.
@@ -1044,7 +1847,10 @@ def ejecutar_pasos_20_a_27(
         - 'precios_dia': Precios del día
         - 'tabla_final_inversiones': Tabla final paso 21
         - 'tabla_desarrollo': Tabla desarrollo pasos 22-26
-        - 'tabla_excel': Tabla formateada paso 27
+        - 'tabla_excel': Tabla formateada paso 27 (31 columnas)
+        - 'cartera_ffmm': Cartera FFMM extraída
+        - 'cartera_htm': Cartera HTM extraída
+        - 'cartera_rt': Cartera RT extraída
     """
     resultados = {}
     
@@ -1070,17 +1876,64 @@ def ejecutar_pasos_20_a_27(
         verbose=verbose
     )
     
-    # Pasos 22-26: Tabla de desarrollo
-    # TODO: Extraer carteras especiales FFMM, HTM, RT si están disponibles
+    # Extraer carteras especiales (FFMM, HTM, RT)
+    df_precios_todos = resultados['precios_dia']
+    df_precio_clf = df_precios_todos
+    if not df_precio_clf.empty and 'NEMOTECNICO' in df_precio_clf.columns:
+        df_precio_clf = df_precio_clf[df_precio_clf['NEMOTECNICO'] == 'CLF']
+    
+    # FFMM (desde RF_base_Completa_Hist)
+    # FFMM usa JOIN con Precios_Dia completo (Moneda puede ser USD, CLP, CLF)
+    cartera_ffmm = None
+    ffmm_desarrollo = None
+    if df_base is not None:
+        cartera_ffmm = extrae_cartera_ffmm(df_base, fecha_proceso, verbose=verbose)
+        if len(cartera_ffmm) > 0:
+            ffmm_desarrollo = extraer_cartera_ffmm_para_tabla_desarrollo(
+                cartera_ffmm, df_precios_todos, verbose=verbose
+            )
+    resultados['cartera_ffmm'] = cartera_ffmm
+    
+    # HTM (desde RF_base_Completa_Hist_Input)
+    cartera_htm = None
+    htm_desarrollo = None
+    df_base_input = tablas.get('RF_base_Completa_Hist_Input')
+    if df_base_input is not None:
+        cartera_htm = extrae_cartera_htm(df_base_input, fecha_proceso, verbose=verbose)
+        if len(cartera_htm) > 0:
+            htm_desarrollo = extraer_cartera_htm_para_tabla_desarrollo(
+                cartera_htm, df_precio_clf, verbose=verbose
+            )
+    resultados['cartera_htm'] = cartera_htm
+    
+    # RT (desde RF_base_Completa_Hist)
+    cartera_rt = None
+    rt_desarrollo = None
+    if df_base is not None:
+        cartera_rt = extrae_cartera_rt(df_base, fecha_proceso, verbose=verbose)
+        if len(cartera_rt) > 0:
+            rt_desarrollo = extraer_cartera_rt_para_tabla_desarrollo(
+                cartera_rt, df_precio_clf, verbose=verbose
+            )
+    resultados['cartera_rt'] = cartera_rt
+    
+    # Pasos 22-26: Tabla de desarrollo interna
     resultados['tabla_desarrollo'] = generar_tabla_desarrollo_completa(
         df_modelo_inversiones=resultados['tabla_final_inversiones'],
-        df_precios_dia=resultados['precios_dia'],
+        df_precios_dia=df_precio_clf,
+        df_cartera_ffmm=ffmm_desarrollo,
+        df_cartera_htm=htm_desarrollo,
+        df_cartera_rt=rt_desarrollo,
         verbose=verbose
     )
     
-    # Paso 27: Formato Excel
+    # Paso 27: Formato Excel (RF_PLI_049 → RF_PLI_050)
+    # Usa carteras completas (no _desarrollo) porque necesita columnas extra
     resultados['tabla_excel'] = formatear_para_excel(
-        resultados['tabla_desarrollo'],
+        df_tabla_final=resultados['tabla_final_inversiones'],
+        df_cartera_ffmm=cartera_ffmm,
+        df_cartera_htm=cartera_htm,
+        df_cartera_rt=cartera_rt,
         verbose=verbose
     )
     
