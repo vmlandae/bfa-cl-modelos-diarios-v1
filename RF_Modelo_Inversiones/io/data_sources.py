@@ -212,6 +212,18 @@ def _cargar_desde_live(
     """
     Carga tablas directamente desde Access/Excel.
     
+    Soporta dos formatos de configuración:
+    
+    1. **Multi-source** (ml_inversiones): múltiples archivos Access y Excel
+       con renombrado de tablas.
+       - 'ms_access_sources': lista de {path, tablas: [{nombre_fuente, nombre_destino?}]}
+       - 'excel_files': lista de {path, sheets: [{nombre, sheet}]}
+    
+    2. **Single-source** (legacy): un solo archivo Access + Excel.
+       - 'ms_access_path': ruta al archivo Access
+       - 'tablas_access': lista de nombres de tablas
+       - 'excel_files': lista de {path, sheets: [{nombre, sheet}]}
+    
     Args:
         rutas_config: Diccionario con rutas a los archivos fuente
         fecha_proceso: Fecha de proceso (YYYYMMDD)
@@ -228,8 +240,30 @@ def _cargar_desde_live(
     
     tablas = {}
     
-    # Cargar desde Access
-    if 'ms_access_path' in rutas_config:
+    # --- Formato multi-source (ml_inversiones) ---
+    if 'ms_access_sources' in rutas_config:
+        for source in rutas_config['ms_access_sources']:
+            access_path = Path(source['path'])
+            if not access_path.exists():
+                print(f"    ✗ No existe: {access_path}")
+                continue
+            print(f"  📂 Access: {access_path.name}")
+            for tabla_config in source.get('tablas', []):
+                nombre_fuente = tabla_config['nombre_fuente']
+                nombre_destino = tabla_config.get('nombre_destino', nombre_fuente)
+                if tablas_requeridas and nombre_destino not in tablas_requeridas:
+                    continue
+                query = f"SELECT * FROM [{nombre_fuente}]"
+                try:
+                    df = ut.lectura_datos_ms_access(str(access_path), query)
+                    tablas[nombre_destino] = df
+                    sufijo = f" (como {nombre_destino})" if nombre_destino != nombre_fuente else ""
+                    print(f"    ✓ {nombre_fuente}{sufijo}: {len(df):,} registros")
+                except Exception as e:
+                    print(f"    ✗ Error cargando {nombre_fuente}: {e}")
+    
+    # --- Formato single-source (legacy) ---
+    elif 'ms_access_path' in rutas_config:
         access_path = Path(rutas_config['ms_access_path'])
         if access_path.exists():
             tablas_access = rutas_config.get('tablas_access', [])
@@ -239,13 +273,12 @@ def _cargar_desde_live(
                 query = f"SELECT * FROM [{tabla}]"
                 try:
                     df = ut.lectura_datos_ms_access(str(access_path), query)
-                    df = ut.estandariza_nombre_columnas_dataframe(df)
                     tablas[tabla] = df
                     print(f"    ✓ {tabla}: {len(df):,} registros")
                 except Exception as e:
                     print(f"    ✗ Error cargando {tabla}: {e}")
     
-    # Cargar desde Excel
+    # --- Cargar desde Excel ---
     if 'excel_files' in rutas_config:
         for excel_config in rutas_config['excel_files']:
             excel_path = Path(excel_config['path'])
@@ -379,7 +412,7 @@ def cargar_tablas_ml_inversiones(
         
     elif modo == DataSourceMode.LIVE:
         if rutas_config is None:
-            raise ValueError("rutas_config es requerido para modo LIVE")
+            rutas_config = crear_config_rutas_live_desde_yaml()
         tablas = _cargar_desde_live(rutas_config, fecha_proceso, tablas_requeridas)
         
     elif modo == DataSourceMode.BIGQUERY:
@@ -440,58 +473,43 @@ def listar_transformaciones() -> Dict[str, str]:
 # CONFIGURACIÓN DE RUTAS LIVE (TEMPLATE)
 # =============================================================================
 
-def crear_config_rutas_live(
-    access_path: str,
-    excel_tcrc_path: str,
-    excel_fpl_path: str,
-) -> Dict[str, Any]:
+def crear_config_rutas_live_desde_yaml() -> Dict[str, Any]:
     """
-    Crea configuración de rutas para modo LIVE.
+    Carga la configuración de rutas para ml_inversiones desde el YAML central.
     
-    Template de conveniencia para crear la configuración.
+    Lee `config/config_rutas_ext_y_archivos.yaml` y transforma la sección
+    `ml_inversiones` al formato que espera `_cargar_desde_live()`.
     
-    Args:
-        access_path: Ruta al archivo Access principal
-        excel_tcrc_path: Ruta al Excel con datos TCRC
-        excel_fpl_path: Ruta al Excel con FPL y MontosLiq
-        
     Returns:
-        Dict con la configuración completa
+        Dict con la configuración para _cargar_desde_live()
     """
-    return {
-        'ms_access_path': access_path,
-        'tablas_access': [
-            'RF_Cartera_Inv',
-            'RF_Cartera_Inv_Pacto',
-            'RF_Flujos_Bonos_DLY',
-            'RF_Flujos_Papeles_DLY',
-            'RF_Flujos_Papeles_Ext_DLY',
-            'RF_Flujos_Bonos_Ext_DLY',
-            'RF_Flujos_DAP_DLY',
-            'RF_Flujos_FI_DLY',
-            # Tablas de validación
-            'P01_Cartera_Bonos',
-            'P02_Cartera_Papeles',
-            'P03_Cartera_Otros',
-            'P04_Cartera_Bonos_Ext',
-            'P05_Cartera_Papeles_Ext',
-            'P06_Cartera_DAP',
-            'P07_Cartera_FI',
-            'P08_Cartera_Pactos',
-        ],
-        'excel_files': [
-            {
-                'path': excel_tcrc_path,
-                'sheets': [
-                    {'nombre': 'TCRC', 'sheet': 'TCRC'},
-                ]
-            },
-            {
-                'path': excel_fpl_path,
-                'sheets': [
-                    {'nombre': 'FPL', 'sheet': 'FPL'},
-                    {'nombre': 'RF_MontosLiq', 'sheet': 'RF_MontosLiq'},
-                ]
-            },
-        ]
+    import yaml
+    
+    yaml_path = Path(__file__).resolve().parent.parent.parent / 'config' / 'config_rutas_ext_y_archivos.yaml'
+    with open(yaml_path, 'r', encoding='utf-8') as f:
+        config = yaml.safe_load(f)
+    
+    cfg_inv = config['modelos']['ml_inversiones']
+    
+    rutas = {
+        'ms_access_sources': cfg_inv['ms_access_sources'],
+        'excel_files': [],
     }
+    
+    # Convertir excel_parametros_input + excel_hojas al formato excel_files
+    if 'excel_parametros_input' in cfg_inv and 'excel_hojas' in cfg_inv:
+        rutas['excel_files'].append({
+            'path': cfg_inv['excel_parametros_input'],
+            'sheets': [
+                {'nombre': h['nombre'], 'sheet': h['hoja']}
+                for h in cfg_inv['excel_hojas']
+            ]
+        })
+    
+    # Agregar rutas de output
+    if 'excel_output' in cfg_inv:
+        rutas['excel_output'] = cfg_inv['excel_output']
+    if 'csv_output_dir' in cfg_inv:
+        rutas['csv_output_dir'] = cfg_inv['csv_output_dir']
+    
+    return rutas

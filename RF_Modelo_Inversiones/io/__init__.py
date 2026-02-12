@@ -16,7 +16,7 @@ from .data_sources import (
     listar_transformaciones,
     obtener_modo_actual,
     configurar_modo,
-    crear_config_rutas_live,
+    crear_config_rutas_live_desde_yaml,
 )
 
 __all__ = [
@@ -34,5 +34,5 @@ __all__ = [
     'listar_transformaciones',
     'obtener_modo_actual',
     'configurar_modo',
-    'crear_config_rutas_live',
+    'crear_config_rutas_live_desde_yaml',
 ]

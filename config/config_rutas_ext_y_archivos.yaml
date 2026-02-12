@@ -53,3 +53,34 @@ modelos:
     ms_access_tabla_input: "RF_BD_Gestion_RL"
     excel_parametros_modelo_input: "RF_Modelo_Linea_de_Credito/parametros/parametros_ml_lc.xlsx"
     excel_output: "RF_Modelo_Linea_de_Credito/ml_lc.xlsm"
+
+  ml_inversiones:
+    # --- Fuentes Access ---
+    ms_access_sources:
+      - path: "\\\\vmdvorak\\Riesgo Financiero2\\RF_PROCESOS\\RF_Carteras\\INTERFAZ_DATOS\\RF_Base_Carteras_Completa.accdb"
+        tablas:
+          - nombre_fuente: "RF_base_Completa_Hist"
+            nombre_destino: "RF_base_Completa_Hist_Input"
+          - nombre_fuente: "RF_BD_Gestion_RM"
+          - nombre_fuente: "RF_Cartera_RtaFija_Hist"
+      - path: "\\\\vmdvorak\\Riesgo Financiero2\\RF_PROCESOS\\RF_Proceso_Tasas\\RF_Base_PT_Puente.accdb"
+        tablas:
+          - nombre_fuente: "RF_Base_Diaria_Precios"
+    # --- Fuente Excel (parámetros del modelo) ---
+    excel_parametros_input: "\\\\vmdvorak\\Riesgo Financiero2\\RF_PROCESOS\\RF_Modelos\\RF_Modelo_Inversiones\\RF_Parametros_ModeloInversiones.xlsm"
+    excel_hojas:
+      - nombre: "FPL"
+        hoja: "FPL"
+      - nombre: "RF_FactCLF_Banc"
+        hoja: "RF_FactCLF_Banc"
+      - nombre: "RF_FactCLF_Gob"
+        hoja: "RF_FactCLF_Gob"
+      - nombre: "RF_FactCLP_Banc"
+        hoja: "RF_FactCLP_Banc"
+      - nombre: "RF_FactCLP_Gob"
+        hoja: "RF_FactCLP_Gob"
+      - nombre: "RF_MontosLiq"
+        hoja: "Montos"
+    # --- Outputs (validación local, no producción) ---
+    excel_output: "RF_Modelo_Inversiones/output_validacion"
+    csv_output_dir: "RF_Modelo_Inversiones/output_validacion"
