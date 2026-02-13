@@ -10,7 +10,7 @@ from RF_Modelo_Inversiones.output.tabla_final import ejecutar_pasos_20_a_27
 from RF_Modelo_Inversiones.ml_inversiones import ejecutar_maestro_inversiones
 import RF_Modelo_Inversiones.dev.helpers as helpers
 
-FECHA = 20260210
+FECHA = 20260211
 OUTPUT_DIR = Path('RF_Modelo_Inversiones/output_validacion')
 OUTPUT_DIR.mkdir(exist_ok=True)
 
