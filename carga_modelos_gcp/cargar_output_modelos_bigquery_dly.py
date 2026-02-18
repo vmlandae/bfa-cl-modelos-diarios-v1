@@ -300,6 +300,15 @@ def cargar_modelos_a_bigquery(fecha_proceso: datetime, modelos_a_cargar: list = 
             'tipo_carga': "TRUNCATE",
             'modelo_origen': 'ml_inversiones'
         },
+        'ml_tc_cmr': {
+            'fecha_t': fecha_proceso,
+            'ruta_archivo': Path(config_ext['modelos']['ml_tc_cmr']['excel_output']),
+            'hoja_archivo': "DESARROLLO",
+            'tabla_respaldo': "report_ml_tc_cmr_dly",
+            'esquema_tabla': crear_esquema_base(),
+            'tipo_carga': "TRUNCATE",
+            'modelo_origen': 'ml_tc_cmr'
+        },
     }
 
     # Filtrar tareas según los modelos solicitados

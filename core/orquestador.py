@@ -110,6 +110,14 @@ class OrquestadorModelos:
                 "vuelta": 2,
                 "tiene_carga_gcp": True,
                 "tiene_carga_gcp_historica": True
+            },
+            "ml_tc_cmr": {
+                "nombre": "Modelo TC CMR",
+                "modulo": "RF_Modelo_TC_CMR.ml_tc_cmr",
+                "activado": True,
+                "orden": 9,
+                "tiene_carga_gcp": True,
+                "tiene_carga_gcp_historica": True
             }
         }
 

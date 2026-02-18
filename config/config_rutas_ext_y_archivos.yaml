@@ -87,6 +87,19 @@ modelos:
     excel_output: "RF_Modelo_Inversiones/ml_inversiones.xlsx"
     csv_output_dir: "RF_Modelo_Inversiones"
 
+  ml_tc_cmr:
+    # Input: archivo TXT de cartera diaria CMR (distinto a ProductosMercadoLiquidezGCP de otros modelos)
+    txt_cartera_input: "\\\\vmdvorak\\Riesgo Financiero Folder\\RRFF-GCP\\Cartera\\input"
+    txt_cartera_pattern: "ProductosMercadoLiquidezCMR{fecha}.TXT"
+    # Parametros externos (actualizacion periodica, viven en disco compartido)
+    perfil_factor_input: "\\\\vmdvorak\\Riesgo Financiero2\\RF_PROCESOS\\RF_Modelos\\RF_Modelo_TC_CMR\\Perfil_Factor.csv"
+    tabla_perfiles_pp_input: "\\\\vmdvorak\\Riesgo Financiero2\\RF_PROCESOS\\RF_Modelos\\RF_Modelo_TC_CMR\\tabla_perfiles_pp.csv"
+    # Parametros locales del modelo
+    excel_parametros_modelo_input: "RF_Modelo_TC_CMR/parametros/parametros_ml_tc_cmr.xlsx"
+    # Output
+    excel_output: "RF_Modelo_TC_CMR/ml_tc_cmr.xlsm"
+    excel_flujos_output: "RF_Modelo_TC_CMR/FLUJOS_MODELO_CMR.xlsx"
+
 # ============================================================================
 # DB de precios (opcion 2: maestra en red + copia local de lectura)
 # ============================================================================

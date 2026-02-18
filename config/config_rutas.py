@@ -21,6 +21,7 @@ ML_MORA_CONSUMO = BASE_DIR / 'RF_Modelo_Mora_Consumo'
 ML_MORA_CAE = BASE_DIR / 'RF_Modelo_Mora_CAE'
 ML_MORA_HIPOTECARIO = BASE_DIR / 'RF_Modelo_Mora_Hipotecario'
 ML_MORA_COMERCIAL = BASE_DIR / 'RF_Modelo_Mora_Comercial'
+ML_TC_CMR = BASE_DIR / 'RF_Modelo_TC_CMR'
 
 
 def resolver_ruta(ruta: str) -> Path:

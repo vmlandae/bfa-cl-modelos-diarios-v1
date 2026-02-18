@@ -66,6 +66,7 @@ mr_prepago_cmr.xlsm
 mr_prepago_consumo.xlsm
 mr_prepago_hipotecario.xlsm
 ml_lc.xlsm
+ml_tc_cmr.xlsm
 # IDE
 .vscode/
 .idea/
@@ -152,3 +153,6 @@ backups_historicos/
 # Ver docs/guia/mermaid-local.md para detalles
 docs/javascripts/mermaid.min.js
 
+# Modelo TC CMR - datos locales y codigo de desarrollo
+RF_Modelo_TC_CMR/data/
+RF_Modelo_TC_CMR/dev/

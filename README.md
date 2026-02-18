@@ -26,6 +26,9 @@ Este proyecto contiene la implementación de múltiples modelos de riesgo financ
 ### Modelos de Inversiones
 - **ML Inversiones**: Pipeline modular para modelado de inversiones con capa de I/O, validaciones y generación de excels.
 
+### Modelos de Tarjeta de Credito CMR
+- **ML TC CMR**: Modelado de flujos para Tarjeta de Credito CMR.
+
 Los modelos están diseñados para procesar datos en lotes, generar predicciones y cargar los resultados a BigQuery para su posterior análisis y reporting.
 
 ## Estructura del Proyecto
@@ -189,6 +192,14 @@ dashboard/                      # Dashboard Streamlit multi-pagina
     ├── bq_client.py            # Cliente BQ cacheado
     ├── local_data.py           # Acceso a datos locales
     └── theme.py                # Constantes de estilo y modelos canonicos
+```
+
+#### Modelos de Tarjeta de Crédito CMR
+```
+RF_Modelo_TC_CMR/               # Modelo de tarjeta de crédito CMR
+├── ml_tc_cmr.py                # Implementación del modelo
+├── ml_tc_cmr.xlsm              # Plantilla Excel para cálculos
+└── parametros/                 # Parámetros específicos del modelo
 ```
 
 ### 📁 Documentación
