@@ -1902,7 +1902,7 @@ def ejecutar_pasos_20_a_27(
         cartera_htm = extrae_cartera_htm(df_base_input, fecha_proceso, verbose=verbose)
         if len(cartera_htm) > 0:
             htm_desarrollo = extraer_cartera_htm_para_tabla_desarrollo(
-                cartera_htm, df_precio_clf, verbose=verbose
+                cartera_htm, df_precios_todos, verbose=verbose
             )
     resultados['cartera_htm'] = cartera_htm
     
@@ -1913,7 +1913,7 @@ def ejecutar_pasos_20_a_27(
         cartera_rt = extrae_cartera_rt(df_base, fecha_proceso, verbose=verbose)
         if len(cartera_rt) > 0:
             rt_desarrollo = extraer_cartera_rt_para_tabla_desarrollo(
-                cartera_rt, df_precio_clf, verbose=verbose
+                cartera_rt, df_precios_todos, verbose=verbose
             )
     resultados['cartera_rt'] = cartera_rt
     
