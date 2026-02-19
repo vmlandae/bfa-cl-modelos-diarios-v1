@@ -208,6 +208,7 @@ def _cargar_desde_live(
     rutas_config: Dict[str, Any],
     fecha_proceso: int,
     tablas_requeridas: Optional[list] = None,
+    forzar_recarga: bool = False,
 ) -> Dict[str, pd.DataFrame]:
     """
     Carga tablas directamente desde Access/Excel.
@@ -238,27 +239,28 @@ def _cargar_desde_live(
             "Requerido para modo LIVE."
         )
     
+    # Importar cache compartido
+    from procesamiento_datos_input.cache_tablas import leer_tabla_con_cache
+    
     tablas = {}
     
     # --- Formato multi-source (ml_inversiones) ---
     if 'ms_access_sources' in rutas_config:
         for source in rutas_config['ms_access_sources']:
             access_path = Path(source['path'])
-            if not access_path.exists():
-                print(f"    ✗ No existe: {access_path}")
-                continue
-            print(f"  📂 Access: {access_path.name}")
             for tabla_config in source.get('tablas', []):
                 nombre_fuente = tabla_config['nombre_fuente']
                 nombre_destino = tabla_config.get('nombre_destino', nombre_fuente)
                 if tablas_requeridas and nombre_destino not in tablas_requeridas:
                     continue
-                query = f"SELECT * FROM [{nombre_fuente}]"
                 try:
-                    df = ut.lectura_datos_ms_access(str(access_path), query)
+                    df = leer_tabla_con_cache(
+                        access_path=access_path,
+                        nombre_tabla=nombre_fuente,
+                        fecha_proceso=fecha_proceso,
+                        forzar_recarga=forzar_recarga,
+                    )
                     tablas[nombre_destino] = df
-                    sufijo = f" (como {nombre_destino})" if nombre_destino != nombre_fuente else ""
-                    print(f"    ✓ {nombre_fuente}{sufijo}: {len(df):,} registros")
                 except Exception as e:
                     print(f"    ✗ Error cargando {nombre_fuente}: {e}")
     
@@ -368,6 +370,7 @@ def cargar_tablas_ml_inversiones(
     rutas_config: Optional[Dict[str, Any]] = None,
     tablas_requeridas: Optional[list] = None,
     aplicar_transformaciones: bool = True,
+    forzar_recarga: bool = False,
     verbose: bool = True,
 ) -> Dict[str, pd.DataFrame]:
     """
@@ -386,6 +389,7 @@ def cargar_tablas_ml_inversiones(
         rutas_config: Config de rutas (requerido para LIVE)
         tablas_requeridas: Lista de tablas específicas a cargar (None = todas)
         aplicar_transformaciones: Si True, aplica limpiezas registradas
+        forzar_recarga: Si True, ignora caché parquet y lee directamente de Access
         verbose: Si True, imprime mensajes de progreso
         
     Returns:
@@ -413,7 +417,7 @@ def cargar_tablas_ml_inversiones(
     elif modo == DataSourceMode.LIVE:
         if rutas_config is None:
             rutas_config = crear_config_rutas_live_desde_yaml()
-        tablas = _cargar_desde_live(rutas_config, fecha_proceso, tablas_requeridas)
+        tablas = _cargar_desde_live(rutas_config, fecha_proceso, tablas_requeridas, forzar_recarga)
         
     elif modo == DataSourceMode.BIGQUERY:
         project_id = os.environ.get('GCP_PROJECT_ID', 'bfa-cl-trade-price-report-dev')
