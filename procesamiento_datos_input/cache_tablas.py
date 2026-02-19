@@ -29,6 +29,20 @@ Uso básico:
 
 Autor: Modelos & Metodologías
 Fecha: 2026-02
+
+TODOs futuros:
+  - [ ] Caché compartido NMD/LC: Actualmente NMD cachea 'NMD_balance' y
+    'NMD_dap_contractual', y LC cachea 'LC_balance', cada uno con su propia
+    query SQL. Ambos leen de la misma tabla RF_BD_Gestion_RL. Se podría
+    cachear un SELECT * FROM RF_BD_Gestion_RL WHERE Fec_Pro=#date# como
+    tabla completa y que cada modelo aplique su GROUP BY / HAVING como
+    operaciones pandas post-lectura. Esto eliminaría lecturas duplicadas
+    al Access cuando se ejecuta segunda_vuelta.
+  - [ ] Caché local para primera vuelta: Los modelos de primera vuelta
+    (mr_prepago_consumo, mr_prepago_hipotecario, ml_mora_*) leen archivos
+    CSV/Excel desde la ruta de red \\vmdvorak\...\RRFF-GCP\Cartera\input.
+    Se podría implementar una descarga inicial a local (data/cache/) para
+    que las re-ejecuciones del mismo día no dependan de la red.
 """
 
 import os

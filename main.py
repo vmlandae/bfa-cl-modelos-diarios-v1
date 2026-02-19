@@ -1,4 +1,5 @@
 import sys
+import os
 from pathlib import Path
 from datetime import datetime
 import argparse
@@ -261,7 +262,13 @@ def ejecutar_modo_consola(args):
 
     print(f"\nFecha de ejecución: {fecha.strftime('%Y-%m-%d')}")
     print(f"Modelos seleccionados: {', '.join(modelos_a_ejecutar)}")
-    print(f"Cargar a GCP: {'Sí' if args.cargar_gcp else 'No'}\n")
+    print(f"Cargar a GCP: {'Sí' if args.cargar_gcp else 'No'}")
+    if args.forzar_recarga:
+        print(f"Caché: DESACTIVADO (--forzar-recarga)")
+        os.environ['CACHE_FORZAR_RECARGA'] = '1'
+    else:
+        os.environ.pop('CACHE_FORZAR_RECARGA', None)
+    print()
 
     # Ejecutar modelos
     resultados = orquestador.ejecutar_modelos_paralelo(modelos_a_ejecutar, fecha)
@@ -342,6 +349,8 @@ Ejemplos de uso:
                        help='Solo cargar modelos a GCP sin ejecutarlos')
     parser.add_argument('--consolidar-historico', type=str, nargs='+', metavar='MODELO',
                        help='Consolidar datos diarios en tablas históricas de BigQuery')
+    parser.add_argument('--forzar-recarga', action='store_true',
+                       help='Ignorar caché parquet y leer directamente de Access')
     args = parser.parse_args()
 
     if args.gui:

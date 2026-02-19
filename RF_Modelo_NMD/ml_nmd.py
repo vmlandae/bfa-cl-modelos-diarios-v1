@@ -6,6 +6,7 @@ import yaml
 from pathlib import Path
 import sys
 import bfa_cl_utilidades as ut
+from procesamiento_datos_input.cache_tablas import leer_tabla_con_cache
 
 # Configuración de importación para ejecución directa
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -66,7 +67,13 @@ def cargar_datos_balance(fecha_t: datetime) -> pd.DataFrame:
         RF_BD_Gestion_RL.Cod_Sub_Pro DESC
     """.format(fecha_t.strftime('%Y-%m-%d'))
     
-    data = ut.lectura_datos_ms_access(ARCHIVO_INPUT, query)
+    fecha_int = int(fecha_t.strftime('%Y%m%d'))
+    data = leer_tabla_con_cache(
+        access_path=ARCHIVO_INPUT,
+        nombre_tabla='NMD_balance',
+        fecha_proceso=fecha_int,
+        query=query,
+    )
     data = ut.estandariza_nombre_columnas_dataframe(data)
 
     # Mapear códigos de producto del modelo
@@ -127,7 +134,13 @@ def cargar_dap_contractual(fecha_t: datetime) -> pd.DataFrame:
         AND (RF_BD_Gestion_RL.Cod_Sub_Pro='DAP')
     """.format(fecha_t.strftime('%Y-%m-%d'))
     
-    data = ut.lectura_datos_ms_access(ARCHIVO_DAP, query)
+    fecha_int = int(fecha_t.strftime('%Y%m%d'))
+    data = leer_tabla_con_cache(
+        access_path=ARCHIVO_DAP,
+        nombre_tabla='NMD_dap_contractual',
+        fecha_proceso=fecha_int,
+        query=query,
+    )
     data = ut.estandariza_nombre_columnas_dataframe(data)
 
     # Mapear códigos de producto DAP por moneda

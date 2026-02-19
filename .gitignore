@@ -92,6 +92,7 @@ tmp/
 temp/
 cache/
 .cache/
+data/cache/
 
 # Modelos entrenados (si son muy grandes)
 *.pkl
@@ -116,3 +117,4 @@ config/parametros_input_modelos.xlsx
 tmpclaude-*
 # sandboxes para probar código
 sandbox/
+RF_Modelo_TC_CMR/
