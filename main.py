@@ -37,6 +37,7 @@ def mostrar_tabla_resumen(orquestador, resultados_ejecucion: dict, resultados_ca
         'ml_mora_comercial': ['report_ml_mora_comercial_dly'],
         'ml_nmd': ['report_ml_nmd_dly'],
         'ml_lc': ['report_ml_lc_dly'],
+        'ml_inversiones': ['report_ml_inversiones_dly'],
     }
     
     print("\n")

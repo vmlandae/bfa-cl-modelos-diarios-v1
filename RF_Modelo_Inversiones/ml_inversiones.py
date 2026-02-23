@@ -66,7 +66,7 @@ with open(cr.CONFIG / 'config_rutas_ext_y_archivos.yaml', 'r') as file:
     config_ext = yaml.safe_load(file)
 
 # Rutas configuradas
-RUTA_OUTPUT = cr.resolver_ruta(config_ext['modelos']['ml_inversiones']['excel_output'])
+RUTA_EXCEL_OUTPUT = cr.resolver_ruta(config_ext['modelos']['ml_inversiones']['excel_output'])
 RUTA_CSV_OUTPUT = cr.resolver_ruta(config_ext['modelos']['ml_inversiones']['csv_output_dir'])
 RUTA_BALANCE = cr.resolver_ruta(config_ext['modelos']['ml_inversiones']['ruta_balance'])
 
@@ -315,9 +315,8 @@ def ejecutar_modelo(fecha_proceso: datetime) -> bool:
         resultado = ejecutar_pipeline_tablas(flujos, tablas, fecha_int, df_cartera_pacto)
 
         # 5-6. Maestro + cuadratura
-        output_dir = Path(RUTA_OUTPUT)
-        output_dir.mkdir(parents=True, exist_ok=True)
-        ruta_excel = output_dir / f'{fecha_int}_Modelo de Inversiones.xlsx'
+        ruta_excel = Path(RUTA_EXCEL_OUTPUT)
+        ruta_excel.parent.mkdir(parents=True, exist_ok=True)
 
         maestro = ejecutar_maestro_inversiones(
             resultados_pasos_20_27=resultado,

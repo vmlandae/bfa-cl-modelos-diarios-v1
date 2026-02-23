@@ -118,6 +118,14 @@ def cargar_tablas_bigquery(fecha_t, ruta_archivo, hoja_archivo, tabla_respaldo, 
         ajuste_nombres_cols = {
             "COD_ACT/PAS": "COD_ACT_PAS",
             "COD ACT/PAS": "COD_ACT_PAS",
+            "FECHA PROCESO": "FECHA_PROCESO",
+            "FECHA CREACION": "FECHA_CREACION",
+            "FECHA PAGO": "FECHA_PAGO",
+            "FACTOR DE RIESGO": "FACTOR_DE_RIESGO",
+            "AREA NEGOCIO": "AREA_NEGOCIO",
+            "CODIGO_ EJECUTIVO": "CODIGO_EJECUTIVO",
+            "TIPO TASA": "TIPO_TASA",
+            "TASA CF": "TASA_CF",
         }
         df = df.rename(columns=ajuste_nombres_cols)
         df["FECHA_ACTUALIZACION"] = datetime.datetime.now().replace(second=0, microsecond=0)
@@ -246,6 +254,15 @@ def cargar_modelos_a_bigquery(fecha_proceso: datetime, modelos_a_cargar: list = 
             'esquema_tabla': crear_esquema_base(),
             'tipo_carga': "TRUNCATE",
             'modelo_origen': 'ml_lc'  # Mismo modelo origen
+        },
+        'ml_inversiones': {
+            'fecha_t': fecha_proceso,
+            'ruta_archivo': Path(config_ext['modelos']['ml_inversiones']['excel_output']),
+            'hoja_archivo': "INTERFAZ_MODELO_INVERSIONES",
+            'tabla_respaldo': "report_ml_inversiones_dly",
+            'esquema_tabla': crear_esquema_base(),
+            'tipo_carga': "TRUNCATE",
+            'modelo_origen': 'ml_inversiones'
         },
     }
 

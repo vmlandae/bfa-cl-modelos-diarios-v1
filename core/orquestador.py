@@ -85,8 +85,8 @@ class OrquestadorModelos:
                 "modulo": "RF_Modelo_Inversiones.ml_inversiones",
                 "activado": True,
                 "orden": 9,
-                "tiene_carga_gcp": False,
-                "tiene_carga_gcp_historica": False
+                "tiene_carga_gcp": True,
+                "tiene_carga_gcp_historica": True
             }
         }
         

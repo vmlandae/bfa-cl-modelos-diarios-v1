@@ -83,6 +83,6 @@ modelos:
         hoja: "Montos"
     # --- Balance para cuadratura ---
     ruta_balance: "\\\\vmdvorak\\Riesgo Financiero2\\RF_PROCESOS\\RF_Balance\\RF_Generador_Balance_Carteras.xlsm"
-    # --- Outputs (validación local, no producción) ---
-    excel_output: "RF_Modelo_Inversiones/output_validacion"
-    csv_output_dir: "RF_Modelo_Inversiones/output_validacion"
+    # --- Outputs ---
+    excel_output: "RF_Modelo_Inversiones/ml_inversiones.xlsx"
+    csv_output_dir: "RF_Modelo_Inversiones"
