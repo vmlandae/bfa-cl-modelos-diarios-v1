@@ -240,7 +240,7 @@ def _cargar_desde_live(
         )
     
     # Importar cache compartido
-    from procesamiento_datos_input.cache_tablas import leer_tabla_con_cache
+    from procesamiento_datos_input.cache_tablas import leer_multiples_tablas_con_cache
     
     tablas = {}
     
@@ -248,21 +248,27 @@ def _cargar_desde_live(
     if 'ms_access_sources' in rutas_config:
         for source in rutas_config['ms_access_sources']:
             access_path = Path(source['path'])
+            # Filtrar tablas si se solicitaron específicas
+            tablas_spec = []
             for tabla_config in source.get('tablas', []):
-                nombre_fuente = tabla_config['nombre_fuente']
-                nombre_destino = tabla_config.get('nombre_destino', nombre_fuente)
+                nombre_destino = tabla_config.get('nombre_destino', tabla_config['nombre_fuente'])
                 if tablas_requeridas and nombre_destino not in tablas_requeridas:
                     continue
-                try:
-                    df = leer_tabla_con_cache(
-                        access_path=access_path,
-                        nombre_tabla=nombre_fuente,
-                        fecha_proceso=fecha_proceso,
-                        forzar_recarga=forzar_recarga,
-                    )
-                    tablas[nombre_destino] = df
-                except Exception as e:
-                    print(f"    ✗ Error cargando {nombre_fuente}: {e}")
+                tablas_spec.append(tabla_config)
+
+            if not tablas_spec:
+                continue
+
+            try:
+                resultado = leer_multiples_tablas_con_cache(
+                    access_path=access_path,
+                    tablas=tablas_spec,
+                    fecha_proceso=fecha_proceso,
+                    forzar_recarga=forzar_recarga,
+                )
+                tablas.update(resultado)
+            except Exception as e:
+                print(f"    ✗ Error cargando desde {access_path.name}: {e}")
     
     # --- Formato single-source (legacy) ---
     elif 'ms_access_path' in rutas_config:

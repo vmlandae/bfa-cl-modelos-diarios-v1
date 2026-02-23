@@ -7,6 +7,11 @@ leídas desde archivos MS Access en la red. Como múltiples modelos
 archivo Access (RF_Base_Carteras_Completa.accdb), este caché evita lecturas
 redundantes durante el mismo día de ejecución.
 
+Lectura Access:
+    Se usa pyodbc directamente (sin SQLAlchemy) para evitar el cuello de
+    botella de ``has_table()`` que itera todas las tablas del .accdb sobre
+    rutas UNC de red, provocando cuelgues o tiempos excesivos.
+
 Estructura de archivos:
     data/cache/
         RF_BD_Gestion_RL_20260218.parquet
@@ -53,12 +58,7 @@ from pathlib import Path
 from typing import Optional, Dict, List, Union
 
 import pandas as pd
-
-try:
-    import bfa_cl_utilidades as ut
-    HAS_BFA_UTILS = True
-except ImportError:
-    HAS_BFA_UTILS = False
+import pyodbc
 
 
 # =============================================================================
@@ -83,6 +83,59 @@ CATALOGO_TABLAS = {
 
 # Variable de entorno para forzar recarga global
 ENV_FORZAR_RECARGA = 'CACHE_FORZAR_RECARGA'
+
+# Reintentos de conexión
+_MAX_REINTENTOS = 3
+_ESPERA_BASE_SECS = 2.0
+
+
+# =============================================================================
+# CONEXIÓN ACCESS
+# =============================================================================
+
+def _conectar_access(
+    access_path: Union[str, Path],
+    timeout: int = 60,
+    verbose: bool = True,
+) -> pyodbc.Connection:
+    """
+    Conecta a un archivo Access con reintentos automáticos.
+
+    Si la primera conexión falla (error intermitente de pyodbc con
+    archivos grandes sobre rutas UNC), reintenta hasta ``_MAX_REINTENTOS``
+    veces con espera exponencial.
+
+    Args:
+        access_path: Ruta al archivo .accdb
+        timeout: Timeout de conexión en segundos
+        verbose: Si True, imprime mensajes de progreso
+
+    Returns:
+        Conexión pyodbc activa
+
+    Raises:
+        pyodbc.Error: Si se agotan todos los reintentos
+    """
+    conn_str = (
+        r"DRIVER={Microsoft Access Driver (*.mdb, *.accdb)};"
+        f"DBQ={access_path};"
+    )
+
+    last_err = None
+    for intento in range(1, _MAX_REINTENTOS + 1):
+        try:
+            conn = pyodbc.connect(conn_str, timeout=timeout)
+            return conn
+        except Exception as e:
+            last_err = e
+            if intento < _MAX_REINTENTOS:
+                espera = _ESPERA_BASE_SECS * intento
+                if verbose:
+                    print(f"    ⚠ Conexión fallida (intento {intento}/{_MAX_REINTENTOS}): {e}")
+                    print(f"      Reintentando en {espera:.0f}s...")
+                time.sleep(espera)
+
+    raise last_err  # type: ignore[misc]
 
 
 # =============================================================================
@@ -147,13 +200,7 @@ def leer_tabla_con_cache(
             print(f"     → {len(df):,} filas en {dt:.2f}s")
         return df
 
-    # --- Leer desde Access ---
-    if not HAS_BFA_UTILS:
-        raise ImportError(
-            "bfa_cl_utilidades no está instalado. "
-            "Requerido para leer desde Access."
-        )
-
+    # --- Leer desde Access (pyodbc directo, sin SQLAlchemy) ---
     access_path = Path(access_path)
     if not access_path.exists():
         raise FileNotFoundError(f"Archivo Access no encontrado: {access_path}")
@@ -165,7 +212,11 @@ def leer_tabla_con_cache(
         print(f"  📂 Access: {nombre_tabla} ← {access_path.name}")
 
     t0 = time.perf_counter()
-    df = ut.lectura_datos_ms_access(str(access_path), query)
+    conn = _conectar_access(access_path, verbose=verbose)
+    try:
+        df = pd.read_sql(query, conn)
+    finally:
+        conn.close()
     dt_access = time.perf_counter() - t0
 
     if verbose:
@@ -196,10 +247,13 @@ def leer_multiples_tablas_con_cache(
     """
     Lee múltiples tablas desde un mismo archivo Access con caché.
 
+    Reutiliza una única conexión pyodbc para todas las tablas que
+    necesitan leerse desde Access (las que no tienen caché).
+
     Args:
         access_path: Ruta al archivo .accdb
         tablas: Lista de nombres de tabla (str), o lista de dicts con
-                {'nombre_fuente': str, 'nombre_destino': str} para renombrar.
+                {'nombre_fuente': str, 'nombre_destino': str, 'query': str}.
         fecha_proceso: Fecha de proceso (YYYYMMDD)
         cache_dir: Directorio de caché
         forzar_recarga: Si True, ignora caché existente
@@ -219,25 +273,96 @@ def leer_multiples_tablas_con_cache(
         ...     fecha_proceso=20260218,
         ... )
     """
-    resultado = {}
+    if cache_dir is None:
+        cache_dir = CACHE_DIR_DEFAULT
+    cache_dir = Path(cache_dir)
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    access_path = Path(access_path)
+    fecha_str = str(fecha_proceso)
+    forzar_recarga = forzar_recarga or os.environ.get(ENV_FORZAR_RECARGA, '') == '1'
+
+    resultado: Dict[str, pd.DataFrame] = {}
+
+    # --- Separar tablas con caché vs sin caché ---
+    tablas_pendientes: list = []  # (nombre_fuente, nombre_destino, query)
 
     for tabla_spec in tablas:
         if isinstance(tabla_spec, str):
             nombre_fuente = tabla_spec
             nombre_destino = tabla_spec
+            query = None
         else:
             nombre_fuente = tabla_spec['nombre_fuente']
             nombre_destino = tabla_spec.get('nombre_destino', nombre_fuente)
+            query = tabla_spec.get('query')
 
-        df = leer_tabla_con_cache(
-            access_path=access_path,
-            nombre_tabla=nombre_fuente,
-            fecha_proceso=fecha_proceso,
-            cache_dir=cache_dir,
-            forzar_recarga=forzar_recarga,
-            verbose=verbose,
-        )
-        resultado[nombre_destino] = df
+        ruta_cache = cache_dir / f"{nombre_fuente}_{fecha_str}.parquet"
+
+        if ruta_cache.exists() and not forzar_recarga:
+            if verbose:
+                size_mb = ruta_cache.stat().st_size / (1024 * 1024)
+                print(f"  ⚡ Cache: {nombre_fuente} ({size_mb:.1f} MB)")
+            t0 = time.perf_counter()
+            df = pd.read_parquet(ruta_cache)
+            if verbose:
+                dt = time.perf_counter() - t0
+                print(f"     → {len(df):,} filas en {dt:.2f}s")
+            resultado[nombre_destino] = df
+        else:
+            tablas_pendientes.append((nombre_fuente, nombre_destino, query))
+
+    # --- Leer pendientes con una sola conexión pyodbc ---
+    if tablas_pendientes:
+        if not access_path.exists():
+            raise FileNotFoundError(f"Archivo Access no encontrado: {access_path}")
+
+        if verbose:
+            print(f"  🔌 Conectando a {access_path.name} "
+                  f"({len(tablas_pendientes)} tabla(s) pendiente(s))...")
+
+        t_conn = time.perf_counter()
+        conn = _conectar_access(access_path, verbose=verbose)
+        if verbose:
+            print(f"     Conexión OK en {time.perf_counter() - t_conn:.1f}s")
+
+        try:
+            for nombre_fuente, nombre_destino, query in tablas_pendientes:
+                sql = query if query else f"SELECT * FROM [{nombre_fuente}]"
+                if verbose:
+                    print(f"  📂 Access: {nombre_fuente}")
+
+                t0 = time.perf_counter()
+                try:
+                    df = pd.read_sql(sql, conn)
+                except Exception as e:
+                    print(f"    ✗ Error leyendo {nombre_fuente}: {e}")
+                    continue
+                dt_access = time.perf_counter() - t0
+
+                if verbose:
+                    print(f"     → {len(df):,} filas en {dt_access:.1f}s")
+
+                resultado[nombre_destino] = df
+
+                # Guardar caché
+                ruta_cache = cache_dir / f"{nombre_fuente}_{fecha_str}.parquet"
+                try:
+                    t0 = time.perf_counter()
+                    df.to_parquet(ruta_cache, index=False, engine='pyarrow')
+                    dt_save = time.perf_counter() - t0
+                    size_mb = ruta_cache.stat().st_size / (1024 * 1024)
+                    if verbose:
+                        print(f"  💾 Guardado: {ruta_cache.name} "
+                              f"({size_mb:.1f} MB, {dt_save:.1f}s)")
+                except Exception as e:
+                    warnings.warn(
+                        f"No se pudo guardar caché {ruta_cache.name}: {e}"
+                    )
+        finally:
+            conn.close()
+            if verbose:
+                print(f"  🔌 Conexión cerrada")
 
     return resultado
 

@@ -5,6 +5,23 @@ Registro de cambios y actualizaciones del proyecto BFA-CL Modelos Diarios.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0-dev] - 2026-02-23 - Modelo Inversiones: Pipeline completo + Carga GCP
+
+### Agregado
+- **Modelo Inversiones (`RF_Modelo_Inversiones/ml_inversiones.py`)**: Reescritura completa como orquestador de pipeline modular
+- **Pipeline modular** en `RF_Modelo_Inversiones/pipeline/`: `tabla_final.py`, `validaciones.py`, `excels.py`
+- **Capa de I/O** en `RF_Modelo_Inversiones/io/`: `data_sources.py`, `paths.py`, `writers.py`
+- **Caché compartido de tablas Access** (`procesamiento_datos_input/cache_tablas.py`): lectura con `pyodbc` directo, 3 reintentos con backoff exponencial, sin dependencia de `bfa_cl_utilidades`
+- **Tabla BQ daily** `report_ml_inversiones_dly` (32 columnas, WRITE_TRUNCATE)
+- **Tabla BQ histórica** `report_ml_inversiones_hist` (32 columnas, PARTITION BY FECHA_PROCESO) — creada con DDL manual documentado en `RF_Modelo_Inversiones/dev/GCP_TABLAS_BIGQUERY_SETUP.md`
+
+### Mejorado
+- **Cargador GCP daily** (`cargar_output_modelos_bigquery_dly.py`): normalización de columnas con espacios → guiones bajos (9 mapeos), `format='mixed'` para fechas, `pd.to_numeric(errors='coerce')` para campos con strings no numéricos
+- **Lector Access**: Reemplazo de `bfa_cl_utilidades.ejecutar_consulta_access` por `pyodbc` directo con reintentos (soluciona bloqueos concurrentes)
+
+### Documentación
+- `RF_Modelo_Inversiones/dev/GCP_TABLAS_BIGQUERY_SETUP.md`: Registro de auditoría con DDL, scripts de prueba y resultados de carga
+
 ## [1.4.0-dev] - 2026-02-03 - Incorporación del Modelo Línea de Crédito
 
 ### Agregado
