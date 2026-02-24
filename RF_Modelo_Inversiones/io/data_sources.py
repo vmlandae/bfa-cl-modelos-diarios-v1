@@ -523,3 +523,36 @@ def crear_config_rutas_live_desde_yaml() -> Dict[str, Any]:
         rutas['csv_output_dir'] = cfg_inv['csv_output_dir']
     
     return rutas
+
+
+# =============================================================================
+# FILTRO RF_base_Completa_Hist (ex dev/helpers.py)
+# =============================================================================
+
+def genera_tabla_RF_base_Completa_Hist(
+    df: pd.DataFrame,
+    fecha_proceso: int,
+    delta: int = 10,
+) -> pd.DataFrame:
+    """
+    Paso 01: Filtra RF_base_Completa_Hist_Input para generar RF_base_Completa_Hist.
+
+    Replica la query Access RF_PLI_000_Gener_CarteraInv:
+    - Fec_Pro > fecha_proceso - delta días
+    - Excluye registros donde Cod_Pro contiene 'publico' AND Clasificacion_Contable = 'htm'
+
+    Args:
+        df: DataFrame con RF_base_Completa_Hist_Input
+        fecha_proceso: Fecha de proceso en formato YYYYMMDD (int)
+        delta: Días hacia atrás para el filtro de Fec_Pro (default: 10)
+
+    Returns:
+        DataFrame filtrado
+    """
+    fecha_corte = pd.to_datetime(str(fecha_proceso), format="%Y%m%d") - pd.Timedelta(days=delta)
+    mask_fecha = df['Fec_Pro'] > fecha_corte
+    mask_producto = (
+        (~df['Cod_Pro'].str.contains('publico', case=False, na=False))
+        | (~df['Clasificacion_Contable'].str.contains('htm', na=False))
+    )
+    return df[mask_fecha & mask_producto].copy()

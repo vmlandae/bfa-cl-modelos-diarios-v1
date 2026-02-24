@@ -17,6 +17,7 @@ from .data_sources import (
     obtener_modo_actual,
     configurar_modo,
     crear_config_rutas_live_desde_yaml,
+    genera_tabla_RF_base_Completa_Hist,
 )
 
 __all__ = [

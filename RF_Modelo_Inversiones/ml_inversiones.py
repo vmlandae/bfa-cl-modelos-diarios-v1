@@ -39,7 +39,11 @@ if str(BASE_DIR) not in sys.path:
 from config import config_rutas as cr
 
 # Pipeline
-from RF_Modelo_Inversiones.io import cargar_tablas_ml_inversiones, DataSourceMode
+from RF_Modelo_Inversiones.io import (
+    cargar_tablas_ml_inversiones,
+    DataSourceMode,
+    genera_tabla_RF_base_Completa_Hist,
+)
 from RF_Modelo_Inversiones.pipeline.cartera import genera_cartera_inv
 from RF_Modelo_Inversiones.pipeline.orquestador import generar_flujo_liquidacion_instrumento
 from RF_Modelo_Inversiones.output.tabla_final import ejecutar_pasos_20_a_27
@@ -58,7 +62,6 @@ from RF_Modelo_Inversiones.pipeline.post_proceso import (
     obtener_monto_contable,
     reportar_diferencia_modelo_vs_contable,
 )
-import RF_Modelo_Inversiones.dev.helpers as helpers
 
 
 # Carga de configuración desde archivo YAML
@@ -103,7 +106,7 @@ def cargar_datos(fecha_int: int, forzar_recarga: bool = False) -> dict:
     )
 
     # Generar RF_base_Completa_Hist filtrada
-    tablas['RF_base_Completa_Hist'] = helpers.genera_tabla_RF_base_Completa_Hist(
+    tablas['RF_base_Completa_Hist'] = genera_tabla_RF_base_Completa_Hist(
         tablas['RF_base_Completa_Hist_Input'], fecha_int)
     print(f"      ✓ RF_base_Completa_Hist: {len(tablas['RF_base_Completa_Hist']):,} filas")
 
