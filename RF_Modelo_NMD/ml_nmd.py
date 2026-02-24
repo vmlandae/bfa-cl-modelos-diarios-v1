@@ -65,7 +65,7 @@ def cargar_datos_balance(fecha_t: datetime) -> pd.DataFrame:
     ORDER BY
         RF_BD_Gestion_RL.Cod_Sub_Pro DESC
     """.format(fecha_t.strftime('%Y-%m-%d'))
-    
+
     data = ut.lectura_datos_ms_access(ARCHIVO_INPUT, query)
     data = ut.estandariza_nombre_columnas_dataframe(data)
 
@@ -126,7 +126,7 @@ def cargar_dap_contractual(fecha_t: datetime) -> pd.DataFrame:
         AND (RF_BD_Gestion_RL.Cod_Pro='DAP') 
         AND (RF_BD_Gestion_RL.Cod_Sub_Pro='DAP')
     """.format(fecha_t.strftime('%Y-%m-%d'))
-    
+
     data = ut.lectura_datos_ms_access(ARCHIVO_DAP, query)
     data = ut.estandariza_nombre_columnas_dataframe(data)
 

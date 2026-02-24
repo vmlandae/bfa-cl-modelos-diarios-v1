@@ -63,7 +63,7 @@ ml_mora_hipotecario_cc.xlsm
 mr_prepago_cmr.xlsm
 mr_prepago_consumo.xlsm
 mr_prepago_hipotecario.xlsm
-
+ml_lc.xlsm
 # IDE
 .vscode/
 .idea/
@@ -92,6 +92,7 @@ tmp/
 temp/
 cache/
 .cache/
+data/cache/
 
 # Modelos entrenados (si son muy grandes)
 *.pkl
@@ -112,8 +113,16 @@ test/
 # Archivos específicos del proyecto
 config/parametros_input_modelos.xlsx
 
-# Archivos generados por Claude
-tmpclaude-*
+# Outputs generados por modelos
+RF_Modelo_Inversiones/output_validacion/
+RF_Modelo_Inversiones/ml_inversiones.xlsx
+RF_Modelo_Inversiones/*.CSV
 
-# Sandbox de pruebas
+# Carpetas de desarrollo / análisis (no van a producción)
+RF_Modelo_Inversiones/dev/
+
+# archivos temporales de claude
+tmpclaude-*
+# sandboxes para probar código
 sandbox/
+RF_Modelo_TC_CMR/
