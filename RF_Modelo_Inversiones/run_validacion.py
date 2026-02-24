@@ -4,13 +4,16 @@ import pandas as pd
 from pathlib import Path
 from datetime import datetime
 
-from RF_Modelo_Inversiones.io import cargar_tablas_ml_inversiones, DataSourceMode
+from RF_Modelo_Inversiones.io import (
+    cargar_tablas_ml_inversiones,
+    DataSourceMode,
+    genera_tabla_RF_base_Completa_Hist,
+)
 from RF_Modelo_Inversiones.pipeline.cartera import genera_cartera_inv
 from RF_Modelo_Inversiones.pipeline.orquestador import generar_flujo_liquidacion_instrumento
 from RF_Modelo_Inversiones.output.tabla_final import ejecutar_pasos_20_a_27
 from RF_Modelo_Inversiones.ml_inversiones import ejecutar_maestro_inversiones
 from config import config_rutas as cr
-import RF_Modelo_Inversiones.dev.helpers as helpers
 
 
 def parse_args():
@@ -46,7 +49,7 @@ def main():
 
     # --- Paso 2: Generar RF_base_Completa_Hist ---
     print('\nGenerando RF_base_Completa_Hist...')
-    tablas['RF_base_Completa_Hist'] = helpers.genera_tabla_RF_base_Completa_Hist(
+    tablas['RF_base_Completa_Hist'] = genera_tabla_RF_base_Completa_Hist(
         tablas['RF_base_Completa_Hist_Input'], FECHA)
     print(f'  RF_base_Completa_Hist: {len(tablas["RF_base_Completa_Hist"]):,} filas')
 
