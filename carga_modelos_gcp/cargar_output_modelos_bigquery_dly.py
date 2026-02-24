@@ -100,20 +100,64 @@ def cargar_tablas_bigquery(fecha_t, ruta_archivo, hoja_archivo, tabla_respaldo, 
             "TASA_CF": "float",
             "SPREAD": "float"
         }
-        df = pd.read_excel(ruta_archivo, sheet_name=hoja_archivo, engine='openpyxl', dtype=dtype_excel)
-        df['FECHA_PROCESO'] = pd.to_datetime(df['FECHA_PROCESO'],
-                                             format='%Y-%m-%d %H:%M:%S').dt.date
-        df['FECHA_CREACION'] = pd.to_datetime(df['FECHA_CREACION'],
-                                             format='%Y-%m-%d %H:%M:%S').dt.date
-        df['FECHA_INICIO_CUOTA'] = pd.to_datetime(df['FECHA_INICIO_CUOTA'],
-                                             format='%Y-%m-%d %H:%M:%S').dt.date
 
-        df['FECHA_VENCIMIENTO_CUOTA'] = pd.to_datetime(df['FECHA_VENCIMIENTO_CUOTA'],
-                                                       format='%Y-%m-%d %H:%M:%S').dt.date
-        df['FECHA_PAGO'] = pd.to_datetime(df['FECHA_PAGO'],
-                                                       format='%Y-%m-%d %H:%M:%S').dt.date
-        df['FECHA_REPRICING'] = pd.to_datetime(df['FECHA_REPRICING'],
-                                                       format='%Y-%m-%d %H:%M:%S').dt.date
+        # ── Normalizar columnas con espacios (ml_inversiones) ──────────
+        # El Excel de inversiones usa nombres con espacios/slash que
+        # difieren del estándar con guiones bajos.  Se renombran aquí
+        # para que el resto del pipeline funcione sin cambios.
+        # Solo aplica a columnas que efectivamente existan en el DataFrame.
+        _normalizacion_cols = {
+            "FECHA PROCESO":    "FECHA_PROCESO",
+            "FECHA CREACION":   "FECHA_CREACION",
+            "FECHA PAGO":       "FECHA_PAGO",
+            "FACTOR DE RIESGO": "FACTOR_DE_RIESGO",
+            "AREA NEGOCIO":     "AREA_NEGOCIO",
+            "CODIGO_ EJECUTIVO":"CODIGO_EJECUTIVO",
+            "TIPO TASA":        "TIPO_TASA",
+            "TASA CF":          "TASA_CF",
+            "COD ACT/PAS":      "COD_ACT/PAS",
+        }
+
+        # Lectura: detectar si las columnas del Excel coinciden con dtype_excel.
+        # Si no (p.ej. ml_inversiones con espacios), leer sin dtype y
+        # recastear después del rename.
+        df_peek = pd.read_excel(ruta_archivo, sheet_name=hoja_archivo,
+                                engine='openpyxl', nrows=0)
+        cols_excel = set(df_peek.columns)
+        necesita_normalizacion = bool(cols_excel & set(_normalizacion_cols.keys()))
+
+        if necesita_normalizacion:
+            # Leer sin dtype forzado (los nombres aún no coinciden)
+            df = pd.read_excel(ruta_archivo, sheet_name=hoja_archivo, engine='openpyxl')
+            # Renombrar primero
+            cols_a_renombrar = {k: v for k, v in _normalizacion_cols.items()
+                               if k in df.columns}
+            df = df.rename(columns=cols_a_renombrar)
+            # Reemplazar cadenas vacías por NaN para que la conversión de tipos funcione
+            import numpy as np
+            df = df.replace('', np.nan)
+            # Ahora re-castear a los tipos esperados
+            for col, tipo in dtype_excel.items():
+                if col in df.columns:
+                    try:
+                        df[col] = pd.to_numeric(df[col], errors='coerce') \
+                            if tipo in ('Int64', 'float') \
+                            else df[col].astype(tipo)
+                    except (ValueError, TypeError):
+                        pass  # Dejar tipo inferido si no convierte
+        else:
+            df = pd.read_excel(ruta_archivo, sheet_name=hoja_archivo,
+                               engine='openpyxl', dtype=dtype_excel)
+
+        # Convertir columnas de fecha a datetime.date.
+        # Cuando se lee sin dtype (inversiones), openpyxl devuelve objetos
+        # datetime nativos; cuando se lee con dtype str (otros modelos),
+        # llegan como cadenas '2026-02-20 00:00:00'.  Usar format='mixed'
+        # maneja ambos casos de forma robusta.
+        _cols_fecha = ['FECHA_PROCESO', 'FECHA_CREACION', 'FECHA_INICIO_CUOTA',
+                       'FECHA_VENCIMIENTO_CUOTA', 'FECHA_PAGO', 'FECHA_REPRICING']
+        for _cf in _cols_fecha:
+            df[_cf] = pd.to_datetime(df[_cf], format='mixed').dt.date
 
         ajuste_nombres_cols = {
             "COD_ACT/PAS": "COD_ACT_PAS",
@@ -246,6 +290,15 @@ def cargar_modelos_a_bigquery(fecha_proceso: datetime, modelos_a_cargar: list = 
             'esquema_tabla': crear_esquema_base(),
             'tipo_carga': "TRUNCATE",
             'modelo_origen': 'ml_lc'  # Mismo modelo origen
+        },
+        'ml_inversiones': {
+            'fecha_t': fecha_proceso,
+            'ruta_archivo': Path(config_ext['modelos']['ml_inversiones']['excel_output']),
+            'hoja_archivo': "INTERFAZ_MODELO_INVERSIONES",
+            'tabla_respaldo': "report_ml_inversiones_dly",
+            'esquema_tabla': crear_esquema_base(),
+            'tipo_carga': "TRUNCATE",
+            'modelo_origen': 'ml_inversiones'
         },
     }
 

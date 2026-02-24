@@ -59,7 +59,7 @@ def cargar_datos_balance(fecha_t: datetime) -> pd.DataFrame:
     ORDER BY
         RF_BD_Gestion_RL.Cod_Sub_Pro DESC
     """.format(fecha_t.strftime('%Y-%m-%d'))
-    
+
     data = ut.lectura_datos_ms_access(ARCHIVO_INPUT, query)
     data = ut.estandariza_nombre_columnas_dataframe(data)
 
