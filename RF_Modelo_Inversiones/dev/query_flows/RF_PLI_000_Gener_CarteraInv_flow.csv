@@ -1,5 +1,0 @@
-﻿query;tipo;es_entrypoint;nivel_profundidad;queries_padre;dependencias_directas;num_dependencias;hash_sha1;sql
-RF_PLI_000_Gener_CarteraInv;DDL;Si;0;;;0;fc0b569bb960193a25551fe9a9fd887db9aa0cf4;"SELECT RF_base_Completa_Hist_Input.* INTO RF_base_Completa_Hist
-FROM RF_base_Completa_Hist_Input
-WHERE (((RF_base_Completa_Hist_Input.Fec_Pro)>Date()-10) AND (((RF_base_Completa_Hist_Input.Cod_Pro) Not Like ""*publico*"") or ((RF_base_Completa_Hist_Input.Clasificacion_Contable) Not Like ""htm"")));
-"

@@ -118,6 +118,9 @@ RF_Modelo_Inversiones/output_validacion/
 RF_Modelo_Inversiones/ml_inversiones.xlsx
 RF_Modelo_Inversiones/*.CSV
 
+# Carpetas de desarrollo / análisis (no van a producción)
+RF_Modelo_Inversiones/dev/
+
 # archivos temporales de claude
 tmpclaude-*
 # sandboxes para probar código

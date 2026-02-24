@@ -1,4 +1,0 @@
-﻿query;tipo;es_entrypoint;nivel_profundidad;queries_padre;dependencias_directas;num_dependencias;hash_sha1;sql
-RF_PLI_036_LimpiaFlujLCH;Type32;Si;0;;;0;89a7a755549b18b9e8f2d4b457d3bb396598e954;"DELETE Flujo_LCH.*
-FROM Flujo_LCH;
-"

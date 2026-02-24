@@ -1,5 +1,0 @@
-﻿query;tipo;es_entrypoint;nivel_profundidad;queries_padre;dependencias_directas;num_dependencias;hash_sha1;sql
-RF_PLI_045_Gener_Precios_Dia;DDL;Si;0;;;0;bced1187a6d42d116dbe02c3d82d42c3874b3329;"SELECT RF_Base_Diaria_Precios.Fecha, RF_Base_Diaria_Precios.NEMOTECNICO, RF_Base_Diaria_Precios.Instrumento, RF_Base_Diaria_Precios.Precio_Mid INTO Precios_Dia
-FROM RF_Fecha_Proceso_Carteras INNER JOIN RF_Base_Diaria_Precios ON RF_Fecha_Proceso_Carteras.Fecha = RF_Base_Diaria_Precios.Fecha
-WHERE (((RF_Base_Diaria_Precios.Instrumento)=""TCRC""));
-"
