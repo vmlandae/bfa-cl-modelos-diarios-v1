@@ -1,8 +1,6 @@
 """
 output/__init__.py - Exports para módulo de salida.
 
-🚧 EN DESARROLLO - NO PRODUCTIVO 🚧
-
 Módulo para generación de tablas finales y formateo de salidas.
 """
 

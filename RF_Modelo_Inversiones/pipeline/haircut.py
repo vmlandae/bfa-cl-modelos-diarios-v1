@@ -8,8 +8,6 @@ carteras de inversiones, incluyendo:
 - Combinación con montos de pactos
 - Filtrado de montos a liquidar
 
-🚧 EN DESARROLLO - NO PRODUCTIVO 🚧
-
 Uso:
     from RF_Modelo_Inversiones.pipeline.haircut import (
         generar_cartera_haircut,

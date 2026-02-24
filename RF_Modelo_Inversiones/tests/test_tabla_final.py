@@ -1,7 +1,5 @@
 """
 Tests para output/tabla_final.py
-
-🚧 EN DESARROLLO - NO PRODUCTIVO 🚧
 """
 
 import pytest

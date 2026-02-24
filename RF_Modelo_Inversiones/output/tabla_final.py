@@ -1,8 +1,6 @@
 """
 Generador de tabla final de inversiones.
 
-🚧 EN DESARROLLO - NO PRODUCTIVO 🚧
-
 Este módulo implementa los pasos 20-27 del modelo de inversiones de Access:
 - Paso 20: Precios del día (TCRC)
 - Paso 21: Tabla final de inversiones (UNION de flujos)

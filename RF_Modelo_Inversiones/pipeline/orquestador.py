@@ -4,8 +4,6 @@ Módulo orquestador del pipeline de liquidación para RF_Modelo_Inversiones.
 Este módulo coordina todo el pipeline de liquidación, invocando las funciones
 de los módulos cartera, haircut y liquidación en el orden correcto.
 
-🚧 EN DESARROLLO - NO PRODUCTIVO 🚧
-
 Uso:
     from RF_Modelo_Inversiones.pipeline.orquestador import (
         generar_flujo_liquidacion_instrumento,

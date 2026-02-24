@@ -7,8 +7,6 @@ Contiene funciones para el procesamiento del pipeline de liquidación:
 - haircut: Cálculo de factores de haircut
 - liquidacion: Cálculo de flujos de liquidación
 - orquestador: Coordinación del pipeline completo
-
-🚧 EN DESARROLLO - NO PRODUCTIVO 🚧
 """
 
 # Cartera

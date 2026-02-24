@@ -7,8 +7,6 @@ de instrumentos financieros, incluyendo:
 - Cálculo de montos totales y ponderadores
 - Cálculo del flujo de liquidación diario
 
-🚧 EN DESARROLLO - NO PRODUCTIVO 🚧
-
 Uso:
     from RF_Modelo_Inversiones.pipeline.liquidacion import (
         generar_cartera_instrumento,
