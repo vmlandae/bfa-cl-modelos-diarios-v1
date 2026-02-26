@@ -1,0 +1,439 @@
+# =============================================================================
+# ROADMAP — BFA-CL Modelos Diarios
+# =============================================================================
+#
+# Este archivo es la FUENTE DE VERDAD para la planificación de features.
+# Se renderiza automáticamente en MkDocs (docs/roadmap/) y es editable
+# por cualquier miembro del equipo via Merge Request.
+#
+# Workflow:
+#   1. Crear rama: git checkout -b feat/roadmap-actualizar-XX
+#   2. Editar este archivo
+#   3. Commit: git commit -m "roadmap: actualizar estado de feature XX"
+#   4. Crear MR en GitLab → review → merge
+#
+# Estados válidos: backlog | planificado | en-progreso | completado | descartado
+# Prioridades: crítica | alta | media | baja
+# Tamaños: XS (<2h) | S (2h-1d) | M (1d-3d) | L (3d-1w) | XL (1w-2w) | XXL (2w+)
+#
+# Última actualización: 2026-02-25
+# =============================================================================
+
+metadata:
+  proyecto: "BFA-CL Modelos Diarios"
+  version_roadmap: "1.0.0"
+  fecha_creacion: "2026-02-25"
+  autores:
+    - nombre: "Victor Landa"
+      usuario: "vlandaetat"
+    - nombre: "Rodrigo Muñoz"
+      usuario: "rmunozb"
+
+# =============================================================================
+# SPRINTS / CICLOS DE TRABAJO
+# =============================================================================
+sprints:
+  - id: "S1-2026"
+    nombre: "Quick Wins & Fundamentos"
+    inicio: "2026-02-25"
+    fin: "2026-03-07"
+    objetivo: "Establecer infraestructura base: logging, caché, snapshots"
+    features: [F02, F14, F13, F15, F11]
+
+  - id: "S2-2026"
+    nombre: "Observabilidad"
+    inicio: "2026-03-10"
+    fin: "2026-03-21"
+    objetivo: "Torre de Control MVP + Config unificada"
+    features: [F01, F12, F09]
+
+  - id: "S3-2026"
+    nombre: "Migración & Validación"
+    inicio: "2026-03-24"
+    fin: "2026-04-04"
+    objetivo: "Modo Fantasma para inversiones + optimización paralela"
+    features: [F03, F17, F16]
+
+  - id: "S4-2026"
+    nombre: "Experiencia de Usuario"
+    inicio: "2026-04-07"
+    fin: "2026-04-25"
+    objetivo: "Playground de escenarios + Linaje de datos"
+    features: [F04, F06]
+
+  - id: "backlog"
+    nombre: "Backlog Estratégico"
+    inicio: null
+    fin: null
+    objetivo: "Features de largo plazo, priorizables según contexto"
+    features: [F05, F07, F08, F10]
+
+# =============================================================================
+# FEATURES
+# =============================================================================
+features:
+
+  # ---------------------------------------------------------------------------
+  # SPRINT 1: Quick Wins & Fundamentos
+  # ---------------------------------------------------------------------------
+
+  - id: F02
+    titulo: "Máquina del Tiempo — Snapshots de parámetros"
+    descripcion: >
+      Snapshot automático de parámetros Excel antes de cada ejecución.
+      shutil.copy en orquestador.py → snapshots/{fecha}/{modelo}/
+    estado: planificado
+    prioridad: crítica
+    tamano: XS
+    sprint: "S1-2026"
+    asignado: null
+    etiquetas: [regulatorio, auditoria, orquestador]
+    dependencias: []
+    archivos_afectados:
+      - "core/orquestador.py"
+    criterios_aceptacion:
+      - "Cada ejecución copia los parámetros Excel a snapshots/{fecha}/{modelo}/"
+      - "No afecta el tiempo de ejecución (< 2s overhead)"
+      - "Funciona para los 10 modelos"
+    notas: >
+      20 líneas de código. Valor regulatorio enorme (NCG 325).
+      Los parámetros locales ya están en el repo, pero los de inversiones
+      viven en la red. El snapshot captura ambos.
+
+  - id: F14
+    titulo: "Cache de Primera Vuelta — CSV de red a parquet local"
+    descripcion: >
+      Extender cache_tablas.py para cachear los CSV de interfaz
+      (ProductosMercadoLiquidezGCP*.txt) como parquet local.
+      Elimina dependencia de red para re-ejecuciones.
+    estado: planificado
+    prioridad: alta
+    tamano: S
+    sprint: "S1-2026"
+    asignado: null
+    etiquetas: [performance, cache, red]
+    dependencias: []
+    archivos_afectados:
+      - "procesamiento_datos_input/cache_tablas.py"
+      - "RF_Modelo_Prepago_Consumo/mr_prepago_consumo.py"
+      - "RF_Modelo_Prepago_Hipotecario/mr_prepago_hipotecario.py"
+      - "RF_Modelo_Mora_Consumo/ml_mora_consumo.py"
+      - "RF_Modelo_Mora_CAE/ml_mora_cae.py"
+      - "RF_Modelo_Mora_Hipotecario/ml_mora_hipotecario.py"
+      - "RF_Modelo_Mora_Comercial/ml_mora_comercial.py"
+    criterios_aceptacion:
+      - "Primera lectura del día: lee CSV de red, guarda parquet"
+      - "Lecturas siguientes: lee parquet local (~95% más rápido)"
+      - "Flag --forzar-recarga para ignorar caché"
+    notas: >
+      cache_tablas.py ya tiene un TODO explícito para esto.
+      Extensión natural de la infraestructura existente.
+
+  - id: F13
+    titulo: "Pre-flight Checks — Verificación de dependencias"
+    descripcion: >
+      Health checks de rutas de red y bases Access ANTES de ejecutar modelos.
+      Evita esperar minutos para descubrir que la red está caída.
+    estado: planificado
+    prioridad: alta
+    tamano: S
+    sprint: "S1-2026"
+    asignado: null
+    etiquetas: [ux, robustez, red]
+    dependencias: []
+    archivos_afectados:
+      - "core/preflight.py (nuevo)"
+      - "core/orquestador.py"
+    criterios_aceptacion:
+      - "Verifica accesibilidad de rutas de red para modelos seleccionados"
+      - "Verifica conexión a bases Access"
+      - "Reporta problemas ANTES de iniciar ejecución"
+      - "Opción para continuar solo con modelos que tienen recursos disponibles"
+
+  - id: F15
+    titulo: "Testing Mínimo Viable — Tests de configuración"
+    descripcion: >
+      Tests de nivel 1 que validan configuración sin dependencias externas:
+      importación de módulos, YAML válido, rutas relativas, interfaz
+      ejecutar_modelo() presente.
+    estado: planificado
+    prioridad: media
+    tamano: S
+    sprint: "S1-2026"
+    asignado: null
+    etiquetas: [testing, ci, calidad]
+    dependencias: []
+    archivos_afectados:
+      - "tests/ (nuevo directorio)"
+      - "tests/test_config.py"
+      - "tests/test_imports.py"
+    criterios_aceptacion:
+      - "pytest tests/ pasa sin acceso a red ni Access"
+      - "Valida que todos los módulos del orquestador importan"
+      - "Valida que el YAML de config es consistente con el orquestador"
+
+  - id: F11
+    titulo: "Logging Estructurado — De print() a observabilidad"
+    descripcion: >
+      Reemplazar print() por logging estándar de Python con JSON handler.
+      Base para Torre de Control y debugging.
+    estado: planificado
+    prioridad: alta
+    tamano: M
+    sprint: "S1-2026"
+    asignado: null
+    etiquetas: [observabilidad, refactor, core]
+    dependencias: []
+    archivos_afectados:
+      - "core/logger.py (nuevo)"
+      - "core/orquestador.py"
+      - "procesamiento_datos_input/cache_tablas.py"
+    criterios_aceptacion:
+      - "Logger con niveles (DEBUG, INFO, WARNING, ERROR)"
+      - "Handler JSON para archivo (logs/modelos.jsonl)"
+      - "Handler consola human-readable"
+      - "Contexto automático: modelo, fecha_proceso"
+      - "Migrar al menos orquestador.py y cache_tablas.py"
+    notas: >
+      Migración gradual. No hay que reemplazar todos los print() de golpe.
+      Empezar por core/ y procesamiento_datos_input/.
+
+  # ---------------------------------------------------------------------------
+  # SPRINT 2: Observabilidad
+  # ---------------------------------------------------------------------------
+
+  - id: F01
+    titulo: "Torre de Control — Dashboard de operación"
+    descripcion: >
+      Streamlit dashboard que muestra estado de ejecución, duración,
+      errores y métricas de reconciliación de todos los modelos.
+    estado: backlog
+    prioridad: alta
+    tamano: L
+    sprint: "S2-2026"
+    asignado: null
+    etiquetas: [dashboard, streamlit, observabilidad]
+    dependencias: [F11]
+    archivos_afectados:
+      - "torre_control/ (nuevo directorio)"
+      - "torre_control/app.py"
+      - "torre_control/data.py"
+    criterios_aceptacion:
+      - "Muestra tabla de modelos con estado/duración/errores"
+      - "Selector de fecha para navegar días anteriores"
+      - "KPIs: modelos ejecutados, duración total, errores"
+      - "Lee de logs/ejecuciones/*.jsonl"
+
+  - id: F12
+    titulo: "Configuración Unificada — Un solo YAML"
+    descripcion: >
+      Unificar la configuración de modelos (hoy en orquestador.py dict,
+      config_rutas_ext_y_archivos.yaml, y MODELO_A_TABLAS en main.py)
+      en un solo archivo YAML.
+    estado: backlog
+    prioridad: media
+    tamano: M
+    sprint: "S2-2026"
+    asignado: null
+    etiquetas: [config, refactor, mantenibilidad]
+    dependencias: []
+    archivos_afectados:
+      - "config/modelos.yaml (nuevo)"
+      - "core/orquestador.py"
+      - "main.py"
+      - "config/config_rutas_ext_y_archivos.yaml"
+    criterios_aceptacion:
+      - "Un solo archivo YAML define nombre, módulo, orden, rutas, tablas BQ"
+      - "Orquestador lee dinámicamente del YAML"
+      - "main.py MODELO_A_TABLAS se genera desde el YAML"
+      - "Agregar un modelo nuevo = agregar un bloque al YAML"
+
+  - id: F09
+    titulo: "Alertas Inteligentes — Detección de anomalías"
+    descripcion: >
+      Sanity checks post-ejecución: variación diaria excesiva,
+      reconciliación fuera de tolerancia, datos incompletos.
+    estado: backlog
+    prioridad: media
+    tamano: M
+    sprint: "S2-2026"
+    asignado: null
+    etiquetas: [calidad, alertas, observabilidad]
+    dependencias: [F11, F01]
+    archivos_afectados:
+      - "alertas/ (nuevo directorio)"
+      - "alertas/checks.py"
+      - "alertas/modelos.py"
+    criterios_aceptacion:
+      - "Check de variación diaria > N desviaciones estándar"
+      - "Check de completitud (nulos en columnas críticas)"
+      - "Alertas con severidad (INFO, WARNING, CRITICAL)"
+      - "Integración con Torre de Control"
+
+  # ---------------------------------------------------------------------------
+  # SPRINT 3: Migración & Validación
+  # ---------------------------------------------------------------------------
+
+  - id: F03
+    titulo: "Modo Fantasma — Validación VBA vs Python"
+    descripcion: >
+      Framework de comparación automática entre outputs VBA y Python.
+      Comparación celda por celda con tolerancias. Empezando por inversiones.
+    estado: backlog
+    prioridad: alta
+    tamano: L
+    sprint: "S3-2026"
+    asignado: null
+    etiquetas: [validacion, migracion, inversiones, testing]
+    dependencias: [F15]
+    archivos_afectados:
+      - "RF_Modelo_Inversiones/tests/ (nuevo)"
+      - "RF_Modelo_Inversiones/tests/test_fantasma.py"
+      - "tools/comparar_outputs.py (nuevo)"
+    criterios_aceptacion:
+      - "Comparador genérico de DataFrames con tolerancia absoluta y relativa"
+      - "Reporte HTML/Markdown con campos que coinciden/difieren"
+      - "Integrable con pytest como test de regresión"
+      - "Funciona con datos de caché (sin red)"
+
+  - id: F17
+    titulo: "Parallel Smartness — Optimización de ejecución"
+    descripcion: >
+      Ejecución en 2 fases (primera/segunda vuelta) con pre-carga de
+      caché Access compartido. Evita locks de archivo concurrentes.
+    estado: backlog
+    prioridad: media
+    tamano: M
+    sprint: "S3-2026"
+    asignado: null
+    etiquetas: [performance, orquestador, paralelo]
+    dependencias: [F14]
+    archivos_afectados:
+      - "core/orquestador.py"
+      - "procesamiento_datos_input/cache_tablas.py"
+    criterios_aceptacion:
+      - "Pre-carga de tablas Access compartidas antes de ejecutar modelos"
+      - "Ejecución en 2 fases: primera vuelta (CSV) → segunda vuelta (Access)"
+      - "NMD y LC no compiten por RF_BD_Gestion_RL"
+
+  - id: F16
+    titulo: "Ejecución Idempotente — Correr sin miedo"
+    descripcion: >
+      Garantizar que re-ejecutar un modelo para la misma fecha no
+      produce datos duplicados ni inconsistentes, especialmente en
+      la consolidación histórica de BigQuery.
+    estado: backlog
+    prioridad: media
+    tamano: S
+    sprint: "S3-2026"
+    asignado: null
+    etiquetas: [robustez, bigquery, idempotencia]
+    dependencias: []
+    archivos_afectados:
+      - "carga_modelos_gcp/cargar_output_modelos_bigquery_hist.py"
+    criterios_aceptacion:
+      - "DELETE del día antes de INSERT en tablas históricas"
+      - "Re-ejecución produce resultado idéntico"
+      - "Test que verifica idempotencia"
+
+  # ---------------------------------------------------------------------------
+  # SPRINT 4: Experiencia de Usuario
+  # ---------------------------------------------------------------------------
+
+  - id: F04
+    titulo: "Scenario Playground — Análisis interactivo"
+    descripcion: >
+      Streamlit con sliders para modificar parámetros clave y ver
+      efecto en tiempo real. Empezando por Prepago Consumo.
+    estado: backlog
+    prioridad: media
+    tamano: XL
+    sprint: "S4-2026"
+    asignado: null
+    etiquetas: [streamlit, negocio, parametros]
+    dependencias: [F14, F11]
+    archivos_afectados:
+      - "playground/ (nuevo directorio)"
+      - "playground/app_prepago.py"
+      - "RF_Modelo_Prepago_Consumo/mr_prepago_consumo.py"
+    criterios_aceptacion:
+      - "Sliders para PHI, factor SMM, tasa base"
+      - "Gráfico de flujos proyectados base vs stress"
+      - "Datos cargados desde caché parquet (sin red)"
+      - "Patrón: ejecutar_modelo(fecha, parametros=dict, datos=cache)"
+
+  - id: F06
+    titulo: "Linaje de Datos — Visualización de flujo"
+    descripcion: >
+      Grafo interactivo del flujo de datos desde fuentes hasta outputs.
+      Generado automáticamente desde el YAML de configuración.
+    estado: backlog
+    prioridad: baja
+    tamano: L
+    sprint: "S4-2026"
+    asignado: null
+    etiquetas: [documentacion, visualizacion, linaje]
+    dependencias: [F12]
+    archivos_afectados:
+      - "tools/generar_linaje.py (nuevo)"
+      - "docs/desarrollo/linaje.md"
+    criterios_aceptacion:
+      - "Grafo mermaid generado desde config YAML"
+      - "Muestra fuentes → modelos → outputs"
+      - "Integrado en MkDocs"
+
+  # ---------------------------------------------------------------------------
+  # BACKLOG ESTRATÉGICO
+  # ---------------------------------------------------------------------------
+
+  - id: F05
+    titulo: "Matadero de Access — Migrador de queries SQL→Pandas"
+    descripcion: >
+      Script/herramienta que genera borradores de código pandas a partir
+      de queries SQL de Access (GROUP BY, HAVING, JOINs).
+    estado: backlog
+    prioridad: baja
+    tamano: L
+    sprint: backlog
+    asignado: null
+    etiquetas: [migracion, access, herramientas]
+    dependencias: []
+
+  - id: F07
+    titulo: "Parámetros como Código — Excel→YAML versionado"
+    descripcion: >
+      Exportar parámetros Excel a YAML versionado en Git.
+      Enfoque híbrido: Excel como UI de edición, YAML como source of truth.
+    estado: backlog
+    prioridad: media
+    tamano: XL
+    sprint: backlog
+    asignado: null
+    etiquetas: [parametros, versionamiento, regulatorio]
+    dependencias: [F02]
+
+  - id: F08
+    titulo: "Copiloto Regulatorio — Generador de reportes CMF"
+    descripcion: >
+      Templates Jinja2 para reportes regulatorios + validaciones automáticas
+      contra esquema BigQuery.
+    estado: backlog
+    prioridad: baja
+    tamano: XXL
+    sprint: backlog
+    asignado: null
+    etiquetas: [regulatorio, reportes, cmf]
+    dependencias: [F01, F09]
+
+  - id: F10
+    titulo: "Model API — Modelos como endpoints HTTP"
+    descripcion: >
+      FastAPI wrapper sobre ejecutar_modelo() para exponer cada modelo
+      como servicio HTTP consumible programáticamente.
+    estado: backlog
+    prioridad: baja
+    tamano: XXL
+    sprint: backlog
+    asignado: null
+    etiquetas: [api, arquitectura, largo-plazo]
+    dependencias: [F11, F12]
