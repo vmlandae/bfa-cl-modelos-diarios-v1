@@ -16,7 +16,7 @@
 # Prioridades: crítica | alta | media | baja
 # Tamaños: XS (<2h) | S (2h-1d) | M (1d-3d) | L (3d-1w) | XL (1w-2w) | XXL (2w+)
 #
-# Última actualización: 2026-02-25
+# Última actualización: 2026-02-26
 # =============================================================================
 
 metadata:
@@ -24,7 +24,7 @@ metadata:
   version_roadmap: "1.0.0"
   fecha_creacion: "2026-02-25"
   autores:
-    - nombre: "Victor Landa"
+    - nombre: "Victor Landaeta"
       usuario: "vlandaetat"
     - nombre: "Rodrigo Muñoz"
       usuario: "rmunozb"
@@ -66,7 +66,7 @@ sprints:
     inicio: null
     fin: null
     objetivo: "Features de largo plazo, priorizables según contexto"
-    features: [F05, F07, F08, F10]
+    features: [F05, F07, F08, F10, F18, F19, F20]
 
 # =============================================================================
 # FEATURES
@@ -437,3 +437,98 @@ features:
     asignado: null
     etiquetas: [api, arquitectura, largo-plazo]
     dependencias: [F11, F12]
+
+  - id: F18
+    titulo: "Carga Históricos Pre-Python — Reconstruir serie desde Access y respaldos"
+    descripcion: >
+      Reconstruir la serie histórica de outputs de modelos anterior a la
+      migración Python. Dos fuentes complementarias: (1) Access
+      RF_Modelos_Liquidez.accdb y sus respaldos YYYYMMDD en la carpeta
+      RESPALDOS; (2) Respaldos diarios de Excel en Y:\RF_RESPALDO_DIARIO.
+      Las dos fuentes se espera que coincidan ~95% pero hay que implementar
+      ambas y cruzar resultados para identificar discrepancias.
+    estado: planificado
+    prioridad: alta
+    tamano: L
+    sprint: backlog
+    asignado: null
+    etiquetas: [datos, historico, access, migracion]
+    dependencias: []
+    archivos_afectados:
+      - "carga_historicos/ (nuevo directorio)"
+      - "carga_historicos/lector_access_historico.py"
+      - "carga_historicos/lector_excel_respaldos.py"
+      - "carga_historicos/cruzador_fuentes.py"
+      - "carga_historicos/exportador.py"
+    criterios_aceptacion:
+      - "Lee RF_Modelos_Liquidez.accdb y respaldos YYYYMMDD_RF_Modelos_Liquidez.accdb"
+      - "Lee respaldos Excel diarios desde Y:\\RF_RESPALDO_DIARIO\\RF_INPUTS"
+      - "Genera reporte de diferencias entre ambas fuentes por fecha y modelo"
+      - "Exporta serie histórica consolidada a parquet/CSV/BigQuery"
+      - "Maneja fechas faltantes y datos erróneos sin crashear"
+    notas: >
+      Access vive en Z:\RF_PROCESOS\RF_Modelos\RF_Modelos_Liquidez.accdb.
+      Respaldos en Z:\RF_PROCESOS\RF_Modelos\RESPALDOS\YYYYMMDD_RF_Modelos_Liquidez.accdb.
+      Respaldos Excel en Y:\RF_RESPALDO_DIARIO\RF_INPUTS.
+      Plan detallado en docs/feats/carga-historicos/PLAN.md.
+
+  - id: F19
+    titulo: "Carga Modelos Old — Tablas de desarrollo de modelos no-Python"
+    descripcion: >
+      Pipeline diario para leer las tablas de desarrollo de los modelos
+      que aún no están implementados en Python (ejecutados manualmente
+      en Excel/VBA), consolidarlas en DuckDB local y cargarlas a BigQuery.
+      Esto permite tener la serie completa de todos los modelos en GCP
+      aunque su código no esté migrado.
+    estado: planificado
+    prioridad: alta
+    tamano: L
+    sprint: backlog
+    asignado: null
+    etiquetas: [datos, legacy, bigquery, duckdb]
+    dependencias: []
+    archivos_afectados:
+      - "carga_modelos_gcp/cargar_modelos_old.py"
+      - "almacenamiento_local/duckdb_manager.py"
+      - "config/config_modelos_old.yaml"
+    criterios_aceptacion:
+      - "Lee hojas DESARROLLO de los Excel legacy de red compartida"
+      - "Carga a BigQuery con detección de duplicados"
+      - "Almacena en DuckDB local como respaldo"
+      - "Soporta ejecución manual y automática desde orquestador"
+      - "Maneja errores por modelo individual sin afectar los demás"
+    notas: >
+      Ya existe trabajo previo en la rama feat/carga-modelos-old.
+      Plan existente en docs/feats/carga-modelos-old/PLAN.md.
+      Plan actualizado v2 en docs/feats/carga-modelos-old/PLAN-v2.md.
+
+  - id: F20
+    titulo: "Reestructura Sistema Parámetros — Excel→JSON con schema"
+    descripcion: >
+      Reemplazar los archivos Excel de parámetros de cada modelo por
+      archivos JSON con schema definido. Soportar tipos nativos (listas,
+      diccionarios, strings, números) en vez de las limitaciones tabulares
+      de Excel. Mantener retrocompatibilidad durante la transición.
+    estado: planificado
+    prioridad: media
+    tamano: XL
+    sprint: backlog
+    asignado: null
+    etiquetas: [parametros, refactor, schema, json]
+    dependencias: [F02]
+    archivos_afectados:
+      - "config/schema_parametros/ (nuevo directorio)"
+      - "config/cargador_parametros.py (refactor)"
+      - "RF_Modelo_*/parametros/*.json (nuevos)"
+      - "procesamiento_datos_input/cargador_parametros.py"
+    criterios_aceptacion:
+      - "Schema JSON definido por modelo con validación automática"
+      - "Parámetros soportan: listas, diccionarios, strings, números, booleanos"
+      - "Herramienta de migración Excel→JSON para parámetros existentes"
+      - "Modo dual durante transición: lee JSON si existe, fallback a Excel"
+      - "Validación de schema al importar parámetros (fail-fast)"
+    notas: >
+      Rama existente: feature/reestructura-sistema-parametros-y-rutas.
+      Relacionado con F07 (Parámetros como Código) pero es más específico:
+      F07 es la visión de largo plazo, F20 es el primer paso concreto.
+      Plan detallado en docs/feats/reestructura-parametros/PLAN.md.

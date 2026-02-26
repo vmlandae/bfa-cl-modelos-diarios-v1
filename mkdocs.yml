@@ -81,9 +81,14 @@ nav:
     - Plan de Desarrollo: roadmap/index.md
     - Workflow Colaborativo: roadmap/workflow.md
   - Features:
+    - Carga Históricos Pre-Python:
+      - Plan: feats/carga-historicos/PLAN.md
     - Carga Modelos Old:
       - Diagnóstico: feats/carga-modelos-old/diagnostic.md
-      - Plan: feats/carga-modelos-old/PLAN.md
+      - Plan v1: feats/carga-modelos-old/PLAN.md
+      - Plan v2: feats/carga-modelos-old/PLAN-v2.md
+    - Reestructura Parámetros:
+      - Plan: feats/reestructura-parametros/PLAN.md
   - Desarrollo:
     - Arquitectura: desarrollo/arquitectura.md
     - Contribuir: desarrollo/contribuir.md

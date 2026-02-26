@@ -1,6 +1,6 @@
 # Roadmap & Plan de Desarrollo
 
-> **Última actualización:** 2026-02-25  
+> **Última actualización:** 2026-02-26  
 > **Fuente de verdad:** [`docs/roadmap/roadmap.yaml`](https://gitlab.falabella.tech/rmunozb/bfa-cl-modelos-diarios/-/blob/main/docs/roadmap/roadmap.yaml)
 
 ---
@@ -36,6 +36,11 @@ gantt
     section S4: UX
     F04 Scenario Playground      :f04, 2026-04-07, 10d
     F06 Linaje de Datos          :f06, 2026-04-17, 5d
+
+    section Backlog: Datos & Params
+    F18 Carga Históricos         :f18, after f06, 7d
+    F19 Carga Modelos Old        :f19, after f18, 5d
+    F20 Reestructura Parámetros  :f20, after f19, 10d
 ```
 
 ---
@@ -259,6 +264,63 @@ Grafo interactivo del flujo de datos generado desde el YAML de configuración.
 
 ---
 
+---
+
+## Nuevas Features: Datos & Parámetros
+
+!!! warning "DRAFT — Requiere revisión antes de ejecutar"
+    Las features F18, F19 y F20 tienen planes detallados en `docs/feats/`.
+    Revisar y aprobar antes de comenzar implementación.
+
+### F18 — Carga Históricos Pre-Python { #f18 }
+
+| | |
+|---|---|
+| **Prioridad** | :material-arrow-up-bold:{ .high } Alta |
+| **Tamaño** | L (3d — 1 semana) |
+| **Estado** | :material-file-document-edit: Draft — pendiente revisión |
+| **Plan** | [Plan detallado](../feats/carga-historicos/PLAN.md) |
+
+Reconstruir la serie histórica de outputs de modelos anterior a Python.
+Dos fuentes complementarias: (1) Access `RF_Modelos_Liquidez.accdb` y sus respaldos
+`YYYYMMDD_RF_Modelos_Liquidez.accdb`; (2) Respaldos Excel diarios en
+`Y:\RF_RESPALDO_DIARIO\RF_INPUTS`. Se espera ~95% de coincidencia entre fuentes;
+implementar ambas y cruzar.
+
+---
+
+### F19 — Carga Modelos Old { #f19 }
+
+| | |
+|---|---|
+| **Prioridad** | :material-arrow-up-bold:{ .high } Alta |
+| **Tamaño** | L (3d — 1 semana) |
+| **Estado** | :material-file-document-edit: Draft — pendiente revisión |
+| **Plan** | [Plan v2](../feats/carga-modelos-old/PLAN-v2.md) · [Plan original](../feats/carga-modelos-old/PLAN.md) |
+
+Pipeline diario para leer las tablas de desarrollo de modelos que aún no están
+en Python (ejecutados manualmente en Excel/VBA), consolidarlas en DuckDB local
+y cargarlas a BigQuery. Trabajo previo existe en `feat/carga-modelos-old`.
+
+---
+
+### F20 — Reestructura Sistema Parámetros y Rutas { #f20 }
+
+| | |
+|---|---|
+| **Prioridad** | :material-arrow-right-bold:{ .medium } Media |
+| **Tamaño** | XL (1 — 2 semanas) |
+| **Estado** | :material-file-document-edit: Draft — pendiente revisión |
+| **Dependencias** | F02 |
+| **Rama** | `feature/reestructura-sistema-parametros-y-rutas` |
+| **Plan** | [Plan detallado](../feats/reestructura-parametros/PLAN.md) |
+
+Reemplazar los Excel de parámetros por JSON con schema definido. Soportar tipos
+nativos (listas, dicts, strings, números) en vez de las limitaciones tabulares
+de Excel. Mantener retrocompatibilidad durante la transición.
+
+---
+
 ## Backlog Estratégico
 
 Features de largo plazo, priorizables según contexto de negocio.
@@ -269,6 +331,9 @@ Features de largo plazo, priorizables según contexto de negocio.
 | F07 | Parámetros como Código (Excel→YAML) | XL | F02 | `parámetros` `regulatorio` |
 | F08 | Copiloto Regulatorio (reportes CMF) | XXL | F01, F09 | `regulatorio` `cmf` |
 | F10 | Model API (FastAPI) | XXL | F11, F12 | `api` `arquitectura` |
+| F18 | Carga Históricos Pre-Python | L | — | `datos` `histórico` `access` |
+| F19 | Carga Modelos Old (legacy→BQ) | L | — | `datos` `legacy` `bigquery` |
+| F20 | Reestructura Parámetros (Excel→JSON) | XL | F02 | `parámetros` `schema` `json` |
 
 ---
 
@@ -277,6 +342,7 @@ Features de largo plazo, priorizables según contexto de negocio.
 ```mermaid
 graph LR
     F02[F02 Snapshots] --> F07[F07 Params YAML]
+    F02 --> F20[F20 Params JSON]
     F14[F14 Cache 1ra Vuelta] --> F17[F17 Parallel]
     F14 --> F04[F04 Playground]
     F11[F11 Logging] --> F01[F01 Torre Control]
@@ -292,6 +358,8 @@ graph LR
     F13[F13 Pre-flight]
     F16[F16 Idempotencia]
     F05[F05 Matadero Access]
+    F18[F18 Históricos]
+    F19[F19 Modelos Old]
 
     style F02 fill:#4CAF50,color:#fff
     style F14 fill:#4CAF50,color:#fff
@@ -310,14 +378,18 @@ graph LR
     style F07 fill:#757575,color:#fff
     style F08 fill:#757575,color:#fff
     style F10 fill:#757575,color:#fff
+    style F18 fill:#E91E63,color:#fff
+    style F19 fill:#E91E63,color:#fff
+    style F20 fill:#E91E63,color:#fff
 ```
 
-<div style="display: flex; gap: 1em; margin-top: 0.5em;">
+<div style="display: flex; gap: 1em; margin-top: 0.5em; flex-wrap: wrap;">
   <span style="background: #4CAF50; color: white; padding: 2px 8px; border-radius: 4px;">Sprint 1</span>
   <span style="background: #2196F3; color: white; padding: 2px 8px; border-radius: 4px;">Sprint 2</span>
   <span style="background: #FF9800; color: white; padding: 2px 8px; border-radius: 4px;">Sprint 3</span>
   <span style="background: #9C27B0; color: white; padding: 2px 8px; border-radius: 4px;">Sprint 4</span>
   <span style="background: #757575; color: white; padding: 2px 8px; border-radius: 4px;">Backlog</span>
+  <span style="background: #E91E63; color: white; padding: 2px 8px; border-radius: 4px;">Nuevas (F18-F20)</span>
 </div>
 
 ---
