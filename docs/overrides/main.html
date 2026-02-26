@@ -1,0 +1,14 @@
+{# Override del bloque scripts para cargar mermaid.min.js
+   ANTES del bundle del tema.
+   
+   mkdocs-material verifica typeof mermaid=="undefined" en su bundle.
+   Si mermaid NO está definido, intenta cargar desde unpkg.com (CDN bloqueado).
+   Si YA está definido, usa el mermaid global → funciona!
+   
+   Por eso lo cargamos aquí, antes del bundle.
+#}
+{% extends "base.html" %}
+{% block scripts %}
+  <script src="{{ 'javascripts/mermaid.min.js' | url }}"></script>
+  {{ super() }}
+{% endblock %}

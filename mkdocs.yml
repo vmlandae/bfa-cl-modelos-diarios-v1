@@ -7,6 +7,7 @@ repo_name: bfa-cl-modelos-diarios
 
 theme:
   name: material
+  custom_dir: docs/overrides
   language: es
   palette:
     - scheme: default
@@ -64,6 +65,7 @@ nav:
     - Instalación: guia/instalacion.md
     - Configuración: guia/configuracion.md
     - Uso Básico: guia/uso-basico.md
+    - Mermaid (Diagramas): guia/mermaid-local.md
   - Modelos:
     - Prepago Consumo: modelos/prepago-consumo.md
     - Prepago Hipotecario: modelos/prepago-hipotecario.md
@@ -74,6 +76,9 @@ nav:
     - Mora Comercial: modelos/mora-comercial.md
     - NMD: modelos/nmd.md
     - Línea de Crédito: modelos/lc.md
+  - Roadmap:
+    - Plan de Desarrollo: roadmap/index.md
+    - Workflow Colaborativo: roadmap/workflow.md
   - Features:
     - Carga Modelos Old:
       - Diagnóstico: feats/carga-modelos-old/diagnostic.md
@@ -82,6 +87,8 @@ nav:
     - Arquitectura: desarrollo/arquitectura.md
     - Contribuir: desarrollo/contribuir.md
     - Changelog: CHANGELOG.md
+
+extra_javascript: []
 
 extra:
   social:
