@@ -67,6 +67,7 @@ nav:
     - Uso Básico: guia/uso-basico.md
     - Mermaid (Diagramas): guia/mermaid-local.md
   - Modelos:
+    - Inversiones: modelos/inversiones.md
     - Prepago Consumo: modelos/prepago-consumo.md
     - Prepago Hipotecario: modelos/prepago-hipotecario.md
     - Prepago CMR: modelos/prepago-cmr.md
