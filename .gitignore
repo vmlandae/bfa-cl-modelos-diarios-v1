@@ -126,3 +126,11 @@ tmpclaude-*
 # sandboxes para probar código
 sandbox/
 RF_Modelo_TC_CMR/
+
+# MkDocs build output (regenerar con: mkdocs build)
+site/
+build_output.txt
+
+# Mermaid JS local (regenerar con: python docs/javascripts/descargar_mermaid.py)
+# Ver docs/guia/mermaid-local.md para detalles
+docs/javascripts/mermaid.min.js
