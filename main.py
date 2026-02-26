@@ -13,6 +13,36 @@ import tkinter as tk
 # Importaciones del proyecto
 from core.orquestador import OrquestadorModelos
 from gui.interfaz import InterfazModelos
+
+def expandir_modelos(nombres: list, orquestador: OrquestadorModelos, *, filtro_gcp: bool = False) -> list:
+    """Expande aliases (todos, primera_vuelta, segunda_vuelta) a listas de modelos.
+
+    Los grupos se derivan dinámicamente del campo 'vuelta' en la metadata de
+    cada modelo registrado en el orquestador.
+
+    Args:
+        nombres: Lista de nombres/aliases de modelos.
+        orquestador: Instancia del orquestador (para obtener la lista completa).
+        filtro_gcp: Si True, al expandir 'todos' solo incluye modelos con tiene_carga_gcp.
+    """
+    if 'todos' in nombres:
+        if filtro_gcp:
+            return [
+                key for key, config in orquestador.modelos.items()
+                if config.get("tiene_carga_gcp", False)
+            ]
+        return list(orquestador.modelos.keys())
+    if 'primera_vuelta' in nombres:
+        return [
+            key for key, config in orquestador.modelos.items()
+            if config.get("vuelta") == 1
+        ]
+    if 'segunda_vuelta' in nombres:
+        return [
+            key for key, config in orquestador.modelos.items()
+            if config.get("vuelta") == 2
+        ]
+    return nombres
 from gui.controladores import ControladorModelos
 
 
@@ -196,14 +226,10 @@ def ejecutar_modo_consola(args):
         print(f"Fecha: {fecha.strftime('%Y-%m-%d')}")
         print(f"{'='*60}")
         
-        # Expandir "todos" si se especificó
-        modelos_carga = args.solo_carga_gcp
-        if 'todos' in modelos_carga:
-            modelos_carga = [
-                key for key, config in orquestador.modelos.items()
-                if config.get("tiene_carga_gcp", False)
-            ]
-            print(f"Expandiendo 'todos' a: {', '.join(modelos_carga)}\n")
+        # Expandir aliases (todos, primera_vuelta, segunda_vuelta)
+        modelos_carga = expandir_modelos(args.solo_carga_gcp, orquestador, filtro_gcp=True)
+        if modelos_carga != args.solo_carga_gcp:
+            print(f"Expandiendo a: {', '.join(modelos_carga)}\n")
         
         resultados_carga = orquestador.cargar_modelos_gcp(modelos_carga, fecha)
         
@@ -221,14 +247,10 @@ def ejecutar_modo_consola(args):
         print(f"Fecha: {fecha.strftime('%Y-%m-%d')}")
         print(f"{'='*60}")
         
-        # Expandir "todos" si se especificó
-        modelos_consolidar = args.consolidar_historico
-        if 'todos' in modelos_consolidar:
-            modelos_consolidar = [
-                key for key, config in orquestador.modelos.items()
-                if config.get("tiene_carga_gcp", False)
-            ]
-            print(f"Expandiendo 'todos' a: {', '.join(modelos_consolidar)}\n")
+        # Expandir aliases (todos, primera_vuelta, segunda_vuelta)
+        modelos_consolidar = expandir_modelos(args.consolidar_historico, orquestador, filtro_gcp=True)
+        if modelos_consolidar != args.consolidar_historico:
+            print(f"Expandiendo a: {', '.join(modelos_consolidar)}\n")
         
         resultados_consolidacion = orquestador.consolidar_historico_gcp(modelos_consolidar, fecha)
         
@@ -240,27 +262,7 @@ def ejecutar_modo_consola(args):
         print("Error: Debe especificar --modelos, --solo-carga-gcp o usar --listar")
         return
 
-    modelos_a_ejecutar = args.modelos
-    if 'todos' in modelos_a_ejecutar:
-        modelos_a_ejecutar = list(orquestador.modelos.keys())
-    elif 'primera_vuelta' in modelos_a_ejecutar:
-        # Primera vuelta: mr_prepago_consumo, mr_prepago_hipotecario, ml_mora_*
-        modelos_a_ejecutar = [
-            'mr_prepago_consumo',
-            'mr_prepago_hipotecario',
-            'ml_mora_consumo',
-            'ml_mora_cae',
-            'ml_mora_hipotecario',
-            'ml_mora_comercial'
-        ]
-    elif 'segunda_vuelta' in modelos_a_ejecutar:
-        # Segunda vuelta: mr_prepago_cmr, ml_nmd
-        modelos_a_ejecutar = [
-            'mr_prepago_cmr',
-            'ml_nmd',
-            'ml_lc',
-            'ml_inversiones'
-        ]
+    modelos_a_ejecutar = expandir_modelos(args.modelos, orquestador)
 
     print(f"\nFecha de ejecución: {fecha.strftime('%Y-%m-%d')}")
     print(f"Modelos seleccionados: {', '.join(modelos_a_ejecutar)}")
@@ -317,23 +319,29 @@ Ejemplos de uso:
   # Ejecutar todos los modelos y cargar
   python main.py --fecha 2025-11-28 --modelos todos --cargar-gcp
   
-  # Ejecutar primera vuelta (mr_prepago_consumo, mr_prepago_hipotecario, ml_mora_*)
+  # Ejecutar primera vuelta (prepago consumo/hipotecario + 4 moras)
   python main.py --fecha 2025-11-28 --modelos primera_vuelta --cargar-gcp
   
-  # Ejecutar segunda vuelta (mr_prepago_cmr, ml_nmd)
+  # Ejecutar segunda vuelta (prepago CMR, NMD, LC, inversiones)
   python main.py --fecha 2025-11-28 --modelos segunda_vuelta --cargar-gcp
   
   # Solo cargar modelos específicos a GCP (sin ejecutar)
   python main.py --fecha 2025-11-28 --solo-carga-gcp mr_prepago_consumo mr_prepago_hipotecario
   
-  # Solo cargar TODOS los modelos a GCP (sin ejecutar)
-  python main.py --fecha 2025-11-28 --solo-carga-gcp todos
+  # Solo cargar segunda vuelta a GCP
+  python main.py --fecha 2025-11-28 --solo-carga-gcp segunda_vuelta
   
   # Consolidar datos diarios en tablas históricas
   python main.py --fecha 2025-11-28 --consolidar-historico mr_prepago_consumo
   
+  # Consolidar segunda vuelta en histórico
+  python main.py --fecha 2025-11-28 --consolidar-historico segunda_vuelta
+  
   # Consolidar TODOS los modelos en histórico
   python main.py --fecha 2025-11-28 --consolidar-historico todos
+  
+  # Aliases disponibles: todos, primera_vuelta, segunda_vuelta
+  # Funcionan en --modelos, --solo-carga-gcp y --consolidar-historico
   
   # Modo GUI
   python main.py --gui

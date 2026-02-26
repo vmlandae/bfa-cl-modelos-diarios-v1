@@ -13,6 +13,7 @@ class OrquestadorModelos:
                 "modulo": "RF_Modelo_Prepago_Consumo.mr_prepago_consumo",
                 "activado": True,
                 "orden": 1,
+                "vuelta": 1,
                 "tiene_carga_gcp": True,
                 "tiene_carga_gcp_historica": True
             },
@@ -21,6 +22,7 @@ class OrquestadorModelos:
                 "modulo": "RF_Modelo_Prepago_Hipotecario.mr_prepago_hipotecario",
                 "activado": True,
                 "orden": 2,
+                "vuelta": 1,
                 "tiene_carga_gcp": True,
                 "tiene_carga_gcp_historica": True
             },
@@ -29,6 +31,7 @@ class OrquestadorModelos:
                 "modulo": "RF_Modelo_Prepago_CMR.mr_prepago_cmr",
                 "activado": True,
                 "orden": 3,
+                "vuelta": 2,
                 "tiene_carga_gcp": True,
                 "tiene_carga_gcp_historica": True
             },
@@ -37,6 +40,7 @@ class OrquestadorModelos:
                 "modulo": "RF_Modelo_Mora_Consumo.ml_mora_consumo",
                 "activado": True,
                 "orden": 4,
+                "vuelta": 1,
                 "tiene_carga_gcp": True,
                 "tiene_carga_gcp_historica": True
             },
@@ -45,6 +49,7 @@ class OrquestadorModelos:
                 "modulo": "RF_Modelo_Mora_CAE.ml_mora_cae",
                 "activado": True,
                 "orden": 5,
+                "vuelta": 1,
                 "tiene_carga_gcp": True,
                 "tiene_carga_gcp_historica": True
             },
@@ -53,6 +58,7 @@ class OrquestadorModelos:
                 "modulo": "RF_Modelo_Mora_Hipotecario.ml_mora_hipotecario",
                 "activado": True,
                 "orden": 6,
+                "vuelta": 1,
                 "tiene_carga_gcp": True,
                 "tiene_carga_gcp_historica": True
             },
@@ -61,6 +67,7 @@ class OrquestadorModelos:
                 "modulo": "RF_Modelo_Mora_Comercial.ml_mora_comercial",
                 "activado": True,
                 "orden": 7,
+                "vuelta": 1,
                 "tiene_carga_gcp": True,
                 "tiene_carga_gcp_historica": True
             },
@@ -69,6 +76,7 @@ class OrquestadorModelos:
                 "modulo": "RF_Modelo_NMD.ml_nmd",
                 "activado": True,
                 "orden": 8,
+                "vuelta": 2,
                 "tiene_carga_gcp": True,
                 "tiene_carga_gcp_historica": True
             },
@@ -77,6 +85,7 @@ class OrquestadorModelos:
                 "modulo": "RF_Modelo_Linea_de_Credito.ml_lc",
                 "activado": True,
                 "orden": 8,
+                "vuelta": 2,
                 "tiene_carga_gcp": True,
                 "tiene_carga_gcp_historica": True
             },
@@ -85,6 +94,7 @@ class OrquestadorModelos:
                 "modulo": "RF_Modelo_Inversiones.ml_inversiones",
                 "activado": True,
                 "orden": 9,
+                "vuelta": 2,
                 "tiene_carga_gcp": True,
                 "tiene_carga_gcp_historica": True
             }
