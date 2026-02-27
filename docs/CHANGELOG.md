@@ -5,6 +5,32 @@ Registro de cambios y actualizaciones del proyecto BFA-CL Modelos Diarios.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0-dev] - 2026-02-27 - Logging Estructurado, Roadmap y Documentación
+
+### Agregado
+- **Logging estructurado (F11)** (`core/logger.py`): sistema de logging con dos handlers — consola (formato legible con emojis) y archivo JSONL (`logs/{fecha}/modelos.jsonl`)
+  - `setup_logging(fecha_proceso)` como punto de configuración centralizado
+  - `contexto_modelo()` context manager para asociar logs al modelo correcto (thread-safe vía `contextvars`)
+  - Monkey-patch de `builtins.print()` para captura completa de output en JSONL sin duplicar en consola
+  - Prefijo `[modelo]` en consola para distinguir output en ejecución paralela (ej: `[prepago_consumo]`, `[mora_cae]`)
+  - Compatible con `StdoutRedirector` de tkinter (GUI)
+- **Copia local de interfaz PML (F14)**: interfaz PML con verificación pre/post para garantizar integridad de datos
+- **Roadmap del proyecto** (`docs/roadmap/`): roadmap visual con Gantt y grafo de dependencias en Mermaid, fuente de verdad en `roadmap.yaml`
+- **Plan de ejecución** (`docs/roadmap/PLAN.md`): plan de sprints S1–S5 con features F01–F20, asignaciones y dependencias
+- **Workflow colaborativo** (`docs/roadmap/workflow.md`): guía de flujo GitLab con ramas, MR y convenciones
+- **Documentación modelo Inversiones** (`docs/modelos/`): documentación técnica comprehensiva del pipeline de inversiones
+- **Mermaid local** (`docs/overrides/`, `docs/javascripts/`): renderizado local de diagramas Mermaid para entornos con proxy corporativo
+- **Benchmark** (`docs/desarrollo/`): análisis paralelo vs secuencial primera vuelta de modelos
+
+### Mejorado
+- **Orquestador** (`core/orquestador.py`): grupos de vueltas centralizados como metadata del orquestador (refactor)
+- **Migración de `print()` a `logger`**: orquestador, cache_tablas y main.py migrados al nuevo sistema de logging
+- **Dependencias** (`requirements.txt`): actualizado con `pip freeze` del ambiente `bfa-cl-modelos`
+
+### Corregido
+- **Modelo Inversiones**: `genera_tabla_RF_base_Completa_Hist` movido de `dev/helpers` a `io/data_sources` (ubicación correcta)
+- **Gitignore**: `site/` y artefactos de build excluidos del versionamiento
+
 ## [1.5.0-dev] - 2026-02-23 - Modelo Inversiones: Pipeline completo + Carga GCP
 
 ### Agregado

@@ -22,6 +22,10 @@ Este proyecto contiene la implementación de múltiples modelos de riesgo financ
 
 ### Modelos de Línea de Crédito
 - **ML LC**: Modelado de flujos para Líneas de Crédito. Considera dinamicas intrames y un decaimiento exponencial.
+
+### Modelos de Inversiones
+- **ML Inversiones**: Pipeline modular para modelado de inversiones con capa de I/O, validaciones y generación de excels.
+
 Los modelos están diseñados para procesar datos en lotes, generar predicciones y cargar los resultados a BigQuery para su posterior análisis y reporting.
 
 ## Estructura del Proyecto
@@ -127,9 +131,27 @@ RF_Modelo_Linea_de_Credito/     # Modelo de línea de crédito
 └── parametros/                 # Parámetros específicos del modelo (GAMMA, DELTA, DECAY_RATE)
 ```
 
+#### Modelos de Inversiones
+```
+RF_Modelo_Inversiones/          # Modelo de inversiones (pipeline modular)
+├── ml_inversiones.py           # Orquestador del pipeline
+├── run_validacion.py           # Script de validación de output
+├── config/                     # Configuración específica del modelo
+├── io/                         # Capa de I/O (data_sources, paths, writers)
+├── pipeline/                   # Pipeline modular (tabla_final, validaciones, excels)
+├── parametros/                 # Parámetros específicos del modelo
+├── tests/                      # Tests unitarios
+└── dev/                        # Scripts de desarrollo y documentación GCP
+```
+
 ### 📁 Documentación
 ```
-docs/                           # Documentación del proyecto
+docs/                           # Documentación del proyecto (MkDocs)
+├── CHANGELOG.md                # Registro de cambios
+├── roadmap/                    # Roadmap visual, plan de sprints y workflow
+├── modelos/                    # Documentación técnica de cada modelo
+├── guia/                       # Guías de uso y configuración
+└── desarrollo/                 # Benchmarks y notas de desarrollo
 ```
 
 ## Arquitectura del Sistema
@@ -151,11 +173,18 @@ Los modelos implementan estándares avanzados de documentación técnica:
 - ✅ **Ejemplos de uso**: Código de ejemplo con parámetros reales para facilitar implementación
 
 
+### Logging Estructurado
+El sistema implementa logging dual a través de `core/logger.py`:
+- **Consola**: formato legible con emojis y prefijo `[modelo]` para ejecución paralela
+- **Archivo**: JSONL estructurado en `logs/{fecha}/modelos.jsonl` para análisis posterior
+- **Compatibilidad**: funciona tanto en modo CLI como en la GUI (tkinter)
+
 ### Flujo Principal
 1. **Orquestación**: El `orquestador.py` coordina la ejecución de todos los modelos
 2. **Modelos**: Cada modelo procesa sus datos específicos y genera predicciones usando `ejecutar_modelo()`
-3. **Carga a GCP**: Los resultados se cargan automáticamente a BigQuery
-4. **Interfaz**: La GUI permite monitorear y controlar las ejecuciones
+3. **Logging**: Cada ejecución genera logs estructurados en JSONL con contexto del modelo
+4. **Carga a GCP**: Los resultados se cargan automáticamente a BigQuery
+5. **Interfaz**: La GUI permite monitorear y controlar las ejecuciones
 
 ### Componentes Clave
 - **Orquestador**: Maneja la secuencia de ejecución y dependencias entre modelos
