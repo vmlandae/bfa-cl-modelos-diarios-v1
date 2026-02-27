@@ -251,22 +251,19 @@ Usa pytest. Todo debe pasar sin acceso a red.
 - [x] Verificar: consola mantiene formato legible
 - [ ] Verificar: GUI sigue mostrando output
 - [x] ⚠️ NO migrar los ~200 prints de modelos individuales en S1; solo `core/` y `procesamiento_datos_input/`
+- [x] Interceptor de `print()` → JSONL: monkey-patch de `builtins.print` para capturar prints de modelos en JSONL
 
-**Preguntas por resolver:**
-- [ ] ❓ ¿JSON desde el inicio, o basta texto legible en archivo primero?
-- [ ] ❓ ¿Mantener emojis en handler consola?
-- [ ] ❓ ¿Migrar solo `core/` y `procesamiento_datos_input/` en S1, resto gradual?
+**Estrategia de captura de prints:**
 
-**Prompt sugerido:**
-```
-Crea `core/logger.py` con:
-1. Función setup_logger(nombre, fecha_proceso) que configure logging con:
-   - StreamHandler consola (formato legible con emojis)
-   - FileHandler archivo logs/{fecha}/modelos.jsonl (JSON: timestamp, level, modelo, mensaje)
-2. Context manager para agregar modelo al contexto automáticamente
-Migra print() → logger en orquestador.py y cache_tablas.py.
-Agrega logging.StreamHandler que alimente StdoutRedirector de la GUI.
-```
+| Enfoque | Estado | Cobertura | Detalle |
+|---------|--------|-----------|---------|
+| **Solución rápida:** interceptor `builtins.print` | ✅ Implementado | 100% de prints | Captura todos los `print()` en JSONL como `INFO`. Texto libre, no estructurado. Guard thread-local para evitar re-entrada. |
+| **Solución robusta:** migrar `print()` → `logger.xxx()` por modelo | 📋 Mediano plazo | — | Permite niveles (WARNING/ERROR), campos extra, filtrado. ~200 prints en 10 módulos. Ejecutar gradualmente fuera de S1. |
+
+**Preguntas resueltas:**
+- [x] ❓ ¿JSON desde el inicio? → Sí, JSONL desde el inicio para consumo por Torre de Control (F01)
+- [x] ❓ ¿Mantener emojis en handler consola? → Sí, `ConsoleFormatter` solo emite el mensaje tal cual
+- [x] ❓ ¿Migrar solo `core/` y `procesamiento_datos_input/` en S1? → Sí + interceptor para cobertura inmediata
 
 ---
 

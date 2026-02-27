@@ -31,10 +31,12 @@ Compatibilidad GUI:
     tkinter redirige stdout *después* de ``setup_logging()``.
 """
 
+import builtins
 import json
 import logging
 import sys
 import contextvars
+import threading
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
@@ -161,6 +163,68 @@ class DynamicStdoutHandler(logging.StreamHandler):
 
 
 # ---------------------------------------------------------------------------
+# Interceptor de print() → JSONL  (solución rápida F11)
+# ---------------------------------------------------------------------------
+#
+# Monkey-patch de ``builtins.print`` para capturar los ~200+ ``print()``
+# de los modelos individuales en el archivo JSONL, **sin necesidad de
+# migrarlos uno por uno**.
+#
+# Estrategia:
+#   - Solución rápida (esta): interceptar ``print()`` globalmente.
+#     Ventaja: cobertura inmediata al 100 %.  Limitación: todos los
+#     mensajes se registran como INFO y el texto es libre (no
+#     estructurado).
+#   - Solución robusta (mediano plazo): migrar cada ``print()`` a
+#     ``logger.info/warning/error()`` con niveles y campos adecuados.
+#     Permite filtrar por severidad, agregar campos extra, etc.
+# ---------------------------------------------------------------------------
+
+_original_print = builtins.print
+_interceptor_guard = threading.local()
+
+
+def _setup_print_interceptor(file_handler: logging.FileHandler) -> None:
+    """Activa la captura de ``print()`` hacia el archivo JSONL.
+
+    Crea un logger dedicado (``bfa_modelos._print_capture``) que **solo**
+    tiene el ``FileHandler`` JSONL — sin handler de consola — para evitar
+    duplicar la salida por pantalla.
+
+    El ``print()`` original sigue funcionando con normalidad (consola y/o
+    ``StdoutRedirector`` de la GUI).
+
+    Se usa un guard *thread-local* para evitar re-entrada si algún
+    handler escribe a stdout.
+    """
+    capture_logger = logging.getLogger(f"{_LOGGER_NAME}._print_capture")
+    capture_logger.propagate = False
+    capture_logger.setLevel(logging.DEBUG)
+    capture_logger.addHandler(file_handler)
+
+    def _intercepted_print(*args, **kwargs):
+        # Ejecutar el print original (consola / GUI StdoutRedirector)
+        _original_print(*args, **kwargs)
+
+        # Si el print redirige a un file explícito, no capturar
+        if kwargs.get("file") is not None:
+            return
+
+        # Guard contra re-entrada (thread-local)
+        if getattr(_interceptor_guard, "active", False):
+            return
+        _interceptor_guard.active = True
+        try:
+            message = kwargs.get("sep", " ").join(str(a) for a in args)
+            if message.strip():
+                capture_logger.info(message)
+        finally:
+            _interceptor_guard.active = False
+
+    builtins.print = _intercepted_print
+
+
+# ---------------------------------------------------------------------------
 # Setup público
 # ---------------------------------------------------------------------------
 
@@ -216,6 +280,9 @@ def setup_logging(
     file_handler.setLevel(nivel_archivo)
     file_handler.setFormatter(JsonlFormatter())
     root.addHandler(file_handler)
+
+    # --- Interceptor de print() → JSONL ---
+    _setup_print_interceptor(file_handler)
 
     _setup_done = True
 
