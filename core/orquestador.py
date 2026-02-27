@@ -1,14 +1,18 @@
 import importlib
 from datetime import datetime
+from pathlib import Path
 import concurrent.futures
 import argparse
 from typing import List, Dict, Any
 import traceback
+import yaml
 
 from core.logger import get_logger, contexto_modelo
 
 logger = get_logger(__name__)
 
+# Ruta al YAML de configuración externa (rutas de red, parametros, outputs)
+_CONFIG_EXT_YAML = Path(__file__).resolve().parent.parent / "config" / "config_rutas_ext_y_archivos.yaml"
 
 class OrquestadorModelos:
     def __init__(self):
@@ -104,7 +108,72 @@ class OrquestadorModelos:
                 "tiene_carga_gcp_historica": True
             }
         }
-        
+
+    # -----------------------------------------------------------------
+    # F14 — Pre/Post hooks para copia de interfaz PML
+    # -----------------------------------------------------------------
+
+    def _obtener_ruta_interfaz_red(self) -> Path:
+        """Lee la ruta de red de la interfaz PML desde el YAML de config.
+
+        Todos los modelos de primera vuelta comparten la misma ruta de
+        red (``interfaz_datos_input``), así que tomamos la del primero.
+        """
+        from config.config_rutas import resolver_ruta
+
+        with open(_CONFIG_EXT_YAML, "r", encoding="utf-8") as f:
+            config_ext = yaml.safe_load(f)
+
+        # Buscar el primer modelo de vuelta 1 que tenga interfaz_datos_input
+        for key, cfg in self.modelos.items():
+            if cfg.get("vuelta") == 1:
+                interfaz = config_ext["modelos"].get(key, {}).get("interfaz_datos_input")
+                if interfaz:
+                    return resolver_ruta(interfaz)
+
+        raise RuntimeError(
+            "No se encontró 'interfaz_datos_input' para ningún modelo de primera vuelta"
+        )
+
+    def _pre_ejecucion_primera_vuelta(self, modelos_seleccionados: List[str], fecha: datetime) -> None:
+        """Hook pre-ejecución: copia interfaz PML una sola vez si hay modelos de vuelta 1."""
+        modelos_v1 = [
+            m for m in modelos_seleccionados
+            if m in self.modelos and self.modelos[m].get("vuelta") == 1
+        ]
+        if not modelos_v1:
+            return
+
+        from procesamiento_datos_input.cache_tablas import copiar_interfaz_a_local
+
+        fecha_str = fecha.strftime("%Y%m%d")
+        ruta_red = self._obtener_ruta_interfaz_red()
+
+        logger.info(f"\n{'─'*60}")
+        logger.info("PRE-EJECUCIÓN: Copiando interfaz PML a caché local...")
+        logger.info(f"{'─'*60}")
+
+        copiar_interfaz_a_local(ruta_red, fecha_str)
+
+    def _post_ejecucion_primera_vuelta(self, modelos_seleccionados: List[str], fecha: datetime) -> None:
+        """Hook post-ejecución: verifica que el archivo de red no cambió."""
+        modelos_v1 = [
+            m for m in modelos_seleccionados
+            if m in self.modelos and self.modelos[m].get("vuelta") == 1
+        ]
+        if not modelos_v1:
+            return
+
+        from procesamiento_datos_input.cache_tablas import verificar_interfaz_post_ejecucion
+
+        fecha_str = fecha.strftime("%Y%m%d")
+        ruta_red = self._obtener_ruta_interfaz_red()
+
+        logger.info(f"\n{'─'*60}")
+        logger.info("POST-EJECUCIÓN: Verificando integridad de interfaz PML...")
+        logger.info(f"{'─'*60}")
+
+        verificar_interfaz_post_ejecucion(ruta_red, fecha_str)
 
     def ejecutar_modelo(self, nombre_modelo: str, config: Dict[str, Any], fecha: datetime) -> bool:
         with contexto_modelo(nombre_modelo):
@@ -214,6 +283,9 @@ class OrquestadorModelos:
     def ejecutar_modelo_secuencial(self, nombre_modelo: str, fecha: datetime) -> Dict[str, bool]:
         """Ejecuta un único modelo de forma secuencial"""
         logger.info(f"Iniciando ejecución secuencial del modelo para fecha: {fecha.strftime('%Y-%m-%d')}")
+
+        # F14: pre-ejecución (copia interfaz si es vuelta 1)
+        self._pre_ejecucion_primera_vuelta([nombre_modelo], fecha)
         
         resultados = {}
         if nombre_modelo in self.modelos:
@@ -226,6 +298,9 @@ class OrquestadorModelos:
         else:
             logger.error(f"El modelo {nombre_modelo} no existe")
             resultados[nombre_modelo] = False
+
+        # F14: post-ejecución (verifica integridad si es vuelta 1)
+        self._post_ejecucion_primera_vuelta([nombre_modelo], fecha)
             
         return resultados
 
@@ -236,6 +311,9 @@ class OrquestadorModelos:
             return self.ejecutar_modelo_secuencial(modelos_seleccionados[0], fecha)
             
         logger.info(f"Iniciando ejecución paralela de {len(modelos_seleccionados)} modelos para fecha: {fecha.strftime('%Y-%m-%d')}")
+
+        # F14: pre-ejecución (copia interfaz una sola vez si hay modelos de vuelta 1)
+        self._pre_ejecucion_primera_vuelta(modelos_seleccionados, fecha)
         
         resultados = {}
         with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -253,6 +331,9 @@ class OrquestadorModelos:
                 except Exception as e:
                     logger.error(f"Error en modelo {nombre_modelo}: {str(e)}")
                     resultados[nombre_modelo] = False
+
+        # F14: post-ejecución (verifica integridad si hubo modelos de vuelta 1)
+        self._post_ejecucion_primera_vuelta(modelos_seleccionados, fecha)
         
         return resultados
 

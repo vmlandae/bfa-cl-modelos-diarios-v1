@@ -225,24 +225,12 @@ def estandariza_vencimiento(row, fecha_t):
 
 
 def lectura_interfaz_de_datos(fecha_t: datetime.datetime)-> pd.DataFrame:
-    columnas = ["FECHA_PROCESO", "SISTEMA","CODIGO_PRODUCTO", "CODIGO_SUBPRODUCTO","DESTINOCREDITO", "MONEDA_ORIGEN",
-                "AMORTIZACION", "INTERES","FECHA_VENCIMIENTO_CUOTA"]
+    from procesamiento_datos_input.cache_tablas import leer_interfaz_con_cache
 
-    tipos_datos = {"FECHA_PROCESO": "str", "SISTEMA": "str", "CODIGO_PRODUCTO": "str", "CODIGO_SUBPRODUCTO": "str", "DESTINOCREDITO": "str",
-                   "MONEDA_ORIGEN": "str", "AMORTIZACION": "float",
-                   "INTERES": "float","FECHA_VENCIMIENTO_CUOTA": "str",}
-
-    ruta_t = os.path.join(RUTA_INTERFAZ_DE_DATOS, f"ProductosMercadoLiquidezGCP{fecha_t.strftime('%Y%m%d')}.txt")
-
-    interfaz_t = pd.read_csv(ruta_t, sep=';', decimal=',', usecols=columnas, dtype=tipos_datos)
-
-    interfaz_t['FECHA_PROCESO'] = pd.to_datetime(interfaz_t['FECHA_PROCESO'], format='%Y%m%d')
-    interfaz_t['FECHA_VENCIMIENTO_CUOTA'] = pd.to_datetime(interfaz_t['FECHA_VENCIMIENTO_CUOTA'], format='%Y%m%d')
-
-    interfaz_t['CODIGO_PRODUCTO'] = interfaz_t['CODIGO_PRODUCTO'].str.strip()
-    interfaz_t['CODIGO_SUBPRODUCTO'] = interfaz_t['CODIGO_SUBPRODUCTO'].str.strip()
-    interfaz_t['DESTINOCREDITO'] = interfaz_t['DESTINOCREDITO'].str.strip()
-    interfaz_t['SISTEMA'] = interfaz_t['SISTEMA'].str.strip()
+    interfaz_t = leer_interfaz_con_cache(
+        ruta_red=RUTA_INTERFAZ_DE_DATOS,
+        fecha_proceso=fecha_t.strftime('%Y%m%d'),
+    )
 
     subproductos_validos_hip = [
         "20", "30", "40", "50", "60", "70", "80", "90", "120", "130", 

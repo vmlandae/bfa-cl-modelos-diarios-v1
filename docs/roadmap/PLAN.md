@@ -106,46 +106,71 @@ En `carga_modelos_gcp/cargar_output_modelos_bigquery_hist.py`, modifica
 
 ---
 
-### F14: Cache de Primera Vuelta — CSV de red a parquet local
+### F14: Cache de Primera Vuelta — CSV de red a parquet local ✅
 
-> **Tamaño:** S (~2d) · **Asignado:** `________`
+> **Tamaño:** S (~2d) · **Asignado:** @vlandaetat · **Completado:** 2026-02-27
 
-**Qué:** Cachear `ProductosMercadoLiquidezGCP*.txt` de red como parquet local
+**Qué:** Cachear `ProductosMercadoLiquidezGCP*.txt` de red como parquet local,
+con copia raw + metadatos (timestamp, checksum MD5) para trazabilidad.
 
-**Archivos:**
-- `procesamiento_datos_input/cache_tablas.py` — ya tiene TODOs explícitos (líneas 34-45)
-- 6 modelos de primera vuelta que leen CSVs
+**Archivos modificados:**
+- `procesamiento_datos_input/cache_tablas.py` — funciones nuevas: `copiar_interfaz_a_local()`,
+  `leer_interfaz_con_cache()`, `verificar_interfaz_post_ejecucion()`,
+  helpers `_md5_archivo()`, `_guardar_metadata()`, `_leer_metadata()`, `_resolver_rutas_interfaz()`
+- `core/orquestador.py` — hooks pre/post ejecución primera vuelta
+- `RF_Modelo_Prepago_Consumo/mr_prepago_consumo.py`
+- `RF_Modelo_Prepago_Hipotecario/mr_prepago_hipotecario.py`
+- `RF_Modelo_Mora_Consumo/ml_mora_consumo.py`
+- `RF_Modelo_Mora_CAE/ml_mora_cae.py`
+- `RF_Modelo_Mora_Hipotecario/ml_mora_hipotecario.py`
+- `RF_Modelo_Mora_Comercial/ml_mora_comercial.py`
 
-**Contexto:** `cache_tablas.py` ya implementa cache parquet para Access. `--forzar-recarga` ya existe via `os.environ['CACHE_FORZAR_RECARGA']`.
+**Contexto:** `cache_tablas.py` ya implementaba cache parquet para Access (segunda vuelta).
+F14 extiende este módulo para cubrir también la interfaz CSV de primera vuelta.
+
+**Decisiones tomadas:**
+- El CSV a veces cambia durante el día (correcciones). Se verifica checksum MD5
+  **post-ejecución** (una sola vez) y se emite **warning** si el archivo de red
+  cambió vs la copia local durante la ejecución.
+- Se cachea el CSV **completo** (sin filtrar por modelo). Cada modelo aplica su propio
+  filtro de SISTEMA/CODIGO_PRODUCTO/subproductos después. La ganancia de performance
+  de cachear filtrado no justifica la complejidad.
+- El nombre del archivo incluye la fecha de proceso (`ProductosMercadoLiquidezGCP{YYYYMMDD}.txt`),
+  que generalmente es el día hábil anterior.
+- Se guarda `.txt` raw **100% sin modificar** en `data/cache/raw/` para auditoría.
+- Caché filtrado por modelo: descartado (TODO futuro solo si mediciones muestran necesidad).
+
+**Arquitectura pre/post (arreglo de race condition):**
+- **PRE-ejecución** (orquestador, hilo principal, 1 vez): `copiar_interfaz_a_local()` copia
+  .txt de red → `data/cache/raw/`, protegido con `threading.Lock`.
+- **Durante ejecución** (N hilos): `leer_interfaz_con_cache()` lee SOLO desde local/parquet,
+  nunca toca la red. Fallback a red solo si se ejecuta sin orquestador.
+- **POST-ejecución** (orquestador, hilo principal, 1 vez): `verificar_interfaz_post_ejecucion()`
+  compara checksum local vs red y emite WARNING si cambió.
 
 **Tareas:**
-- [ ] Implementar `leer_csv_con_cache(ruta_red, fecha, **read_csv_kwargs) -> DataFrame`
-- [ ] Reusar patrón de `leer_tabla_con_cache()`: buscar parquet → si no existe, leer red → guardar parquet
-- [ ] Respetar `CACHE_FORZAR_RECARGA` existente
-- [ ] Modificar `mr_prepago_consumo.py` para usar `leer_csv_con_cache()`
-- [ ] Modificar `mr_prepago_hipotecario.py`
-- [ ] Modificar `ml_mora_consumo.py`
-- [ ] Modificar `ml_mora_cae.py`
-- [ ] Modificar `ml_mora_hipotecario.py`
-- [ ] Modificar `ml_mora_comercial.py`
-- [ ] Test: primera ejecución crea `.parquet` en `data/cache/`
+- [x] Implementar `copiar_interfaz_a_local()` — copia raw .txt + metadata JSON (timestamp, MD5)
+- [x] Implementar `leer_interfaz_con_cache()` — parquet cache + lectura desde copia local
+- [x] Respetar `CACHE_FORZAR_RECARGA` existente
+- [x] Warning si checksum de red difiere de copia local en re-ejecución
+- [x] Modificar `mr_prepago_consumo.py` → usa `leer_interfaz_con_cache()`
+- [x] Modificar `mr_prepago_hipotecario.py`
+- [x] Modificar `ml_mora_consumo.py`
+- [x] Modificar `ml_mora_cae.py`
+- [x] Modificar `ml_mora_hipotecario.py`
+- [x] Modificar `ml_mora_comercial.py`
+- [x] Eliminar boilerplate duplicado de lectura CSV en cada modelo (columnas, dtypes, strip, datetime)
+- [x] Fix race condition: copia pre-ejecución (1 vez), verificación post-ejecución (1 vez)
+- [x] `threading.Lock` para seguridad en ejecución individual sin orquestador
+- [x] Hooks `_pre_ejecucion_primera_vuelta()` y `_post_ejecucion_primera_vuelta()` en orquestador
+- [ ] Test: primera ejecución crea `.parquet` en `data/cache/` y `.txt` en `data/cache/raw/`
 - [ ] Test: segunda ejecución sin red funciona desde cache
 - [ ] Test: `--forzar-recarga` re-lee de red
 
-**Preguntas por resolver:**
-- [ ] ❓ ¿El CSV cambia durante el día o es estable una vez publicado?
-- [ ] ❓ ¿Hay modelos que filtren distinto el mismo CSV? ¿Cachear completo o filtrado?
-- [ ] ❓ ¿El nombre del archivo incluye fecha o es siempre el mismo?
-
-**Prompt sugerido:**
-```
-Extiende `procesamiento_datos_input/cache_tablas.py` con función
-`leer_csv_con_cache(ruta_red: str, fecha: str, **read_csv_kwargs) -> pd.DataFrame`:
-1. Busca `data/cache/{nombre_archivo}_{fecha}.parquet`
-2. Si existe y CACHE_FORZAR_RECARGA no activo → retorna parquet
-3. Si no → lee CSV de red, guarda como parquet, retorna
-Después modifica los 6 modelos de primera vuelta para usar esta función.
-```
+**Preguntas resueltas:**
+- [x] ✅ ¿El CSV cambia durante el día? → A veces sí (correcciones). Se compara checksum.
+- [x] ✅ ¿Cachear completo o filtrado? → Completo. Filtro por modelo se aplica después.
+- [x] ✅ ¿Nombre incluye fecha? → Sí: `ProductosMercadoLiquidezGCP{YYYYMMDD}.txt`
 
 ---
 
