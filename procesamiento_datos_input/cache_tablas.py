@@ -60,6 +60,10 @@ from typing import Optional, Dict, List, Union
 import pandas as pd
 import pyodbc
 
+from core.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 # =============================================================================
 # CONSTANTES
@@ -130,9 +134,8 @@ def _conectar_access(
             last_err = e
             if intento < _MAX_REINTENTOS:
                 espera = _ESPERA_BASE_SECS * intento
-                if verbose:
-                    print(f"    ⚠ Conexión fallida (intento {intento}/{_MAX_REINTENTOS}): {e}")
-                    print(f"      Reintentando en {espera:.0f}s...")
+                logger.warning(f"    ⚠ Conexión fallida (intento {intento}/{_MAX_REINTENTOS}): {e}")
+                logger.warning(f"      Reintentando en {espera:.0f}s...")
                 time.sleep(espera)
 
     raise last_err  # type: ignore[misc]
@@ -192,12 +195,12 @@ def leer_tabla_con_cache(
     if ruta_cache.exists() and not forzar_recarga:
         if verbose:
             size_mb = ruta_cache.stat().st_size / (1024 * 1024)
-            print(f"  ⚡ Cache: {nombre_tabla} ({size_mb:.1f} MB)")
+            logger.info(f"  ⚡ Cache: {nombre_tabla} ({size_mb:.1f} MB)")
         t0 = time.perf_counter()
         df = pd.read_parquet(ruta_cache)
         if verbose:
             dt = time.perf_counter() - t0
-            print(f"     → {len(df):,} filas en {dt:.2f}s")
+            logger.info(f"     → {len(df):,} filas en {dt:.2f}s")
         return df
 
     # --- Leer desde Access (pyodbc directo, sin SQLAlchemy) ---
@@ -209,7 +212,7 @@ def leer_tabla_con_cache(
         query = f"SELECT * FROM [{nombre_tabla}]"
 
     if verbose:
-        print(f"  📂 Access: {nombre_tabla} ← {access_path.name}")
+        logger.info(f"  📂 Access: {nombre_tabla} ← {access_path.name}")
 
     t0 = time.perf_counter()
     conn = _conectar_access(access_path, verbose=verbose)
@@ -220,7 +223,7 @@ def leer_tabla_con_cache(
     dt_access = time.perf_counter() - t0
 
     if verbose:
-        print(f"     → {len(df):,} filas en {dt_access:.1f}s")
+        logger.info(f"     → {len(df):,} filas en {dt_access:.1f}s")
 
     # --- Guardar caché ---
     try:
@@ -229,7 +232,7 @@ def leer_tabla_con_cache(
         dt_save = time.perf_counter() - t0
         size_mb = ruta_cache.stat().st_size / (1024 * 1024)
         if verbose:
-            print(f"  💾 Guardado: {nombre_archivo} ({size_mb:.1f} MB, {dt_save:.1f}s)")
+            logger.info(f"  💾 Guardado: {nombre_archivo} ({size_mb:.1f} MB, {dt_save:.1f}s)")
     except Exception as e:
         warnings.warn(f"No se pudo guardar caché {nombre_archivo}: {e}")
 
@@ -302,12 +305,12 @@ def leer_multiples_tablas_con_cache(
         if ruta_cache.exists() and not forzar_recarga:
             if verbose:
                 size_mb = ruta_cache.stat().st_size / (1024 * 1024)
-                print(f"  ⚡ Cache: {nombre_fuente} ({size_mb:.1f} MB)")
+                logger.info(f"  ⚡ Cache: {nombre_fuente} ({size_mb:.1f} MB)")
             t0 = time.perf_counter()
             df = pd.read_parquet(ruta_cache)
             if verbose:
                 dt = time.perf_counter() - t0
-                print(f"     → {len(df):,} filas en {dt:.2f}s")
+                logger.info(f"     → {len(df):,} filas en {dt:.2f}s")
             resultado[nombre_destino] = df
         else:
             tablas_pendientes.append((nombre_fuente, nombre_destino, query))
@@ -318,30 +321,30 @@ def leer_multiples_tablas_con_cache(
             raise FileNotFoundError(f"Archivo Access no encontrado: {access_path}")
 
         if verbose:
-            print(f"  🔌 Conectando a {access_path.name} "
-                  f"({len(tablas_pendientes)} tabla(s) pendiente(s))...")
+            logger.info(f"  🔌 Conectando a {access_path.name} "
+                        f"({len(tablas_pendientes)} tabla(s) pendiente(s))...")
 
         t_conn = time.perf_counter()
         conn = _conectar_access(access_path, verbose=verbose)
         if verbose:
-            print(f"     Conexión OK en {time.perf_counter() - t_conn:.1f}s")
+            logger.info(f"     Conexión OK en {time.perf_counter() - t_conn:.1f}s")
 
         try:
             for nombre_fuente, nombre_destino, query in tablas_pendientes:
                 sql = query if query else f"SELECT * FROM [{nombre_fuente}]"
                 if verbose:
-                    print(f"  📂 Access: {nombre_fuente}")
+                    logger.info(f"  📂 Access: {nombre_fuente}")
 
                 t0 = time.perf_counter()
                 try:
                     df = pd.read_sql(sql, conn)
                 except Exception as e:
-                    print(f"    ✗ Error leyendo {nombre_fuente}: {e}")
+                    logger.error(f"    ✗ Error leyendo {nombre_fuente}: {e}")
                     continue
                 dt_access = time.perf_counter() - t0
 
                 if verbose:
-                    print(f"     → {len(df):,} filas en {dt_access:.1f}s")
+                    logger.info(f"     → {len(df):,} filas en {dt_access:.1f}s")
 
                 resultado[nombre_destino] = df
 
@@ -353,8 +356,8 @@ def leer_multiples_tablas_con_cache(
                     dt_save = time.perf_counter() - t0
                     size_mb = ruta_cache.stat().st_size / (1024 * 1024)
                     if verbose:
-                        print(f"  💾 Guardado: {ruta_cache.name} "
-                              f"({size_mb:.1f} MB, {dt_save:.1f}s)")
+                        logger.info(f"  💾 Guardado: {ruta_cache.name} "
+                                    f"({size_mb:.1f} MB, {dt_save:.1f}s)")
                 except Exception as e:
                     warnings.warn(
                         f"No se pudo guardar caché {ruta_cache.name}: {e}"
@@ -362,7 +365,7 @@ def leer_multiples_tablas_con_cache(
         finally:
             conn.close()
             if verbose:
-                print(f"  🔌 Conexión cerrada")
+                logger.info(f"  🔌 Conexión cerrada")
 
     return resultado
 
@@ -455,13 +458,12 @@ def limpiar_cache(
                 cache_info['archivo'].unlink()
                 eliminados += 1
                 if verbose:
-                    print(f"  🗑 Eliminado: {cache_info['archivo'].name}")
+                    logger.info(f"  🗑 Eliminado: {cache_info['archivo'].name}")
             except Exception as e:
-                if verbose:
-                    print(f"  ⚠ Error eliminando {cache_info['archivo'].name}: {e}")
+                logger.warning(f"  ⚠ Error eliminando {cache_info['archivo'].name}: {e}")
 
     if verbose and eliminados > 0:
-        print(f"  Total eliminados: {eliminados} archivos")
+        logger.info(f"  Total eliminados: {eliminados} archivos")
 
     return eliminados
 
@@ -490,6 +492,6 @@ def invalidar_tabla(
     if ruta.exists():
         ruta.unlink()
         if verbose:
-            print(f"  🗑 Invalidado: {ruta.name}")
+            logger.info(f"  🗑 Invalidado: {ruta.name}")
         return True
     return False

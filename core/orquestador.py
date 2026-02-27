@@ -5,6 +5,11 @@ import argparse
 from typing import List, Dict, Any
 import traceback
 
+from core.logger import get_logger, contexto_modelo
+
+logger = get_logger(__name__)
+
+
 class OrquestadorModelos:
     def __init__(self):
         self.modelos = {
@@ -102,21 +107,22 @@ class OrquestadorModelos:
         
 
     def ejecutar_modelo(self, nombre_modelo: str, config: Dict[str, Any], fecha: datetime) -> bool:
-        try:
-            print(f"\n{'='*60}")
-            print(f"Iniciando ejecución de {config['nombre']}")
-            print(f"{'='*60}")
-            
-            # Importar dinámicamente el módulo
-            modelo = importlib.import_module(config["modulo"])
-            
-            # Todos los modelos ahora tienen la función ejecutar_modelo unificada
-            return modelo.ejecutar_modelo(fecha)
-            
-        except Exception as e:
-            print(f"Error en la ejecución de {config['nombre']}: {str(e)}")
-            print(f"Detalles del error: {traceback.format_exc()}")
-            return False
+        with contexto_modelo(nombre_modelo):
+            try:
+                logger.info(f"\n{'='*60}")
+                logger.info(f"Iniciando ejecución de {config['nombre']}")
+                logger.info(f"{'='*60}")
+                
+                # Importar dinámicamente el módulo
+                modelo = importlib.import_module(config["modulo"])
+                
+                # Todos los modelos ahora tienen la función ejecutar_modelo unificada
+                return modelo.ejecutar_modelo(fecha)
+                
+            except Exception as e:
+                logger.error(f"Error en la ejecución de {config['nombre']}: {str(e)}")
+                logger.error(f"Detalles del error: {traceback.format_exc()}")
+                return False
 
     def cargar_modelos_gcp(self, modelos_a_cargar: List[str], fecha: datetime) -> Dict[str, bool]:
         """
@@ -140,13 +146,13 @@ class OrquestadorModelos:
             ]
             
             if not modelos_con_carga:
-                print("Ninguno de los modelos seleccionados tiene configuración de carga a GCP")
+                logger.warning("Ninguno de los modelos seleccionados tiene configuración de carga a GCP")
                 return {}
             
-            print(f"\n{'='*60}")
-            print("CARGA A BIGQUERY (GCP)")
-            print(f"Modelos seleccionados: {', '.join([self.modelos[m]['nombre'] for m in modelos_con_carga])}")
-            print(f"{'='*60}\n")
+            logger.info(f"\n{'='*60}")
+            logger.info("CARGA A BIGQUERY (GCP)")
+            logger.info(f"Modelos seleccionados: {', '.join([self.modelos[m]['nombre'] for m in modelos_con_carga])}")
+            logger.info(f"{'='*60}\n")
             
             # Ejecutar carga - la función ahora maneja múltiples tablas por modelo automáticamente
             resultados_tablas = cargar_modelos_a_bigquery(fecha, modelos_con_carga)
@@ -155,11 +161,11 @@ class OrquestadorModelos:
             return resultados_tablas
             
         except ImportError as e:
-            print(f"Error al importar módulo de carga GCP: {str(e)}")
+            logger.error(f"Error al importar módulo de carga GCP: {str(e)}")
             return {}
         except Exception as e:
-            print(f"Error en carga a GCP: {str(e)}")
-            print(f"Detalles del error: {traceback.format_exc()}")
+            logger.error(f"Error en carga a GCP: {str(e)}")
+            logger.error(f"Detalles del error: {traceback.format_exc()}")
             return {}
 
     def consolidar_historico_gcp(self, modelos_a_consolidar: List[str], fecha: datetime) -> Dict[str, bool]:
@@ -184,13 +190,13 @@ class OrquestadorModelos:
             ]
             
             if not modelos_con_carga_historica:
-                print("Ninguno de los modelos seleccionados tiene configuración de consolidación histórica")
+                logger.warning("Ninguno de los modelos seleccionados tiene configuración de consolidación histórica")
                 return {}
             
-            print(f"\n{'='*60}")
-            print("CONSOLIDACION HISTORICA EN BIGQUERY")
-            print(f"Modelos seleccionados: {', '.join([self.modelos[m]['nombre'] for m in modelos_con_carga_historica])}")
-            print(f"{'='*60}\n")
+            logger.info(f"\n{'='*60}")
+            logger.info("CONSOLIDACION HISTORICA EN BIGQUERY")
+            logger.info(f"Modelos seleccionados: {', '.join([self.modelos[m]['nombre'] for m in modelos_con_carga_historica])}")
+            logger.info(f"{'='*60}\n")
             
             # Ejecutar consolidación
             resultados_tablas = consolidar_historico_bigquery(fecha, modelos_con_carga_historica)
@@ -198,16 +204,16 @@ class OrquestadorModelos:
             return resultados_tablas
             
         except ImportError as e:
-            print(f"Error al importar módulo de consolidación histórica: {str(e)}")
+            logger.error(f"Error al importar módulo de consolidación histórica: {str(e)}")
             return {}
         except Exception as e:
-            print(f"Error en consolidación histórica: {str(e)}")
-            print(f"Detalles del error: {traceback.format_exc()}")
+            logger.error(f"Error en consolidación histórica: {str(e)}")
+            logger.error(f"Detalles del error: {traceback.format_exc()}")
             return {}
 
     def ejecutar_modelo_secuencial(self, nombre_modelo: str, fecha: datetime) -> Dict[str, bool]:
         """Ejecuta un único modelo de forma secuencial"""
-        print(f"Iniciando ejecución secuencial del modelo para fecha: {fecha.strftime('%Y-%m-%d')}")
+        logger.info(f"Iniciando ejecución secuencial del modelo para fecha: {fecha.strftime('%Y-%m-%d')}")
         
         resultados = {}
         if nombre_modelo in self.modelos:
@@ -215,10 +221,10 @@ class OrquestadorModelos:
             if config["activado"]:
                 resultados[nombre_modelo] = self.ejecutar_modelo(nombre_modelo, config, fecha)
             else:
-                print(f"El modelo {nombre_modelo} está deshabilitado")
+                logger.warning(f"El modelo {nombre_modelo} está deshabilitado")
                 resultados[nombre_modelo] = False
         else:
-            print(f"El modelo {nombre_modelo} no existe")
+            logger.error(f"El modelo {nombre_modelo} no existe")
             resultados[nombre_modelo] = False
             
         return resultados
@@ -229,7 +235,7 @@ class OrquestadorModelos:
         if len(modelos_seleccionados) == 1:
             return self.ejecutar_modelo_secuencial(modelos_seleccionados[0], fecha)
             
-        print(f"Iniciando ejecución paralela de {len(modelos_seleccionados)} modelos para fecha: {fecha.strftime('%Y-%m-%d')}")
+        logger.info(f"Iniciando ejecución paralela de {len(modelos_seleccionados)} modelos para fecha: {fecha.strftime('%Y-%m-%d')}")
         
         resultados = {}
         with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -245,7 +251,7 @@ class OrquestadorModelos:
                 try:
                     resultados[nombre_modelo] = future.result()
                 except Exception as e:
-                    print(f"Error en modelo {nombre_modelo}: {str(e)}")
+                    logger.error(f"Error en modelo {nombre_modelo}: {str(e)}")
                     resultados[nombre_modelo] = False
         
         return resultados
@@ -292,17 +298,17 @@ Ejemplos de uso:
     return parser.parse_args()
 
 def listar_modelos_disponibles(orquestador: OrquestadorModelos):
-    print("\n" + "="*60)
-    print("MODELOS DISPONIBLES")
-    print("="*60)
+    logger.info("\n" + "="*60)
+    logger.info("MODELOS DISPONIBLES")
+    logger.info("="*60)
     for key, config in orquestador.modelos.items():
         estado = "Habilitado" if config["activado"] else "Deshabilitado"
         carga_gcp = "Si" if config.get("tiene_carga_gcp", False) else "No"
-        print(f"\n{key}:")
-        print(f"  Nombre: {config['nombre']}")
-        print(f"  Estado: {estado}")
-        print(f"  Carga GCP: {carga_gcp}")
-    print("\n" + "="*60)
+        logger.info(f"\n{key}:")
+        logger.info(f"  Nombre: {config['nombre']}")
+        logger.info(f"  Estado: {estado}")
+        logger.info(f"  Carga GCP: {carga_gcp}")
+    logger.info("\n" + "="*60)
 
 def main():
     args = parse_arguments()

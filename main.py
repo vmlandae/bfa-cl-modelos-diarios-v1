@@ -12,6 +12,7 @@ import tkinter as tk
 
 # Importaciones del proyecto
 from core.orquestador import OrquestadorModelos
+from core.logger import setup_logging
 from gui.interfaz import InterfazModelos
 
 def expandir_modelos(nombres: list, orquestador: OrquestadorModelos, *, filtro_gcp: bool = False) -> list:
@@ -362,6 +363,10 @@ Ejemplos de uso:
     parser.add_argument('--forzar-recarga', action='store_true',
                        help='Ignorar caché parquet y leer directamente de Access')
     args = parser.parse_args()
+
+    # Inicializar logging estructurado (F11)
+    fecha_log = args.fecha.replace('-', '') if args.fecha else None
+    setup_logging(fecha_proceso=fecha_log)
 
     if args.gui:
         ejecutar_modo_gui()
