@@ -34,6 +34,7 @@ Compatibilidad GUI:
 import builtins
 import json
 import logging
+import re
 import sys
 import contextvars
 import threading
@@ -182,6 +183,12 @@ class DynamicStdoutHandler(logging.StreamHandler):
 
 _original_print = builtins.print
 _interceptor_guard = threading.local()
+_RE_PREFIJO_MODELO = re.compile(r"^(mr|ml)_")
+
+
+def _tag_modelo(nombre_modelo: str) -> str:
+    """Genera tag corto para prefijo de consola: ``mr_prepago_consumo`` → ``prepago_consumo``."""
+    return _RE_PREFIJO_MODELO.sub("", nombre_modelo)
 
 
 def _setup_print_interceptor(file_handler: logging.FileHandler) -> None:
@@ -192,7 +199,10 @@ def _setup_print_interceptor(file_handler: logging.FileHandler) -> None:
     duplicar la salida por pantalla.
 
     El ``print()`` original sigue funcionando con normalidad (consola y/o
-    ``StdoutRedirector`` de la GUI).
+    ``StdoutRedirector`` de la GUI), pero cuando hay un modelo activo
+    (``contexto_modelo``), cada línea se prefija con ``[tag_modelo]``
+    para distinguir visualmente qué modelo emitió cada mensaje cuando
+    se ejecutan en paralelo.
 
     Se usa un guard *thread-local* para evitar re-entrada si algún
     handler escribe a stdout.
@@ -203,12 +213,24 @@ def _setup_print_interceptor(file_handler: logging.FileHandler) -> None:
     capture_logger.addHandler(file_handler)
 
     def _intercepted_print(*args, **kwargs):
-        # Ejecutar el print original (consola / GUI StdoutRedirector)
-        _original_print(*args, **kwargs)
-
-        # Si el print redirige a un file explícito, no capturar
+        # Si el print redirige a un file explícito, no interceptar
         if kwargs.get("file") is not None:
+            _original_print(*args, **kwargs)
             return
+
+        # Prefijar con tag del modelo activo (si hay contexto)
+        modelo = _modelo_actual.get()
+        if modelo:
+            tag = f"[{_tag_modelo(modelo)}] "
+            # Prefijar solo el primer argumento para no alterar separadores
+            args_list = list(args)
+            if args_list:
+                args_list[0] = f"{tag}{args_list[0]}"
+            else:
+                args_list = [tag.rstrip()]
+            _original_print(*args_list, **kwargs)
+        else:
+            _original_print(*args, **kwargs)
 
         # Guard contra re-entrada (thread-local)
         if getattr(_interceptor_guard, "active", False):
