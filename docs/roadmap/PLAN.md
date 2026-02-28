@@ -33,9 +33,9 @@
 
 ## S1 — Quick Wins & Fundamentos (Feb 25 → Mar 7)
 
-### F02: Máquina del Tiempo — Snapshots de parámetros
+### F02: Máquina del Tiempo — Snapshots de parámetros ✅
 
-> **Tamaño:** XS (~0.5d) · **Asignado:** `________`
+> **Tamaño:** XS (~0.5d) · **Asignado:** @vlandaetat · **Completado:** 2026-02-27
 
 **Qué:** `shutil.copy` de Excel de parámetros antes de cada ejecución → `snapshots/{fecha}/{modelo}/`
 
@@ -44,18 +44,18 @@
 - Paths ya en `config/config_rutas_ext_y_archivos.yaml` bajo `excel_parametros_input`
 
 **Tareas:**
-- [ ] Implementar `_snapshot_parametros(modelo_key, fecha)` en `OrquestadorModelos`
-- [ ] Leer rutas de `excel_parametros_input` del YAML por modelo
-- [ ] Copiar con `shutil.copy2` a `snapshots/{YYYYMMDD}/{modelo_key}/`
-- [ ] Manejar error de red sin bloquear ejecución (try/except + log)
-- [ ] Llamar en `ejecutar_modelo()` justo antes de `modelo.ejecutar_modelo(fecha)`
+- [x] Implementar `_snapshot_parametros(modelo_key, fecha)` en `OrquestadorModelos`
+- [x] Leer rutas de `excel_parametros_input` del YAML por modelo
+- [x] Copiar con `shutil.copy2` a `snapshots/{YYYYMMDD}/{modelo_key}/`
+- [x] Manejar error de red → abortar modelo (raise RuntimeError)
+- [x] Llamar en `ejecutar_modelo()` justo antes de `modelo.ejecutar_modelo(fecha)`
 - [ ] Verificar que funciona para `ml_inversiones` (parámetros en red UNC)
 - [ ] Verificar overhead < 2s
 
-**Preguntas por resolver:**
-- [ ] ❓ ¿Incluir CSVs de interfaz en el snapshot, o solo Excel de parámetros?
+**Preguntas resueltas:**
+- [x] ✅ ¿Incluir CSVs de interfaz? → No, solo Excel de parámetros
 - [ ] ❓ ¿Política de retención? ¿Borrar snapshots > N días automáticamente?
-- [ ] ❓ Si la red no está disponible, ¿ejecutar sin snapshot o abortar?
+- [x] ✅ Si la red no está disponible → abortar modelo (RuntimeError)
 
 **Prompt sugerido:**
 ```
@@ -70,9 +70,9 @@ Log con print() por ahora (F11 migrará después).
 
 ---
 
-### F16: Ejecución Idempotente — DELETE + INSERT en históricos
+### F16: Ejecución Idempotente — DELETE + INSERT en históricos ✅
 
-> **Tamaño:** S (~1d) · **Asignado:** `________`
+> **Tamaño:** S (~1d) · **Asignado:** @vlandaetat · **Completado:** 2026-02-27
 
 **Qué:** Cambiar `consolidar_historico_bigquery()` de "skip si existe" a "DELETE + INSERT"
 
@@ -82,15 +82,15 @@ Log con print() por ahora (F11 migrará después).
 **Contexto:** Actualmente si `verificar_datos_existentes()` → `True`, imprime "SUSPENDIENDO inserción" y retorna. Si un INSERT parcial falla, no se puede corregir sin limpieza manual en BQ.
 
 **Tareas:**
-- [ ] Modificar `consolidar_tabla()` para hacer `DELETE FROM {tabla} WHERE fecha_proceso = '{fecha}'` antes de INSERT
-- [ ] Loguear el DELETE realizado (filas eliminadas)
-- [ ] Verificar que `fecha_proceso` es la columna correcta en todas las tablas históricas
+- [x] Modificar `consolidar_historico_por_tabla()` para hacer `DELETE FROM {tabla} WHERE fecha_proceso = '{fecha}'` antes de INSERT
+- [x] Loguear el DELETE realizado (filas eliminadas)
+- [x] Verificar que `fecha_proceso` es la columna correcta → todas usan `FECHA_PROCESO` vía `COLUMNA_FECHA_PARTICION`
 - [ ] Test: ejecutar consolidación 2 veces → `COUNT(*)` idéntico
-- [ ] Documentar el cambio de comportamiento
+- [x] Documentar el cambio de comportamiento (comentarios en código)
 
-**Preguntas por resolver:**
-- [ ] ❓ ¿La columna de fecha es siempre `fecha_proceso` o varía por modelo?
-- [ ] ❓ ¿Flag `--force-historico` o comportamiento por defecto?
+**Preguntas resueltas:**
+- [x] ✅ ¿Columna de fecha? → Siempre `FECHA_PROCESO` (definida en `COLUMNA_FECHA_PARTICION` por tabla)
+- [x] ✅ ¿Flag o por defecto? → DELETE+INSERT siempre, sin flag. Idempotencia total.
 - [ ] ❓ ¿Tablas históricas particionadas por fecha en BQ?
 
 **Prompt sugerido:**
@@ -665,3 +665,5 @@ F18, F19 (independientes)
 | 2026-02-27 | F09 movido de S2 a S3 | Descomprime S2 que estaba sobrecargado |
 | 2026-02-27 | F18/F19 asignados a S4 nuevo | Urgencia de negocio para serie histórica completa |
 | 2026-02-27 | F04/F06 movidos a S5 (3 semanas) | UX valioso pero no urgente; XL necesita buffer |
+| 2026-02-27 | F02 completado | Snapshot de parámetros con shutil.copy2; aborta modelo si falla |
+| 2026-02-27 | F16 completado | DELETE+INSERT siempre en históricos BQ; sin flag, idempotencia total |

@@ -1,4 +1,5 @@
 import importlib
+import shutil
 from datetime import datetime
 from pathlib import Path
 import concurrent.futures
@@ -110,6 +111,63 @@ class OrquestadorModelos:
         }
 
     # -----------------------------------------------------------------
+    # F02 — Máquina del Tiempo: Snapshots de parámetros
+    # -----------------------------------------------------------------
+
+    def _snapshot_parametros(self, modelo_key: str, fecha: datetime) -> None:
+        """Copia los Excel de parámetros del modelo a snapshots/{YYYYMMDD}/{modelo_key}/.
+
+        Lee los campos ``excel_parametros_*`` del YAML de configuración
+        externa y copia cada archivo con ``shutil.copy2`` (preserva
+        metadata).  Si alguna copia falla (red caída, archivo no
+        encontrado), lanza excepción para abortar la ejecución del
+        modelo.
+
+        Args:
+            modelo_key: Clave del modelo en ``self.modelos`` (ej: ``mr_prepago_consumo``).
+            fecha: Fecha de proceso.
+
+        Raises:
+            RuntimeError: Si no se puede copiar algún archivo de parámetros.
+        """
+        from config.config_rutas import resolver_ruta, BASE_DIR
+
+        with open(_CONFIG_EXT_YAML, "r", encoding="utf-8") as f:
+            config_ext = yaml.safe_load(f)
+
+        modelo_cfg = config_ext.get("modelos", {}).get(modelo_key, {})
+        if not modelo_cfg:
+            logger.debug(f"Sin configuración externa para '{modelo_key}', omitiendo snapshot")
+            return
+
+        # Recolectar todos los campos que apuntan a Excel de parámetros
+        rutas_parametros: List[Path] = []
+        for campo, valor in modelo_cfg.items():
+            if campo.startswith("excel_parametros") and isinstance(valor, str):
+                rutas_parametros.append(resolver_ruta(valor))
+
+        if not rutas_parametros:
+            logger.debug(f"Modelo '{modelo_key}' sin rutas de parámetros en YAML, omitiendo snapshot")
+            return
+
+        fecha_str = fecha.strftime("%Y%m%d")
+        destino_dir = BASE_DIR / "snapshots" / fecha_str / modelo_key
+        destino_dir.mkdir(parents=True, exist_ok=True)
+
+        for ruta_origen in rutas_parametros:
+            destino = destino_dir / ruta_origen.name
+            try:
+                shutil.copy2(str(ruta_origen), str(destino))
+                logger.info(f"📸 Snapshot: {ruta_origen.name} → snapshots/{fecha_str}/{modelo_key}/")
+            except Exception as e:
+                msg = (
+                    f"No se pudo copiar parámetros para snapshot: {ruta_origen} → {destino}. "
+                    f"Error: {e}"
+                )
+                logger.error(f"❌ {msg}")
+                raise RuntimeError(msg) from e
+
+    # -----------------------------------------------------------------
     # F14 — Pre/Post hooks para copia de interfaz PML
     # -----------------------------------------------------------------
 
@@ -181,6 +239,9 @@ class OrquestadorModelos:
                 logger.info(f"\n{'='*60}")
                 logger.info(f"Iniciando ejecución de {config['nombre']}")
                 logger.info(f"{'='*60}")
+
+                # F02: Snapshot de parámetros antes de ejecutar
+                self._snapshot_parametros(nombre_modelo, fecha)
                 
                 # Importar dinámicamente el módulo
                 modelo = importlib.import_module(config["modulo"])

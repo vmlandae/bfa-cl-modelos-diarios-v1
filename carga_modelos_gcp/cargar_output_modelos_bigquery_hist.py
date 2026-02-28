@@ -146,7 +146,10 @@ def consolidar_historico_por_tabla(fecha_a_procesar: datetime.datetime,
     fecha_str = fecha_a_procesar.strftime('%Y-%m-%d')
     print(f"\n--- Procesando {NOMBRE_COMPLETO_DIARIO} para la fecha: {fecha_str} ---")
 
-    # 1. Verificar si ya existen datos en la tabla de destino
+    # F16: Ejecución idempotente — DELETE + INSERT
+    # Si ya existen datos para la fecha, se eliminan antes de insertar.
+    # Esto garantiza que re-ejecuciones produzcan el mismo resultado
+    # y corrige inserts parciales sin intervención manual.
     print(f"1. Verificando si ya existen datos en {destino_tabla} para la fecha {fecha_str}...")
     datos_existentes = verificar_datos_existentes(
         ruta_servicio, 
@@ -156,12 +159,22 @@ def consolidar_historico_por_tabla(fecha_a_procesar: datetime.datetime,
     )
     
     if datos_existentes:
-        print(f"DATOS YA EXISTEN en {destino_tabla} para la fecha {fecha_str}")
-        print("SUSPENDIENDO inserción para evitar duplicados")
-        print(f"--- {origen_tabla} OMITIDO ---\n")
-        return
-    
-    print("No hay datos existentes. Procediendo con la inserción...")
+        print(f"DATOS EXISTENTES detectados en {destino_tabla} para {fecha_str}. Ejecutando DELETE previo...")
+
+        sql_delete = f"""
+        DELETE FROM `{PROJECT_ID}.{NOMBRE_COMPLETO_HISTORICO}`
+        WHERE DATE({columna_fecha}) = DATE('{fecha_str}');
+        """
+
+        try:
+            filas_eliminadas = ut.ejecutar_query_bigquery(ruta_servicio, sql_delete)
+            print(f"DELETE completado en {destino_tabla}: {filas_eliminadas} filas eliminadas")
+        except Exception as e:
+            print(f"ERROR CRÍTICO: DELETE falló en {destino_tabla}: {e}")
+            print(f"--- {origen_tabla} ABORTADO ---\n")
+            return False
+    else:
+        print("No hay datos existentes. Procediendo con la inserción...")
 
     # 2. Query de INSERCIÓN (Mover datos)
     sql_insert = f"""
@@ -176,7 +189,7 @@ def consolidar_historico_por_tabla(fecha_a_procesar: datetime.datetime,
 
     if registros_insertados == -1:
         print("Falla crítica durante la inserción")
-        return
+        return False
 
     print(f"Registros insertados: {registros_insertados}")
 

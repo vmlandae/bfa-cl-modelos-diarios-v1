@@ -131,6 +131,9 @@ RF_Modelo_TC_CMR/
 site/
 build_output.txt
 
+# F02: Snapshots de parámetros (copias locales por fecha de ejecución)
+snapshots/
+
 # Mermaid JS local (regenerar con: python docs/javascripts/descargar_mermaid.py)
 # Ver docs/guia/mermaid-local.md para detalles
 docs/javascripts/mermaid.min.js
