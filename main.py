@@ -253,7 +253,9 @@ def ejecutar_modo_consola(args):
         if modelos_consolidar != args.consolidar_historico:
             print(f"Expandiendo a: {', '.join(modelos_consolidar)}\n")
         
-        resultados_consolidacion = orquestador.consolidar_historico_gcp(modelos_consolidar, fecha)
+        resultados_consolidacion = orquestador.consolidar_historico_gcp(
+            modelos_consolidar, fecha, force=args.force_historico
+        )
         
         # Mostrar tabla resumen de consolidación
         mostrar_tabla_consolidacion(resultados_consolidacion)
@@ -360,6 +362,8 @@ Ejemplos de uso:
                        help='Solo cargar modelos a GCP sin ejecutarlos')
     parser.add_argument('--consolidar-historico', type=str, nargs='+', metavar='MODELO',
                        help='Consolidar datos diarios en tablas históricas de BigQuery')
+    parser.add_argument('--force-historico', action='store_true',
+                       help='Permitir re-inserción en históricos: backup CSV + DELETE + INSERT')
     parser.add_argument('--forzar-recarga', action='store_true',
                        help='Ignorar caché parquet y leer directamente de Access')
     args = parser.parse_args()

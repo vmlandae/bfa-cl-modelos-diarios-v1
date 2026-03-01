@@ -134,6 +134,9 @@ build_output.txt
 # F02: Snapshots de parámetros (copias locales por fecha de ejecución)
 snapshots/
 
+# F16: Backups de registros históricos BQ antes de re-inserción (--force-historico)
+backups_historicos/
+
 # Mermaid JS local (regenerar con: python docs/javascripts/descargar_mermaid.py)
 # Ver docs/guia/mermaid-local.md para detalles
 docs/javascripts/mermaid.min.js

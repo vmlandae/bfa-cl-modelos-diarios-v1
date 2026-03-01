@@ -1,11 +1,17 @@
 import bfa_cl_utilidades as ut
+import csv
 import datetime
+import json
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 from typing import Dict, List
 
 # Importar configuraciones
 from config import config_rutas as cr
+from core.logger import get_logger
+
+logger = get_logger(__name__)
 
 # Número máximo de tablas a procesar simultáneamente
 MAX_WORKERS = 5
@@ -128,10 +134,101 @@ CONFIGURACION_CONSOLIDACION = [
 ]
 
 
+def _exportar_backup_pre_delete(tabla_completa: str, columna_fecha: str,
+                                 fecha_str: str, destino_tabla: str) -> dict:
+    """Exporta los registros que serán eliminados a CSV y genera metadata JSON.
+
+    Guarda los archivos en ``backups_historicos/{YYYYMMDD}/{tabla}/``:
+    - ``{tabla}_{timestamp}.csv`` — registros completos
+    - ``{tabla}_{timestamp}_metadata.json`` — info de la operación
+
+    Args:
+        tabla_completa: Nombre completo dataset.tabla del histórico.
+        columna_fecha: Columna de partición de fecha.
+        fecha_str: Fecha en formato 'YYYY-MM-DD'.
+        destino_tabla: Nombre corto de la tabla destino (para paths).
+
+    Returns:
+        dict con claves ``csv_path``, ``metadata_path``, ``filas_exportadas``.
+
+    Raises:
+        RuntimeError: Si la exportación falla.
+    """
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    fecha_dir = fecha_str.replace("-", "")
+    backup_dir = Path(cr.BASE_DIR) / "backups_historicos" / fecha_dir / destino_tabla
+    backup_dir.mkdir(parents=True, exist_ok=True)
+
+    csv_path = backup_dir / f"{destino_tabla}_{timestamp}.csv"
+    metadata_path = backup_dir / f"{destino_tabla}_{timestamp}_metadata.json"
+
+    # Leer registros que serán eliminados
+    sql_select = f"""
+    SELECT *
+    FROM `{PROJECT_ID}.{tabla_completa}`
+    WHERE DATE({columna_fecha}) = DATE('{fecha_str}')
+    """
+
+    logger.info(f"📦 Exportando backup de {destino_tabla} para {fecha_str}...")
+    try:
+        df_backup = lector_trade_dev.leer_a_dataframe(sql_select)
+    except Exception as e:
+        raise RuntimeError(
+            f"No se pudo leer registros para backup de {destino_tabla}: {e}"
+        ) from e
+
+    filas = len(df_backup)
+    logger.info(f"📦 {filas} filas leídas de {destino_tabla} para backup")
+
+    # Guardar CSV
+    df_backup.to_csv(str(csv_path), index=False, quoting=csv.QUOTE_NONNUMERIC)
+    logger.info(f"💾 Backup CSV guardado: {csv_path.relative_to(cr.BASE_DIR)}")
+
+    # Guardar metadata
+    metadata = {
+        "operacion": "DELETE previo a re-inserción (--force-historico)",
+        "timestamp": timestamp,
+        "tabla_bq": f"{PROJECT_ID}.{tabla_completa}",
+        "columna_fecha": columna_fecha,
+        "fecha_proceso": fecha_str,
+        "filas_exportadas": filas,
+        "columnas": list(df_backup.columns),
+        "csv_archivo": csv_path.name,
+    }
+    metadata_path.write_text(json.dumps(metadata, indent=2, ensure_ascii=False), encoding="utf-8")
+    logger.info(f"📋 Metadata guardada: {metadata_path.relative_to(cr.BASE_DIR)}")
+
+    return {
+        "csv_path": str(csv_path),
+        "metadata_path": str(metadata_path),
+        "filas_exportadas": filas,
+    }
+
+
 def consolidar_historico_por_tabla(fecha_a_procesar: datetime.datetime,
                            ruta_servicio: str,
-                           config: dict):
+                           config: dict,
+                           force: bool = False):
+    """Consolida datos diarios en la tabla histórica correspondiente.
 
+    Comportamiento por defecto (``force=False``):
+        Si ya existen datos para la fecha, **omite** la inserción para
+        evitar duplicados.
+
+    Con ``force=True`` (flag ``--force-historico``):
+        1. Exporta los registros existentes a CSV (backup con timestamp).
+        2. Genera archivo de metadata JSON con info de la operación.
+        3. Ejecuta DELETE de los registros existentes.
+        4. Inserta los nuevos registros desde la tabla diaria.
+        Todo queda registrado en el logger (JSONL).
+
+    Args:
+        fecha_a_procesar: Fecha de proceso.
+        ruta_servicio: Ruta al archivo de credenciales GCP.
+        config: Dict con ORIGEN_DATASET, ORIGEN_TABLA, DESTINO_DATASET,
+                DESTINO_TABLA, COLUMNA_FECHA_PARTICION.
+        force: Si True, permite re-inserción con DELETE previo + backup.
+    """
     # 1. Extraer configuración
     origen_dataset = config["ORIGEN_DATASET"]
     origen_tabla = config["ORIGEN_TABLA"]
@@ -144,13 +241,10 @@ def consolidar_historico_por_tabla(fecha_a_procesar: datetime.datetime,
     NOMBRE_COMPLETO_HISTORICO = f"{destino_dataset}.{destino_tabla}"
 
     fecha_str = fecha_a_procesar.strftime('%Y-%m-%d')
-    print(f"\n--- Procesando {NOMBRE_COMPLETO_DIARIO} para la fecha: {fecha_str} ---")
+    logger.info(f"\n--- Procesando {NOMBRE_COMPLETO_DIARIO} para la fecha: {fecha_str} ---")
 
-    # F16: Ejecución idempotente — DELETE + INSERT
-    # Si ya existen datos para la fecha, se eliminan antes de insertar.
-    # Esto garantiza que re-ejecuciones produzcan el mismo resultado
-    # y corrige inserts parciales sin intervención manual.
-    print(f"1. Verificando si ya existen datos en {destino_tabla} para la fecha {fecha_str}...")
+    # 2. Verificar si ya existen datos en la tabla de destino
+    logger.info(f"1. Verificando si ya existen datos en {destino_tabla} para la fecha {fecha_str}...")
     datos_existentes = verificar_datos_existentes(
         ruta_servicio, 
         NOMBRE_COMPLETO_HISTORICO, 
@@ -159,24 +253,52 @@ def consolidar_historico_por_tabla(fecha_a_procesar: datetime.datetime,
     )
     
     if datos_existentes:
-        print(f"DATOS EXISTENTES detectados en {destino_tabla} para {fecha_str}. Ejecutando DELETE previo...")
+        if not force:
+            logger.warning(
+                f"⚠️ DATOS YA EXISTEN en {destino_tabla} para {fecha_str}. "
+                "Omitiendo inserción (use --force-historico para re-insertar)."
+            )
+            logger.info(f"--- {origen_tabla} OMITIDO ---\n")
+            return True  # No es un error, simplemente no re-inserta
 
+        # --- Modo force: backup + DELETE + INSERT ---
+        logger.warning(
+            f"🔄 FORCE-HISTORICO: Datos existentes en {destino_tabla} para {fecha_str}. "
+            "Iniciando proceso de re-inserción..."
+        )
+
+        # 2a. Backup CSV + metadata
+        try:
+            backup_info = _exportar_backup_pre_delete(
+                NOMBRE_COMPLETO_HISTORICO, columna_fecha, fecha_str, destino_tabla
+            )
+            logger.info(
+                f"✅ Backup completado: {backup_info['filas_exportadas']} filas → "
+                f"{backup_info['csv_path']}"
+            )
+        except RuntimeError as e:
+            logger.error(f"❌ Backup falló para {destino_tabla}: {e}")
+            logger.error(f"--- {origen_tabla} ABORTADO (backup fallido, DELETE no ejecutado) ---\n")
+            return False
+
+        # 2b. DELETE
         sql_delete = f"""
         DELETE FROM `{PROJECT_ID}.{NOMBRE_COMPLETO_HISTORICO}`
         WHERE DATE({columna_fecha}) = DATE('{fecha_str}');
         """
 
         try:
+            logger.info(f"🗑️ Ejecutando DELETE en {destino_tabla} para {fecha_str}...")
             filas_eliminadas = ut.ejecutar_query_bigquery(ruta_servicio, sql_delete)
-            print(f"DELETE completado en {destino_tabla}: {filas_eliminadas} filas eliminadas")
+            logger.info(f"🗑️ DELETE completado en {destino_tabla}: {filas_eliminadas} filas eliminadas")
         except Exception as e:
-            print(f"ERROR CRÍTICO: DELETE falló en {destino_tabla}: {e}")
-            print(f"--- {origen_tabla} ABORTADO ---\n")
+            logger.error(f"❌ ERROR CRÍTICO: DELETE falló en {destino_tabla}: {e}")
+            logger.error(f"--- {origen_tabla} ABORTADO ---\n")
             return False
     else:
-        print("No hay datos existentes. Procediendo con la inserción...")
+        logger.info("No hay datos existentes. Procediendo con la inserción...")
 
-    # 2. Query de INSERCIÓN (Mover datos)
+    # 3. Query de INSERCIÓN
     sql_insert = f"""
     INSERT INTO `{PROJECT_ID}.{NOMBRE_COMPLETO_HISTORICO}`
     SELECT * 
@@ -184,35 +306,65 @@ def consolidar_historico_por_tabla(fecha_a_procesar: datetime.datetime,
     WHERE DATE({columna_fecha}) = DATE('{fecha_str}');
     """
 
-    print(f"2. Insertando datos en {destino_tabla}...")
+    logger.info(f"2. Insertando datos en {destino_tabla}...")
     registros_insertados = ut.ejecutar_query_bigquery(ruta_servicio, sql_insert)
 
     if registros_insertados == -1:
-        print("Falla crítica durante la inserción")
+        logger.error(f"❌ Falla crítica durante la inserción en {destino_tabla}")
         return False
 
-    print(f"Registros insertados: {registros_insertados}")
+    logger.info(f"✅ Registros insertados en {destino_tabla}: {registros_insertados}")
 
+    # 3a. Guardar metadata de INSERT en el mismo directorio de backup (si hubo force)
+    if datos_existentes and force:
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        fecha_dir = fecha_str.replace("-", "")
+        metadata_insert_path = (
+            Path(cr.BASE_DIR) / "backups_historicos" / fecha_dir / destino_tabla
+            / f"{destino_tabla}_{timestamp}_insert_metadata.json"
+        )
+        metadata_insert = {
+            "operacion": "INSERT post-DELETE (--force-historico)",
+            "timestamp": timestamp,
+            "tabla_bq_origen": f"{PROJECT_ID}.{NOMBRE_COMPLETO_DIARIO}",
+            "tabla_bq_destino": f"{PROJECT_ID}.{NOMBRE_COMPLETO_HISTORICO}",
+            "fecha_proceso": fecha_str,
+            "filas_insertadas": registros_insertados if registros_insertados != -1 else 0,
+            "backup_csv": backup_info.get("csv_path", "N/A"),
+            "filas_backup_previo": backup_info.get("filas_exportadas", 0),
+        }
+        metadata_insert_path.write_text(
+            json.dumps(metadata_insert, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
+        logger.info(f"📋 Metadata de INSERT guardada: {metadata_insert_path.relative_to(cr.BASE_DIR)}")
 
-    print(f"--- {origen_tabla} Terminado ---\n")
+    logger.info(f"--- {origen_tabla} Terminado ---\n")
     return True
 
 
-def consolidar_historico_bigquery(fecha_proceso: datetime.datetime, modelos_a_consolidar: List[str] = None) -> Dict[str, bool]:
+def consolidar_historico_bigquery(fecha_proceso: datetime.datetime,
+                                  modelos_a_consolidar: List[str] = None,
+                                  force: bool = False) -> Dict[str, bool]:
     """
-    Función principal para consolidar datos diarios en tablas históricas de BigQuery
+    Función principal para consolidar datos diarios en tablas históricas de BigQuery.
+
+    Por defecto omite tablas que ya tienen datos para la fecha.
+    Con ``force=True`` hace backup CSV + DELETE + INSERT.
     
     Args:
-        fecha_proceso: Fecha de proceso en formato datetime
-        modelos_a_consolidar: Lista de códigos de modelos a consolidar. Si es None, consolida todos.
+        fecha_proceso: Fecha de proceso en formato datetime.
+        modelos_a_consolidar: Lista de códigos de modelos. Si es None, consolida todos.
+        force: Si True, permite re-inserción con DELETE previo + backup.
         
     Returns:
         dict: Diccionario con los resultados de cada consolidación {tabla: bool}
     """
-    print("\n" + "="*70)
-    print("CONSOLIDACION HISTORICA EN BIGQUERY")
-    print(f"Fecha de proceso: {fecha_proceso.strftime('%d-%m-%Y')}")
-    print("="*70 + "\n")
+    logger.info("\n" + "="*70)
+    logger.info("CONSOLIDACION HISTORICA EN BIGQUERY")
+    logger.info(f"Fecha de proceso: {fecha_proceso.strftime('%d-%m-%Y')}")
+    if force:
+        logger.warning("⚠️ MODO FORCE-HISTORICO ACTIVADO: se hará backup + DELETE + INSERT si hay datos existentes")
+    logger.info("="*70 + "\n")
 
     # Mapeo de modelos a sus tablas de configuración
     MODELO_A_TABLAS = {
@@ -239,14 +391,14 @@ def consolidar_historico_bigquery(fecha_proceso: datetime.datetime, modelos_a_co
                         configs_a_ejecutar.append(config)
         
         if not configs_a_ejecutar:
-            print("ADVERTENCIA: Ninguno de los modelos especificados tiene configuración de consolidación")
+            logger.warning("Ninguno de los modelos especificados tiene configuración de consolidación")
             return {}
     else:
         configs_a_ejecutar = CONFIGURACION_CONSOLIDACION
 
-    print(f"Total de tablas a consolidar: {len(configs_a_ejecutar)}")
-    print(f"Usando {MAX_WORKERS} hilos de trabajo simultáneos.")
-    print("Iniciando procesamiento paralelo...\n")
+    logger.info(f"Total de tablas a consolidar: {len(configs_a_ejecutar)}")
+    logger.info(f"Usando {MAX_WORKERS} hilos de trabajo simultáneos.")
+    logger.info("Iniciando procesamiento paralelo...\n")
     
     resultados = {}
 
@@ -260,7 +412,8 @@ def consolidar_historico_bigquery(fecha_proceso: datetime.datetime, modelos_a_co
                 consolidar_historico_por_tabla,
                 fecha_proceso,
                 RUTA_CUENTA_SERVICIO_GCP,
-                config
+                config,
+                force
             )
             future_to_config[future] = config['DESTINO_TABLA']
 
@@ -270,15 +423,15 @@ def consolidar_historico_bigquery(fecha_proceso: datetime.datetime, modelos_a_co
             try:
                 resultado = future.result()
                 resultados[tabla_nombre] = resultado if resultado is not None else True
-                print(f"[{tabla_nombre}] Finalizado exitosamente.")
+                logger.info(f"[{tabla_nombre}] Finalizado exitosamente.")
             except Exception as exc:
-                print(f"[{tabla_nombre}] ERROR: {exc}")
+                logger.error(f"[{tabla_nombre}] ERROR: {exc}")
                 resultados[tabla_nombre] = False
 
-    print("\n" + "="*70)
-    print("CONSOLIDACION FINALIZADA")
-    print(f"Exitosos: {sum(1 for v in resultados.values() if v)}/{len(resultados)}")
-    print("="*70)
+    logger.info("\n" + "="*70)
+    logger.info("CONSOLIDACION FINALIZADA")
+    logger.info(f"Exitosos: {sum(1 for v in resultados.values() if v)}/{len(resultados)}")
+    logger.info("="*70)
     
     return resultados
 

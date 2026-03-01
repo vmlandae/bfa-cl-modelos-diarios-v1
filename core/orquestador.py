@@ -298,13 +298,15 @@ class OrquestadorModelos:
             logger.error(f"Detalles del error: {traceback.format_exc()}")
             return {}
 
-    def consolidar_historico_gcp(self, modelos_a_consolidar: List[str], fecha: datetime) -> Dict[str, bool]:
+    def consolidar_historico_gcp(self, modelos_a_consolidar: List[str], fecha: datetime,
+                                  force: bool = False) -> Dict[str, bool]:
         """
         Consolida los datos diarios en las tablas históricas de BigQuery
         
         Args:
             modelos_a_consolidar: Lista de códigos de modelos a consolidar
             fecha: Fecha de proceso
+            force: Si True, permite re-inserción con DELETE previo + backup CSV
             
         Returns:
             dict: Diccionario con los resultados de cada consolidación {tabla: bool}
@@ -329,7 +331,7 @@ class OrquestadorModelos:
             logger.info(f"{'='*60}\n")
             
             # Ejecutar consolidación
-            resultados_tablas = consolidar_historico_bigquery(fecha, modelos_con_carga_historica)
+            resultados_tablas = consolidar_historico_bigquery(fecha, modelos_con_carga_historica, force=force)
             
             return resultados_tablas
             
@@ -437,6 +439,8 @@ Ejemplos de uso:
                        help='Solo cargar modelos a GCP sin ejecutarlos')
     parser.add_argument('--consolidar-historico', type=str, nargs='+', metavar='MODELO',
                        help='Consolidar datos diarios en tablas históricas de BigQuery')
+    parser.add_argument('--force-historico', action='store_true',
+                       help='Permitir re-inserción en históricos: backup CSV + DELETE + INSERT')
     return parser.parse_args()
 
 def listar_modelos_disponibles(orquestador: OrquestadorModelos):
@@ -516,7 +520,9 @@ def main():
             ]
             print(f"Expandiendo 'todos' a: {', '.join(modelos_consolidar)}\n")
         
-        resultados_consolidacion = orquestador.consolidar_historico_gcp(modelos_consolidar, fecha)
+        resultados_consolidacion = orquestador.consolidar_historico_gcp(
+            modelos_consolidar, fecha, force=args.force_historico
+        )
         
         print("\n" + "="*60)
         print("RESUMEN DE CONSOLIDACION HISTORICA")

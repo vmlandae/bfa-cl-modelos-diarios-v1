@@ -72,25 +72,45 @@ Log con print() por ahora (F11 migrará después).
 
 ### F16: Ejecución Idempotente — DELETE + INSERT en históricos ✅
 
-> **Tamaño:** S (~1d) · **Asignado:** @vlandaetat · **Completado:** 2026-02-27
+> **Tamaño:** S (~1d) · **Asignado:** @vlandaetat · **Completado:** 2026-02-28
 
-**Qué:** Cambiar `consolidar_historico_bigquery()` de "skip si existe" a "DELETE + INSERT"
+**Qué:** Permitir re-inserción segura en tablas históricas BQ con flag `--force-historico`,
+backup CSV automático y metadata de auditoría.
 
 **Archivos:**
-- `carga_modelos_gcp/cargar_output_modelos_bigquery_hist.py` — `verificar_datos_existentes()` y `consolidar_tabla()`
+- `carga_modelos_gcp/cargar_output_modelos_bigquery_hist.py` — `_exportar_backup_pre_delete()`, `consolidar_historico_por_tabla()`, `consolidar_historico_bigquery()`
+- `core/orquestador.py` — `consolidar_historico_gcp(force=)`, `parse_arguments()`
+- `main.py` — `--force-historico` flag
+- `.gitignore` — `backups_historicos/`
 
-**Contexto:** Actualmente si `verificar_datos_existentes()` → `True`, imprime "SUSPENDIENDO inserción" y retorna. Si un INSERT parcial falla, no se puede corregir sin limpieza manual en BQ.
+**Contexto:** Comportamiento por defecto: si datos existen → omite inserción (seguro).
+Con `--force-historico`: exporta backup CSV → DELETE → INSERT, con metadata JSON y logging completo.
+
+**Decisiones tomadas:**
+- **Por defecto** se omite inserción si datos existen (no DELETE automático).
+- **`--force-historico`** activa: backup CSV con timestamp + metadata JSON + DELETE + INSERT.
+- El backup se guarda en `backups_historicos/{YYYYMMDD}/{tabla}/` con timestamp.
+- Se generan 2 archivos de metadata: uno pre-DELETE (datos exportados) y uno post-INSERT (datos insertados).
+- Si el backup falla, se aborta sin ejecutar DELETE.
+- Todo queda en el logger (JSONL) para auditoría.
 
 **Tareas:**
-- [x] Modificar `consolidar_historico_por_tabla()` para hacer `DELETE FROM {tabla} WHERE fecha_proceso = '{fecha}'` antes de INSERT
-- [x] Loguear el DELETE realizado (filas eliminadas)
-- [x] Verificar que `fecha_proceso` es la columna correcta → todas usan `FECHA_PROCESO` vía `COLUMNA_FECHA_PARTICION`
-- [ ] Test: ejecutar consolidación 2 veces → `COUNT(*)` idéntico
-- [x] Documentar el cambio de comportamiento (comentarios en código)
+- [x] Implementar `_exportar_backup_pre_delete()` — lee registros de BQ, guarda CSV + metadata JSON
+- [x] Modificar `consolidar_historico_por_tabla(force=False)` con comportamiento dual:
+  - Sin force: omite si datos existen
+  - Con force: backup → DELETE → INSERT → metadata post-INSERT
+- [x] Propagar `force` en `consolidar_historico_bigquery()` y `consolidar_historico_gcp()`
+- [x] Agregar `--force-historico` en `main.py` y `orquestador.py`
+- [x] Migrar prints a logger en todo `cargar_output_modelos_bigquery_hist.py`
+- [x] Agregar `backups_historicos/` a `.gitignore`
+- [x] Documentar comportamiento en docstrings
+- [ ] Test: ejecutar consolidación 2 veces con --force-historico → `COUNT(*)` idéntico
+- [ ] Test: verificar que CSV de backup contiene mismas filas que se eliminan
 
 **Preguntas resueltas:**
 - [x] ✅ ¿Columna de fecha? → Siempre `FECHA_PROCESO` (definida en `COLUMNA_FECHA_PARTICION` por tabla)
-- [x] ✅ ¿Flag o por defecto? → DELETE+INSERT siempre, sin flag. Idempotencia total.
+- [x] ✅ ¿Flag o por defecto? → Flag `--force-historico`. Por defecto omite (seguro).
+- [x] ✅ ¿Backup antes de DELETE? → Sí, CSV con timestamp + metadata JSON. Aborta si falla.
 - [ ] ❓ ¿Tablas históricas particionadas por fecha en BQ?
 
 **Prompt sugerido:**
@@ -667,3 +687,4 @@ F18, F19 (independientes)
 | 2026-02-27 | F04/F06 movidos a S5 (3 semanas) | UX valioso pero no urgente; XL necesita buffer |
 | 2026-02-27 | F02 completado | Snapshot de parámetros con shutil.copy2; aborta modelo si falla |
 | 2026-02-27 | F16 completado | DELETE+INSERT siempre en históricos BQ; sin flag, idempotencia total |
+| 2026-02-28 | F16 rediseñado | Cambio a flag --force-historico: por defecto omite si existe. Con flag: backup CSV + DELETE + INSERT + metadata JSON |
