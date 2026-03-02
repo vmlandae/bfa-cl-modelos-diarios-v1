@@ -1,7 +1,7 @@
 # Plan de Ejecución — Roadmap BFA-CL Modelos Diarios
 
 > **Fuente de verdad del roadmap:** [`roadmap.yaml`](roadmap.yaml)
-> **Última actualización:** 2026-02-27
+> **Última actualización:** 2026-03-02
 > **Equipo:** Victor Landaeta (`@vlandaetat`), Rodrigo Muñoz (`@rmunozb`)
 
 ---

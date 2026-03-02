@@ -16,7 +16,7 @@
 # Prioridades: crítica | alta | media | baja
 # Tamaños: XS (<2h) | S (2h-1d) | M (1d-3d) | L (3d-1w) | XL (1w-2w) | XXL (2w+)
 #
-# Última actualización: 2026-02-26
+# Última actualización: 2026-03-02
 # =============================================================================
 
 metadata:
@@ -37,8 +37,8 @@ sprints:
     nombre: "Quick Wins & Fundamentos"
     inicio: "2026-02-25"
     fin: "2026-03-07"
-    objetivo: "Establecer infraestructura base: logging, caché, snapshots"
-    features: [F02, F14, F13, F15, F11]
+    objetivo: "Establecer infraestructura base: logging, caché, snapshots, idempotencia"
+    features: [F02, F14, F13, F15, F11, F16]
 
   - id: "S2-2026"
     nombre: "Observabilidad"
@@ -52,7 +52,7 @@ sprints:
     inicio: "2026-03-24"
     fin: "2026-04-04"
     objetivo: "Modo Fantasma para inversiones + optimización paralela"
-    features: [F03, F17, F16]
+    features: [F03, F17]
 
   - id: "S4-2026"
     nombre: "Experiencia de Usuario"
@@ -81,12 +81,15 @@ features:
     titulo: "Máquina del Tiempo — Snapshots de parámetros"
     descripcion: >
       Snapshot automático de parámetros Excel antes de cada ejecución.
-      shutil.copy en orquestador.py → snapshots/{fecha}/{modelo}/
-    estado: planificado
+      shutil.copy2 en orquestador.py → snapshots/{YYYYMMDD}/{modelo}/.
+      Lee rutas de excel_parametros_input del YAML de config.
+      Aborta modelo si la copia falla (RuntimeError).
+    estado: completado
     prioridad: crítica
     tamano: XS
     sprint: "S1-2026"
-    asignado: null
+    asignado: vlandaetat
+    fecha_completado: "2026-02-27"
     etiquetas: [regulatorio, auditoria, orquestador]
     dependencias: []
     archivos_afectados:
@@ -105,12 +108,15 @@ features:
     descripcion: >
       Extender cache_tablas.py para cachear los CSV de interfaz
       (ProductosMercadoLiquidezGCP*.txt) como parquet local.
-      Elimina dependencia de red para re-ejecuciones.
-    estado: planificado
+      Copia raw .txt a data/cache/raw/ con metadata JSON (timestamp, MD5).
+      Hooks pre/post ejecución en orquestador con threading.Lock.
+      Verificación post-ejecución detecta cambios en red durante ejecución.
+    estado: completado
     prioridad: alta
     tamano: S
     sprint: "S1-2026"
-    asignado: null
+    asignado: vlandaetat
+    fecha_completado: "2026-02-27"
     etiquetas: [performance, cache, red]
     dependencias: []
     archivos_afectados:
@@ -175,13 +181,16 @@ features:
   - id: F11
     titulo: "Logging Estructurado — De print() a observabilidad"
     descripcion: >
-      Reemplazar print() por logging estándar de Python con JSON handler.
-      Base para Torre de Control y debugging.
-    estado: planificado
+      core/logger.py con handler dual: consola (emojis, prefijo [modelo])
+      y archivo JSONL (logs/{fecha}/modelos.jsonl). Monkey-patch de
+      builtins.print para captura completa. contexto_modelo() thread-safe
+      vía contextvars. Compatible con StdoutRedirector de GUI.
+    estado: completado
     prioridad: alta
     tamano: M
     sprint: "S1-2026"
-    asignado: null
+    asignado: vlandaetat
+    fecha_completado: "2026-02-27"
     etiquetas: [observabilidad, refactor, core]
     dependencias: []
     archivos_afectados:
@@ -319,22 +328,29 @@ features:
   - id: F16
     titulo: "Ejecución Idempotente — Correr sin miedo"
     descripcion: >
-      Garantizar que re-ejecutar un modelo para la misma fecha no
-      produce datos duplicados ni inconsistentes, especialmente en
-      la consolidación histórica de BigQuery.
-    estado: backlog
+      Flag --force-historico para re-inserción segura en tablas históricas BQ.
+      Por defecto omite inserción si datos existen (seguro). Con --force-historico:
+      exporta backup CSV con timestamp → metadata JSON pre-DELETE → DELETE →
+      INSERT → metadata JSON post-INSERT. Todo logueado vía core.logger.
+      Backups en backups_historicos/{YYYYMMDD}/{tabla}/.
+    estado: completado
     prioridad: media
     tamano: S
-    sprint: "S3-2026"
-    asignado: null
-    etiquetas: [robustez, bigquery, idempotencia]
+    sprint: "S1-2026"
+    asignado: vlandaetat
+    fecha_completado: "2026-02-28"
+    etiquetas: [robustez, bigquery, idempotencia, auditoria]
     dependencias: []
     archivos_afectados:
       - "carga_modelos_gcp/cargar_output_modelos_bigquery_hist.py"
+      - "core/orquestador.py"
+      - "main.py"
     criterios_aceptacion:
-      - "DELETE del día antes de INSERT en tablas históricas"
-      - "Re-ejecución produce resultado idéntico"
-      - "Test que verifica idempotencia"
+      - "Por defecto omite inserción si datos existen"
+      - "--force-historico activa: backup CSV → DELETE → INSERT"
+      - "Backup CSV + metadata JSON antes de DELETE"
+      - "Re-ejecución con --force-historico produce resultado idéntico"
+      - "Migración completa de print→logger en hist.py"
 
   # ---------------------------------------------------------------------------
   # SPRINT 4: Experiencia de Usuario

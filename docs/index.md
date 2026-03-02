@@ -1,7 +1,7 @@
 # BFA-CL Modelos Diarios
 
 > **Última actualización por:** vlandaetat  
-> **Fecha:** 2026-01-29
+> **Fecha:** 2026-03-02
 
 Bienvenido a la documentación del sistema de **Modelos Diarios de Riesgo Financiero**.
 
@@ -10,7 +10,7 @@ Bienvenido a la documentación del sistema de **Modelos Diarios de Riesgo Financ
 Sistema de ejecución automatizada de modelos de riesgo financiero que:
 
 - 📊 Procesa datos de carteras desde múltiples fuentes
-- 🧮 Ejecuta modelos de prepago, mora y NMD
+- 🧩 Ejecuta modelos de prepago, mora, NMD, línea de crédito e inversiones
 - ☁️ Carga resultados a Google Cloud BigQuery
 - 📈 Genera outputs en Excel para análisis
 
@@ -40,6 +40,7 @@ python main.py
 | `ml_mora_comercial` | Mora cartera comercial | ✅ Activo |
 | `ml_nmd` | Modelo NMD | ✅ Activo |
 | [`ml_lc`](modelos/lc.md) | Línea de Crédito | ✅ Activo |
+| [`ml_inversiones`](modelos/inversiones.md) | Modelo Inversiones | ✅ Activo |
 
 ## Estructura del Proyecto
 
@@ -47,11 +48,15 @@ python main.py
 bfa-cl-modelos-diarios/
 ├── main.py                     # Punto de entrada
 ├── config/                     # Configuraciones
-├── core/                       # Orquestador principal
+├── core/                       # Orquestador + logger
+│   ├── orquestador.py          # Orquestación de modelos
+│   └── logger.py               # Logging JSONL + consola
 ├── gui/                        # Interfaz gráfica
-├── procesamiento_datos_input/  # Carga de datos
-├── carga_modelos_gcp/          # Carga a BigQuery
+├── procesamiento_datos_input/  # Carga de datos + caché
+├── carga_modelos_gcp/          # Carga a BigQuery (daily + hist)
 ├── RF_Modelo_*/                # Módulos de cada modelo
+├── logs/                       # Logs JSONL por fecha
+├── snapshots/                  # Snapshots de parámetros (F02)
 └── docs/                       # Documentación
 ```
 

@@ -45,6 +45,7 @@ config/                          # Configuraciones del sistema
 
 core/                           # Núcleo del sistema
 ├── orquestador.py              # Orquestador principal de procesos
+├── logger.py                   # Logging estructurado (JSONL + consola)
 └── __init__.py
 
 credenciales/                   # Credenciales de acceso (no versionado)
@@ -146,6 +147,15 @@ RF_Modelo_Inversiones/          # Modelo de inversiones (pipeline modular)
 
 ### 📁 Documentación
 ```
+logs/                           # Logs estructurados por fecha
+└── {YYYYMMDD}/modelos.jsonl     # JSONL con contexto modelo/fecha
+
+snapshots/                      # Snapshots de parámetros (F02)
+└── {YYYYMMDD}/{modelo}/         # Copia de Excel antes de cada ejecución
+
+backups_historicos/             # Backups pre-DELETE de históricos BQ (F16)
+└── {YYYYMMDD}/{tabla}/          # CSV + metadata JSON
+
 docs/                           # Documentación del proyecto (MkDocs)
 ├── CHANGELOG.md                # Registro de cambios
 ├── roadmap/                    # Roadmap visual, plan de sprints y workflow
@@ -230,6 +240,9 @@ python main.py --fecha 2025-11-28 --modelos mr_prepago_consumo --cargar-gcp
 
 # Ejecutar todos los modelos y cargar a BigQuery
 python main.py --fecha 2025-11-28 --modelos todos --cargar-gcp
+
+# Ejecutar, cargar y forzar re-inserción en históricos (DELETE+INSERT)
+python main.py --fecha 2025-11-28 --modelos todos --cargar-gcp --force-historico
 ```
 
 #### Solo Carga a BigQuery (sin ejecutar modelos)
@@ -247,6 +260,7 @@ python main.py --fecha 2025-11-28 --solo-carga-gcp todos
 - `--modelos`: Lista de modelos a ejecutar (usar nombres específicos o "todos")
 - `--cargar-gcp`: Cargar resultados a BigQuery después de ejecutar
 - `--solo-carga-gcp`: Solo cargar a BigQuery sin ejecutar modelos
+- `--force-historico`: Forzar re-inserción en tablas históricas (DELETE+INSERT con backup CSV)
 - `--listar`: Mostrar modelos disponibles y su estado
 
 ### Ejecución de Modelos Individuales

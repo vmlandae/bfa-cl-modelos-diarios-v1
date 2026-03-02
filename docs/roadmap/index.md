@@ -1,6 +1,6 @@
 # Roadmap & Plan de Desarrollo
 
-> **Última actualización:** 2026-02-26  
+> **Última actualización:** 2026-03-02  
 > **Fuente de verdad:** [`docs/roadmap/roadmap.yaml`](https://gitlab.falabella.tech/rmunozb/bfa-cl-modelos-diarios/-/blob/main/docs/roadmap/roadmap.yaml)
 
 ---
@@ -17,11 +17,12 @@ gantt
     axisFormat  %d %b
 
     section S1: Quick Wins
-    F02 Snapshots Parámetros     :f02, 2026-02-25, 1d
-    F14 Cache Primera Vuelta     :f14, 2026-02-26, 2d
-    F13 Pre-flight Checks        :f13, 2026-02-28, 2d
-    F15 Tests Mínimos            :f15, 2026-03-02, 2d
-    F11 Logging Estructurado     :f11, 2026-03-04, 3d
+    F02 Snapshots Parámetros     :done, f02, 2026-02-25, 1d
+    F14 Cache Primera Vuelta     :done, f14, 2026-02-26, 2d
+    F11 Logging Estructurado     :done, f11, 2026-02-26, 2d
+    F16 Idempotencia BQ          :done, f16, 2026-02-27, 2d
+    F13 Pre-flight Checks        :f13, 2026-03-03, 2d
+    F15 Tests Mínimos            :f15, 2026-03-05, 2d
 
     section S2: Observabilidad
     F12 Config Unificada         :f12, 2026-03-10, 3d
@@ -31,7 +32,6 @@ gantt
     section S3: Migración
     F03 Modo Fantasma            :f03, 2026-03-24, 5d
     F17 Parallel Smartness       :f17, 2026-03-31, 3d
-    F16 Idempotencia             :f16, 2026-04-03, 2d
 
     section S4: UX
     F04 Scenario Playground      :f04, 2026-04-07, 10d
@@ -57,21 +57,17 @@ gantt
 |---|---|
 | **Prioridad** | :material-fire:{ .critical } Crítica |
 | **Tamaño** | XS (< 2h) |
-| **Estado** | :material-calendar-check: Planificado |
+| **Estado** | :material-check-circle:{ .done } **Completado** (2026-02-27) |
+| **Asignado** | @vlandaetat |
 | **Archivos** | `core/orquestador.py` |
 
-Snapshot automático de parámetros Excel antes de cada ejecución. `shutil.copy` en el orquestador → `snapshots/{fecha}/{modelo}/`.
+Snapshot automático de parámetros Excel antes de cada ejecución. `shutil.copy2` en el orquestador → `snapshots/{YYYYMMDD}/{modelo}/`. Lee rutas de `excel_parametros_input` del YAML. Aborta modelo si la copia falla (`RuntimeError`).
 
 **Criterios de aceptación:**
 
-- [x] Cada ejecución copia los parámetros Excel a `snapshots/{fecha}/{modelo}/`
+- [x] Cada ejecución copia los parámetros Excel a `snapshots/{YYYYMMDD}/{modelo}/`
 - [ ] No afecta el tiempo de ejecución (< 2s overhead)
-- [ ] Funciona para los 10 modelos
-
-??? note "Notas de implementación"
-    20 líneas de código. Valor regulatorio enorme (NCG 325).
-    Los parámetros locales ya están en el repo, pero los de inversiones
-    viven en la red. El snapshot captura ambos.
+- [ ] Funciona para los 10 modelos (verificar `ml_inversiones` con rutas UNC)
 
 ---
 
@@ -81,16 +77,18 @@ Snapshot automático de parámetros Excel antes de cada ejecución. `shutil.copy
 |---|---|
 | **Prioridad** | :material-arrow-up-bold:{ .high } Alta |
 | **Tamaño** | S (2h — 1d) |
-| **Estado** | :material-calendar-check: Planificado |
-| **Archivos** | `procesamiento_datos_input/cache_tablas.py`, modelos de mora y prepago |
+| **Estado** | :material-check-circle:{ .done } **Completado** (2026-02-27) |
+| **Asignado** | @vlandaetat |
+| **Archivos** | `procesamiento_datos_input/cache_tablas.py`, `core/orquestador.py`, modelos de mora y prepago |
 
-Extender `cache_tablas.py` para cachear los CSV de interfaz (`ProductosMercadoLiquidezGCP*.txt`) como parquet local. Elimina dependencia de red para re-ejecuciones.
+Copia raw `.txt` de red → `data/cache/raw/` con metadata JSON (timestamp, MD5). Hooks pre/post ejecución en orquestador con `threading.Lock`. Verificación post-ejecución detecta cambios en red durante ejecución.
 
 **Criterios de aceptación:**
 
-- [ ] Primera lectura del día: lee CSV de red, guarda parquet
-- [ ] Lecturas siguientes: lee parquet local (~95% más rápido)
-- [ ] Flag `--forzar-recarga` para ignorar caché
+- [x] Primera lectura del día: copia CSV de red, guarda parquet
+- [x] Lecturas siguientes: lee parquet local (~95% más rápido)
+- [x] Respeta `CACHE_FORZAR_RECARGA` existente y `--forzar-recarga`
+- [x] Verificación post-ejecución con checksum MD5
 
 ---
 
@@ -139,18 +137,42 @@ Tests de nivel 1 que validan configuración sin dependencias externas.
 |---|---|
 | **Prioridad** | :material-arrow-up-bold:{ .high } Alta |
 | **Tamaño** | M (1d — 3d) |
-| **Estado** | :material-calendar-check: Planificado |
-| **Archivos** | `core/logger.py` (nuevo), `core/orquestador.py`, `procesamiento_datos_input/cache_tablas.py` |
+| **Estado** | :material-check-circle:{ .done } **Completado** (2026-02-27) |
+| **Asignado** | @vlandaetat |
+| **Archivos** | `core/logger.py`, `core/orquestador.py`, `procesamiento_datos_input/cache_tablas.py` |
 
-Reemplazar `print()` por `logging` estándar con JSON handler. Base para Torre de Control.
+`core/logger.py` con handler dual: consola (emojis, prefijo `[modelo]`) y JSONL (`logs/{fecha}/modelos.jsonl`). Monkey-patch de `builtins.print` para captura completa. `contexto_modelo()` thread-safe vía `contextvars`.
 
 **Criterios de aceptación:**
 
-- [ ] Logger con niveles (DEBUG, INFO, WARNING, ERROR)
-- [ ] Handler JSON para archivo (`logs/modelos.jsonl`)
-- [ ] Handler consola human-readable
-- [ ] Contexto automático: modelo, fecha_proceso
-- [ ] Migrar al menos `orquestador.py` y `cache_tablas.py`
+- [x] Logger con niveles (DEBUG, INFO, WARNING, ERROR)
+- [x] Handler JSON para archivo (`logs/{fecha}/modelos.jsonl`)
+- [x] Handler consola human-readable con prefijo `[modelo]`
+- [x] Contexto automático: modelo, fecha_proceso (vía `contextvars`)
+- [x] Migrar `orquestador.py`, `cache_tablas.py` y `main.py`
+- [x] Interceptor `builtins.print` → JSONL (cobertura 100%)
+
+---
+
+### F16 — Ejecución Idempotente { #f16 }
+
+| | |
+|---|---|
+| **Prioridad** | :material-arrow-right-bold:{ .medium } Media |
+| **Tamaño** | S (2h — 1d) |
+| **Estado** | :material-check-circle:{ .done } **Completado** (2026-02-28) |
+| **Asignado** | @vlandaetat |
+| **Archivos** | `carga_modelos_gcp/cargar_output_modelos_bigquery_hist.py`, `core/orquestador.py`, `main.py` |
+
+Flag `--force-historico` para re-inserción segura en tablas históricas BQ. Por defecto omite inserción si datos existen (seguro). Con `--force-historico`: backup CSV → metadata JSON pre-DELETE → DELETE → INSERT → metadata JSON post-INSERT. Backups en `backups_historicos/{YYYYMMDD}/{tabla}/`.
+
+**Criterios de aceptación:**
+
+- [x] Por defecto omite inserción si datos existen
+- [x] `--force-historico` activa: backup CSV → DELETE → INSERT
+- [x] Backup CSV + metadata JSON antes de DELETE
+- [x] Migración completa de `print` → `logger` en `hist.py`
+- [ ] Test: re-ejecución con `--force-historico` produce `COUNT(*)` idéntico
 
 ---
 
@@ -221,17 +243,6 @@ Comparación automática VBA vs Python celda por celda con tolerancias. Empezand
 | **Dependencias** | F14 |
 
 Ejecución en 2 fases con pre-carga de caché Access compartido.
-
----
-
-### F16 — Ejecución Idempotente { #f16 }
-
-| | |
-|---|---|
-| **Prioridad** | :material-arrow-right-bold:{ .medium } Media |
-| **Tamaño** | S (2h — 1d) |
-
-Re-ejecución segura: DELETE + INSERT en tablas históricas BigQuery.
 
 ---
 
@@ -328,12 +339,12 @@ Features de largo plazo, priorizables según contexto de negocio.
 | ID | Feature | Tamaño | Dependencias | Etiquetas |
 |:---|:--------|:-------|:-------------|:----------|
 | F05 | Matadero de Access (SQL→Pandas) | L | — | `migración` `access` |
-| F07 | Parámetros como Código (Excel→YAML) | XL | F02 | `parámetros` `regulatorio` |
+| F07 | Parámetros como Código (Excel→YAML) | XL | F02 ✅ | `parámetros` `regulatorio` |
 | F08 | Copiloto Regulatorio (reportes CMF) | XXL | F01, F09 | `regulatorio` `cmf` |
-| F10 | Model API (FastAPI) | XXL | F11, F12 | `api` `arquitectura` |
+| F10 | Model API (FastAPI) | XXL | F11 ✅, F12 | `api` `arquitectura` |
 | F18 | Carga Históricos Pre-Python | L | — | `datos` `histórico` `access` |
 | F19 | Carga Modelos Old (legacy→BQ) | L | — | `datos` `legacy` `bigquery` |
-| F20 | Reestructura Parámetros (Excel→JSON) | XL | F02 | `parámetros` `schema` `json` |
+| F20 | Reestructura Parámetros (Excel→JSON) | XL | F02 ✅ | `parámetros` `schema` `json` |
 
 ---
 
@@ -341,11 +352,11 @@ Features de largo plazo, priorizables según contexto de negocio.
 
 ```mermaid
 graph LR
-    F02[F02 Snapshots] --> F07[F07 Params YAML]
+    F02[✅ F02 Snapshots] --> F07[F07 Params YAML]
     F02 --> F20[F20 Params JSON]
-    F14[F14 Cache 1ra Vuelta] --> F17[F17 Parallel]
+    F14[✅ F14 Cache 1ra Vuelta] --> F17[F17 Parallel]
     F14 --> F04[F04 Playground]
-    F11[F11 Logging] --> F01[F01 Torre Control]
+    F11[✅ F11 Logging] --> F01[F01 Torre Control]
     F11 --> F09[F09 Alertas]
     F11 --> F04
     F11 --> F10[F10 API]
@@ -356,22 +367,22 @@ graph LR
     F12 --> F10
     F15[F15 Tests] --> F03[F03 Fantasma]
     F13[F13 Pre-flight]
-    F16[F16 Idempotencia]
+    F16[✅ F16 Idempotencia]
     F05[F05 Matadero Access]
     F18[F18 Históricos]
     F19[F19 Modelos Old]
 
-    style F02 fill:#4CAF50,color:#fff
-    style F14 fill:#4CAF50,color:#fff
+    style F02 fill:#1B5E20,color:#fff,stroke:#4CAF50,stroke-width:3px
+    style F14 fill:#1B5E20,color:#fff,stroke:#4CAF50,stroke-width:3px
+    style F11 fill:#1B5E20,color:#fff,stroke:#4CAF50,stroke-width:3px
+    style F16 fill:#1B5E20,color:#fff,stroke:#4CAF50,stroke-width:3px
     style F13 fill:#4CAF50,color:#fff
     style F15 fill:#4CAF50,color:#fff
-    style F11 fill:#4CAF50,color:#fff
     style F01 fill:#2196F3,color:#fff
     style F12 fill:#2196F3,color:#fff
     style F09 fill:#2196F3,color:#fff
     style F03 fill:#FF9800,color:#fff
     style F17 fill:#FF9800,color:#fff
-    style F16 fill:#FF9800,color:#fff
     style F04 fill:#9C27B0,color:#fff
     style F06 fill:#9C27B0,color:#fff
     style F05 fill:#757575,color:#fff
@@ -384,7 +395,8 @@ graph LR
 ```
 
 <div style="display: flex; gap: 1em; margin-top: 0.5em; flex-wrap: wrap;">
-  <span style="background: #4CAF50; color: white; padding: 2px 8px; border-radius: 4px;">Sprint 1</span>
+  <span style="background: #1B5E20; color: white; padding: 2px 8px; border-radius: 4px;">✅ Completado</span>
+  <span style="background: #4CAF50; color: white; padding: 2px 8px; border-radius: 4px;">Sprint 1 (pendiente)</span>
   <span style="background: #2196F3; color: white; padding: 2px 8px; border-radius: 4px;">Sprint 2</span>
   <span style="background: #FF9800; color: white; padding: 2px 8px; border-radius: 4px;">Sprint 3</span>
   <span style="background: #9C27B0; color: white; padding: 2px 8px; border-radius: 4px;">Sprint 4</span>

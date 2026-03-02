@@ -5,6 +5,29 @@ Registro de cambios y actualizaciones del proyecto BFA-CL Modelos Diarios.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0-dev] - 2026-03-02 - Snapshots, Idempotencia y Documentación Integral
+
+### Agregado
+- **Snapshot de parámetros (F02)** (`core/orquestador.py`): copia automática de Excel de parámetros antes de cada ejecución
+  - `_snapshot_parametros(modelo_key, fecha)` con `shutil.copy2` → `snapshots/{YYYYMMDD}/{modelo}/`
+  - Lee rutas de `excel_parametros_input` del YAML de config por modelo
+  - Aborta ejecución del modelo si la copia falla (`RuntimeError`)
+  - Directorio `snapshots/` excluido de versionamiento (`.gitignore`)
+- **Idempotencia históricos BQ (F16)**: flag `--force-historico` para re-inserción segura en tablas históricas BigQuery
+  - `_exportar_backup_pre_delete()`: exporta registros existentes a CSV con timestamp + metadata JSON
+  - `consolidar_historico_por_tabla(force=False)`: comportamiento dual — por defecto omite si datos existen (seguro); con `force=True` ejecuta backup → DELETE → INSERT → metadata post-INSERT
+  - Backups en `backups_historicos/{YYYYMMDD}/{tabla}/` con `backups_historicos/` excluido de Git
+  - Propagación de `force` a través de `consolidar_historico_bigquery()` y `consolidar_historico_gcp()`
+  - `--force-historico` en `main.py` y `orquestador.py` (CLI)
+  - Migración completa de `print()` → `logger` en `cargar_output_modelos_bigquery_hist.py`
+
+### Mejorado
+- **Documentación integral**: actualización de todos los archivos de documentación al estado actual del proyecto
+  - `docs/roadmap/roadmap.yaml`: F02, F11, F14, F16 marcados como `completado` con fechas y asignaciones
+  - `docs/roadmap/index.md`: Gantt con marcas `done`, badges de estado actualizados, F16 movido de S3 a S1, grafo de dependencias con colores diferenciados para completados
+  - `README.md`: flag `--force-historico` en ejemplos CLI, `snapshots/` y `backups_historicos/` en estructura, `core/logger.py` visible
+  - `docs/index.md`: `ml_inversiones` en tabla de modelos, estructura actualizada con `core/logger.py` y `logs/`
+
 ## [1.6.0-dev] - 2026-02-27 - Logging Estructurado, Roadmap y Documentación
 
 ### Agregado
