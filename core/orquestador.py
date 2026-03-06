@@ -2,7 +2,6 @@ import importlib
 import shutil
 from datetime import datetime
 from pathlib import Path
-import concurrent.futures
 import argparse
 from typing import List, Dict, Any
 import traceback
@@ -368,36 +367,41 @@ class OrquestadorModelos:
         return resultados
 
     def ejecutar_modelos_paralelo(self, modelos_seleccionados: List[str], fecha: datetime) -> Dict[str, bool]:
-        """Ejecuta múltiples modelos en paralelo o uno solo en secuencial"""
-        # Si solo hay un modelo, usar ejecución secuencial
+        """Ejecuta múltiples modelos de forma secuencial.
+
+        F21: Benchmark demostró que ThreadPoolExecutor no aporta speedup por el GIL
+        de Python (1.01×). La ejecución secuencial es equivalente en wall-clock,
+        consume ~83 MB menos de RAM y simplifica el debugging.
+        Se mantiene el nombre del método por retrocompatibilidad con main.py y GUI.
+        """
         if len(modelos_seleccionados) == 1:
             return self.ejecutar_modelo_secuencial(modelos_seleccionados[0], fecha)
-            
-        logger.info(f"Iniciando ejecución paralela de {len(modelos_seleccionados)} modelos para fecha: {fecha.strftime('%Y-%m-%d')}")
+
+        logger.info(f"Iniciando ejecución secuencial de {len(modelos_seleccionados)} modelos para fecha: {fecha.strftime('%Y-%m-%d')}")
 
         # F14: pre-ejecución (copia interfaz una sola vez si hay modelos de vuelta 1)
         self._pre_ejecucion_primera_vuelta(modelos_seleccionados, fecha)
-        
+
         resultados = {}
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            futures = {}
-            for nombre_modelo in modelos_seleccionados:
-                if nombre_modelo in self.modelos:
-                    config = self.modelos[nombre_modelo]
-                    if config["activado"]:
-                        futures[executor.submit(self.ejecutar_modelo, nombre_modelo, config, fecha)] = nombre_modelo
-            
-            for future in concurrent.futures.as_completed(futures):
-                nombre_modelo = futures[future]
-                try:
-                    resultados[nombre_modelo] = future.result()
-                except Exception as e:
-                    logger.error(f"Error en modelo {nombre_modelo}: {str(e)}")
+        for nombre_modelo in modelos_seleccionados:
+            if nombre_modelo in self.modelos:
+                config = self.modelos[nombre_modelo]
+                if config["activado"]:
+                    try:
+                        resultados[nombre_modelo] = self.ejecutar_modelo(nombre_modelo, config, fecha)
+                    except Exception as e:
+                        logger.error(f"Error en modelo {nombre_modelo}: {str(e)}")
+                        resultados[nombre_modelo] = False
+                else:
+                    logger.warning(f"El modelo {nombre_modelo} está deshabilitado")
                     resultados[nombre_modelo] = False
+            else:
+                logger.error(f"El modelo {nombre_modelo} no existe")
+                resultados[nombre_modelo] = False
 
         # F14: post-ejecución (verifica integridad si hubo modelos de vuelta 1)
         self._post_ejecucion_primera_vuelta(modelos_seleccionados, fecha)
-        
+
         return resultados
 
 def parse_arguments():
