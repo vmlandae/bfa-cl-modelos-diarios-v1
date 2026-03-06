@@ -233,6 +233,61 @@ class OrquestadorModelos:
 
         verificar_interfaz_post_ejecucion(ruta_red, fecha_str)
 
+    # -----------------------------------------------------------------
+    # F22 — Pre/Post hooks para copia local de Access (segunda vuelta)
+    # -----------------------------------------------------------------
+
+    def _obtener_rutas_access_v2(self) -> list:
+        """Lee las rutas UNC de archivos Access usados por modelos de segunda vuelta."""
+        with open(_CONFIG_EXT_YAML, "r", encoding="utf-8") as f:
+            config_ext = yaml.safe_load(f)
+
+        rutas = set()
+        for key, cfg in self.modelos.items():
+            if cfg.get("vuelta") == 2:
+                modelo_cfg = config_ext["modelos"].get(key, {})
+                for source in modelo_cfg.get("ms_access_sources", []):
+                    rutas.add(source["path"])
+        return list(rutas)
+
+    def _pre_ejecucion_segunda_vuelta(self, modelos_seleccionados: List[str], fecha: datetime) -> None:
+        """Hook pre-ejecución V2: copia archivos Access a disco local."""
+        modelos_v2 = [
+            m for m in modelos_seleccionados
+            if m in self.modelos and self.modelos[m].get("vuelta") == 2
+        ]
+        if not modelos_v2:
+            return
+
+        rutas_access = self._obtener_rutas_access_v2()
+        if not rutas_access:
+            return
+
+        from procesamiento_datos_input.cache_tablas import copiar_access_a_local
+
+        logger.info(f"\n{'─'*60}")
+        logger.info("PRE-EJECUCIÓN V2: Copiando archivos Access a disco local...")
+        logger.info(f"{'─'*60}")
+
+        copiar_access_a_local(rutas_access)
+
+    def _post_ejecucion_segunda_vuelta(self, modelos_seleccionados: List[str], fecha: datetime) -> None:
+        """Hook post-ejecución V2: limpia copias locales de Access."""
+        modelos_v2 = [
+            m for m in modelos_seleccionados
+            if m in self.modelos and self.modelos[m].get("vuelta") == 2
+        ]
+        if not modelos_v2:
+            return
+
+        from procesamiento_datos_input.cache_tablas import limpiar_access_local
+
+        logger.info(f"\n{'─'*60}")
+        logger.info("POST-EJECUCIÓN V2: Limpiando copias locales de Access...")
+        logger.info(f"{'─'*60}")
+
+        limpiar_access_local()
+
     def ejecutar_modelo(self, nombre_modelo: str, config: Dict[str, Any], fecha: datetime) -> bool:
         with contexto_modelo(nombre_modelo):
             try:
@@ -349,6 +404,8 @@ class OrquestadorModelos:
 
         # F14: pre-ejecución (copia interfaz si es vuelta 1)
         self._pre_ejecucion_primera_vuelta([nombre_modelo], fecha)
+        # F22: pre-ejecución (copia Access a local si es vuelta 2)
+        self._pre_ejecucion_segunda_vuelta([nombre_modelo], fecha)
         
         resultados = {}
         if nombre_modelo in self.modelos:
@@ -364,6 +421,8 @@ class OrquestadorModelos:
 
         # F14: post-ejecución (verifica integridad si es vuelta 1)
         self._post_ejecucion_primera_vuelta([nombre_modelo], fecha)
+        # F22: post-ejecución (limpia copias Access si es vuelta 2)
+        self._post_ejecucion_segunda_vuelta([nombre_modelo], fecha)
             
         return resultados
 
@@ -377,6 +436,8 @@ class OrquestadorModelos:
 
         # F14: pre-ejecución (copia interfaz una sola vez si hay modelos de vuelta 1)
         self._pre_ejecucion_primera_vuelta(modelos_seleccionados, fecha)
+        # F22: pre-ejecución (copia Access a local si hay modelos de vuelta 2)
+        self._pre_ejecucion_segunda_vuelta(modelos_seleccionados, fecha)
         
         resultados = {}
         with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -397,6 +458,8 @@ class OrquestadorModelos:
 
         # F14: post-ejecución (verifica integridad si hubo modelos de vuelta 1)
         self._post_ejecucion_primera_vuelta(modelos_seleccionados, fecha)
+        # F22: post-ejecución (limpia copias Access si hubo modelos de vuelta 2)
+        self._post_ejecucion_segunda_vuelta(modelos_seleccionados, fecha)
         
         return resultados
 
