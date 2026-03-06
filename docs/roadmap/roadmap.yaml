@@ -16,7 +16,7 @@
 # Prioridades: crítica | alta | media | baja
 # Tamaños: XS (<2h) | S (2h-1d) | M (1d-3d) | L (3d-1w) | XL (1w-2w) | XXL (2w+)
 #
-# Última actualización: 2026-03-02
+# Última actualización: 2026-03-06
 # =============================================================================
 
 metadata:
@@ -61,12 +61,19 @@ sprints:
     objetivo: "Playground de escenarios + Linaje de datos"
     features: [F04, F06]
 
+  - id: "S5-2026"
+    nombre: "Optimización de Rendimiento del Pipeline"
+    inicio: "2026-03-06"
+    fin: null
+    objetivo: "Reducir tiempo total de ejecución del pipeline (~18 min → ~12 min) via ejecución secuencial, optimización Access, xlsxwriter y parámetros JSON"
+    features: [F21, F24, F22, F23, F20]
+
   - id: "backlog"
     nombre: "Backlog Estratégico"
     inicio: null
     fin: null
     objetivo: "Features de largo plazo, priorizables según contexto"
-    features: [F05, F07, F08, F10, F18, F19, F20]
+    features: [F05, F07, F08, F10, F18, F19]
 
 # =============================================================================
 # FEATURES
@@ -525,18 +532,20 @@ features:
       archivos JSON con schema definido. Soportar tipos nativos (listas,
       diccionarios, strings, números) en vez de las limitaciones tabulares
       de Excel. Mantener retrocompatibilidad durante la transición.
-    estado: planificado
+      Formato JSON elegido sobre Parquet: texto plano, git-diffable,
+      legible sin herramientas, un solo archivo por modelo.
+    estado: en-progreso
     prioridad: media
     tamano: XL
-    sprint: backlog
-    asignado: null
-    etiquetas: [parametros, refactor, schema, json]
+    sprint: "S5-2026"
+    asignado: vlandaetat
+    etiquetas: [parametros, refactor, schema, json, performance]
     dependencias: [F02]
     archivos_afectados:
-      - "config/schema_parametros/ (nuevo directorio)"
-      - "config/cargador_parametros.py (refactor)"
+      - "config/schemas/ (nuevo directorio)"
+      - "procesamiento_datos_input/cargador_parametros.py (refactor)"
       - "RF_Modelo_*/parametros/*.json (nuevos)"
-      - "procesamiento_datos_input/cargador_parametros.py"
+      - "tools/excel_a_json.py (nuevo)"
     criterios_aceptacion:
       - "Schema JSON definido por modelo con validación automática"
       - "Parámetros soportan: listas, diccionarios, strings, números, booleanos"
@@ -544,7 +553,118 @@ features:
       - "Modo dual durante transición: lee JSON si existe, fallback a Excel"
       - "Validación de schema al importar parámetros (fail-fast)"
     notas: >
-      Rama existente: feature/reestructura-sistema-parametros-y-rutas.
+      Rama: feat/F20-parametros-json (sub-rama de feat/optimizacion-pipeline).
+      Rama legacy: feature/reestructura-sistema-parametros-y-rutas.
       Relacionado con F07 (Parámetros como Código) pero es más específico:
       F07 es la visión de largo plazo, F20 es el primer paso concreto.
       Plan detallado en docs/feats/reestructura-parametros/PLAN.md.
+
+  # ---------------------------------------------------------------------------
+  # SPRINT 5: Optimización de Rendimiento del Pipeline
+  # ---------------------------------------------------------------------------
+
+  - id: F21
+    titulo: "Ejecución Secuencial de Modelos — Eliminar ThreadPoolExecutor"
+    descripcion: >
+      Reemplazar ThreadPoolExecutor por ejecución secuencial (loop for) en
+      ejecutar_modelos_paralelo(). Benchmark demostró que el GIL de Python
+      elimina el beneficio del threading para tareas CPU-bound (speedup 1.01×).
+      Reduce ~83 MB de consumo de RAM y simplifica debugging.
+    estado: en-progreso
+    prioridad: alta
+    tamano: XS
+    sprint: "S5-2026"
+    asignado: vlandaetat
+    etiquetas: [performance, refactor, orquestador]
+    dependencias: []
+    archivos_afectados:
+      - "core/orquestador.py"
+    criterios_aceptacion:
+      - "ejecutar_modelos_paralelo() usa loop secuencial en vez de ThreadPoolExecutor"
+      - "Tiempo wall-clock equivalente al paralelo (±2%)"
+      - "Mantiene retrocompatibilidad con main.py y GUI"
+      - "Se elimina import concurrent.futures del orquestador"
+    notas: >
+      Rama: feat/v1-secuencial (sub-rama de feat/optimizacion-pipeline).
+      Benchmark de referencia: docs/desarrollo/benchmark_paralelo_vs_secuencial.md.
+
+  - id: F22
+    titulo: "Optimización Access Inversiones — WHERE + copia local"
+    descripcion: >
+      Reducir el tiempo de lectura de tablas Access del modelo de inversiones
+      (actualmente 349s) mediante: (1) agregar cláusulas WHERE a queries SQL
+      para filtrar por fecha y reducir filas, (2) copiar archivos .accdb a
+      disco local antes de leer para eliminar latencia UNC de red.
+      Aplica al inicio de segunda vuelta (datos no disponibles durante V1).
+    estado: planificado
+    prioridad: alta
+    tamano: L
+    sprint: "S5-2026"
+    asignado: null
+    etiquetas: [performance, access, inversiones, red]
+    dependencias: [F24]
+    archivos_afectados:
+      - "RF_Modelo_Inversiones/io/"
+      - "procesamiento_datos_input/cache_tablas.py"
+      - "core/orquestador.py"
+    criterios_aceptacion:
+      - "RF_base_Completa_Hist usa WHERE Fec_Pro >= fecha-N para reducir filas"
+      - "RF_Base_Diaria_Precios usa WHERE Fecha >= fecha-N"
+      - "Benchmark muestra >50% reducción en tiempo de lectura Access"
+      - "Copia local temporal eliminada al finalizar ejecución"
+    notas: >
+      Rama: feat/where-access-inversiones (sub-rama de feat/optimizacion-pipeline).
+      Requiere benchmark empírico (D4: no se sabe si hay índice en Fec_Pro).
+      RF_Base_Carteras_Completa.accdb ~1-1.5 GB, total ~3 GB Access.
+
+  - id: F23
+    titulo: "Reemplazo openpyxl por xlsxwriter — Escritura Excel rápida"
+    descripcion: >
+      Reemplazar openpyxl por xlsxwriter para la escritura de archivos
+      Excel de output de todos los modelos. openpyxl es 2-5× más lento.
+      Viable porque no se usan macros VBA (D2: confirmado).
+      Genera .xlsx en vez de .xlsm.
+    estado: planificado
+    prioridad: media
+    tamano: M
+    sprint: "S5-2026"
+    asignado: null
+    etiquetas: [performance, excel, output]
+    dependencias: []
+    archivos_afectados:
+      - "RF_Modelo_*/ml_*.py"
+      - "RF_Modelo_*/mr_*.py"
+      - "requirements.txt"
+    criterios_aceptacion:
+      - "Todos los modelos generan .xlsx con xlsxwriter en vez de .xlsm con openpyxl"
+      - "Output es idéntico en contenido (validar DataFrames)"
+      - "Benchmark muestra >2× speedup en escritura Excel"
+    notas: >
+      Rama: feat/xlsxwriter-output (sub-rama de feat/optimizacion-pipeline).
+      xlsxwriter no puede modificar archivos existentes (solo crear), OK para este caso.
+
+  - id: F24
+    titulo: "Benchmark Pipeline Completo — Instrumentación y medición"
+    descripcion: >
+      Script de benchmark que instrumenta las 4 fases del pipeline
+      (primera vuelta, segunda vuelta, carga GCP, consolidación histórica)
+      con tiempos por sub-paso. Genera informe con tiempos detallados,
+      cuellos de botella identificados y propuestas de optimización.
+    estado: en-progreso
+    prioridad: alta
+    tamano: M
+    sprint: "S5-2026"
+    asignado: vlandaetat
+    etiquetas: [benchmark, documentacion, performance]
+    dependencias: []
+    archivos_afectados:
+      - "sandbox/benchmark_pipeline_completo.py (nuevo)"
+      - "docs/desarrollo/benchmark_pipeline_completo.md (nuevo)"
+    criterios_aceptacion:
+      - "Mide tiempos por fase y sub-fase (lectura, cálculo, escritura)"
+      - "Mide tiempos individuales de tablas Access de inversiones"
+      - "Output JSON/CSV reproducible"
+      - "Documento markdown con análisis y propuestas"
+    notas: >
+      Rama: feat/benchmark-pipeline (sub-rama de feat/optimizacion-pipeline).
+      Extiende benchmark anterior (sandbox/benchmark_paralelo_vs_secuencial.py).
