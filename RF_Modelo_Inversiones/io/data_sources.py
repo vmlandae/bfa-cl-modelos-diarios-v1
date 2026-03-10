@@ -170,13 +170,12 @@ def limpiar_montos_liq(df: pd.DataFrame) -> pd.DataFrame:
 # Se usa un margen mayor al estrictamente necesario para evitar perder datos
 # por diferencias de timezone o redondeo.
 _VENTANAS_FECHA: Dict[str, dict] = {
-    # RF_base_Completa_Hist: post-filtro en genera_tabla_RF_base_Completa_Hist usa
-    # Fec_Pro > fecha - 10 días; HTM extrae solo Fec_Pro == fecha.
-    # Margen: 15 días.
+    # RF_base_Completa_Hist: el modelo solo usa Fec_Pro == fecha_proceso
+    # en todas las carteras y pasos. Filtro exacto.
     'RF_base_Completa_Hist': {
         'columna': 'Fec_Pro',
-        'dias': 15,
-        'operador': '>=',
+        'dias': 0,
+        'operador': '=',
     },
     # RF_Base_Diaria_Precios: solo se necesita Fecha == fecha_proceso (paso 20).
     # Margen: 5 días.
