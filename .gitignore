@@ -1,6 +1,8 @@
 # Credenciales y archivos sensibles
 credenciales/
 *.json
+# Excepciones: parámetros JSON de modelos (F20)
+!RF_Modelo_*/parametros/parametros_*.json
 *.key
 *.pem
 .env

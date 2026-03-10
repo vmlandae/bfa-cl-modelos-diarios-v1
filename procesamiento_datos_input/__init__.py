@@ -3,7 +3,7 @@ Módulo de procesamiento de datos de entrada para modelos
 """
 
 from .cargador_datos import CargadorDatosModelos
-from .cargador_parametros import CargadorParametrosModelos  
+from .cargador_parametros import cargar_hojas_parametros  
 from .limpiador_datos import LimpiadorDatos
 from .cargador_modelos import CargadorModelos
 from .cache_tablas import (
@@ -16,7 +16,7 @@ from .cache_tablas import (
 
 __all__ = [
     'CargadorDatosModelos',
-    'CargadorParametrosModelos', 
+    'cargar_hojas_parametros', 
     'LimpiadorDatos',
     'CargadorModelos',
     'leer_tabla_con_cache',

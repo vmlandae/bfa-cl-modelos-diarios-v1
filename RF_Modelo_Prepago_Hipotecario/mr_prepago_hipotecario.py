@@ -32,28 +32,23 @@ ARCHIVO_PARAMETROS = cr.resolver_ruta(config_ext['modelos']['mr_prepago_hipoteca
 
 def lectura_parametros_modelo() -> Dict[str, Any]:
     """
-    Lee los parámetros del modelo desde el archivo de configuración Excel.
+    Lee los parámetros del modelo (JSON preferido, fallback Excel).
     
     Returns:
         Dict[str, Any]: Diccionario con las siguientes claves:
             - 'SMM_MODELO': Lista con las tasas SMM de prepago
             - 'ESCENARIOS': Diccionario con la configuración de escenarios
     """
-    print("      • Leyendo parámetros del modelo desde Excel...")
-    
-    
-    if not ARCHIVO_PARAMETROS.exists():
-        raise FileNotFoundError(f"No se encontró el archivo de parámetros: {ARCHIVO_PARAMETROS}")
-    
-    # Leer SMM_MODELO desde la hoja SMM_PREPAGO
-    df_smm = pd.read_excel(ARCHIVO_PARAMETROS, sheet_name='SMM_PREPAGO')
-    smm_lista = df_smm.iloc[:, 0].dropna().tolist()  # Primera columna, eliminar NaN
+    from procesamiento_datos_input.cargador_parametros import cargar_hojas_parametros
+
+    print("      • Leyendo parámetros del modelo...")
+    hojas = cargar_hojas_parametros("mr_prepago_hipotecario")
+
+    df_smm = hojas["SMM_PREPAGO"]
+    smm_lista = df_smm.iloc[:, 0].dropna().tolist()
     print(f"        - {len(smm_lista)} tasas SMM cargadas")
-    
-    # Leer ESCENARIOS desde la hoja ESCENARIO
-    df_escenarios = pd.read_excel(ARCHIVO_PARAMETROS, sheet_name='ESCENARIO')
-    
-    # Asumiendo que el Excel tiene columnas: ID_ESCENARIO, DESCRIPCION, PHI
+
+    df_escenarios = hojas["ESCENARIO"]
     escenarios_dict = {}
     for _, row in df_escenarios.iterrows():
         id_esc = int(row['ID_ESCENARIO'])

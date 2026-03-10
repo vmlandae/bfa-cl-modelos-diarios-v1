@@ -31,20 +31,18 @@ RUTA_OUTPUT_MODELO_RENEGOCIADO = cr.resolver_ruta(config_ext['modelos']['ml_mora
 
 
 def lectura_parametros_modelo():
-    factores_mora = pd.read_excel(RUTA_PARAMETOS_MORA_CONSUMO, sheet_name="FACTORES_MORA")
-    factores_globales_mora = pd.read_excel(RUTA_PARAMETOS_MORA_CONSUMO, sheet_name="FACTORES_GLOBALES")
-    matriz_mora_consumo = pd.read_excel(RUTA_PARAMETOS_MORA_CONSUMO, sheet_name="MATRIZ_CONSUMO")
-    matriz_mora_automotriz =  pd.read_excel(RUTA_PARAMETOS_MORA_CONSUMO, sheet_name="MATRIZ_AUTOMOTRIZ")
-    matriz_mora_refinanciado = pd.read_excel(RUTA_PARAMETOS_MORA_CONSUMO, sheet_name="MATRIZ_REFINANCIADO")
-    matriz_mora_renegociado = pd.read_excel(RUTA_PARAMETOS_MORA_CONSUMO, sheet_name="MATRIZ_RENEGOCIADO")
-    matriz_mora_consolidado = pd.read_excel(RUTA_PARAMETOS_MORA_CONSUMO, sheet_name="MATRIZ_CONSOLIDADO")
+    """Lee parámetros de mora consumo (JSON preferido, fallback Excel)."""
+    from procesamiento_datos_input.cargador_parametros import cargar_hojas_parametros
 
+    hojas = cargar_hojas_parametros("ml_mora_consumo")
+    factores_mora = hojas["FACTORES_MORA"]
+    factores_globales_mora = hojas["FACTORES_GLOBALES"]
 
-    lst_matrices_mora = [matriz_mora_consumo.iloc[:366,:366],
-                         matriz_mora_automotriz.iloc[:366,:366],
-                         matriz_mora_refinanciado.iloc[:366,:366],
-                         matriz_mora_renegociado.iloc[:366,:366],
-                         matriz_mora_consolidado.iloc[:366,:366]]
+    lst_matrices_mora = [hojas["MATRIZ_CONSUMO"].iloc[:366,:366],
+                         hojas["MATRIZ_AUTOMOTRIZ"].iloc[:366,:366],
+                         hojas["MATRIZ_REFINANCIADO"].iloc[:366,:366],
+                         hojas["MATRIZ_RENEGOCIADO"].iloc[:366,:366],
+                         hojas["MATRIZ_CONSOLIDADO"].iloc[:366,:366]]
     lst_factores_mora = [factores_mora.iloc[:, 0],
                          factores_mora.iloc[:, 1],
                          factores_mora.iloc[:, 2],

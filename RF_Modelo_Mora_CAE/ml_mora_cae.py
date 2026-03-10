@@ -30,11 +30,7 @@ RUTA_OUTPUT_MODELO = cr.resolver_ruta(config_ext['modelos']['ml_mora_cae']['exce
 def lectura_parametros_modelo():
     """
     Lee y prepara los parámetros necesarios para el modelo de mora CAE.
-    
-    Lee tres componentes principales del archivo de parámetros:
-    1. Factores de mora específicos para CAE
-    2. Matriz de mora para cálculos de flujos
-    3. Factores globales de mora
+    JSON preferido, fallback a Excel.
     
     Returns:
         tuple: (factores_mora, matriz_mora_cae, factores_globales_mora)
@@ -42,9 +38,13 @@ def lectura_parametros_modelo():
             - matriz_mora_cae: Matriz 366x366 para cálculos de flujos
             - factores_globales_mora: Factor global de mora (escalar)
     """
-    factores_mora = pd.read_excel(RUTA_PARAMETOS_MORA_CAE, sheet_name="FACTORES_MORA", dtype={"FACTOR_MORA_CAE": "float"})
-    matriz_mora_cae = pd.read_excel(RUTA_PARAMETOS_MORA_CAE, sheet_name="MATRIZ_CAE")
-    factores_globales_mora = pd.read_excel(RUTA_PARAMETOS_MORA_CAE, sheet_name="FACTORES_GLOBALES").iloc[0,0]
+    from procesamiento_datos_input.cargador_parametros import cargar_hojas_parametros
+
+    hojas = cargar_hojas_parametros("ml_mora_cae")
+    factores_mora = hojas["FACTORES_MORA"]
+    factores_mora["FACTOR_MORA_CAE"] = factores_mora["FACTOR_MORA_CAE"].astype(float)
+    matriz_mora_cae = hojas["MATRIZ_CAE"]
+    factores_globales_mora = hojas["FACTORES_GLOBALES"].iloc[0,0]
     return factores_mora, matriz_mora_cae.iloc[:366,:366], factores_globales_mora
 
 def lectura_interfaz_de_datos(fecha_t: datetime.datetime)-> pd.DataFrame:

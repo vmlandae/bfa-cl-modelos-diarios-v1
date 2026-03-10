@@ -33,35 +33,30 @@ ARCHIVO_PARAMETROS = cr.resolver_ruta(config_ext['modelos']['mr_prepago_consumo'
 
 def lectura_parametros_modelo() -> Dict[str, Any]:
     """
-    Lee los parámetros del modelo desde el archivo de configuración Excel.
+    Lee los parámetros del modelo (JSON preferido, fallback Excel).
     
     Returns:
         Dict[str, Any]: Diccionario con las siguientes claves:
             - 'SMM_MODELO': Diccionario con las tasas SMM de prepago por subproducto
             - 'ESCENARIOS': Diccionario con la configuración de escenarios
     """
-    print("      • Leyendo parámetros del modelo desde Excel...")
-    
-    if not ARCHIVO_PARAMETROS.exists():
-        raise FileNotFoundError(f"No se encontró el archivo de parámetros: {ARCHIVO_PARAMETROS}")
-    
-    # Leer SMM_MODELO desde la hoja SMM_PREPAGO (ahora con 5 columnas)
-    df_smm = pd.read_excel(ARCHIVO_PARAMETROS, sheet_name='SMM_PREPAGO')
-    
-    # Crear diccionario con cada columna como una lista
+    from procesamiento_datos_input.cargador_parametros import cargar_hojas_parametros
+
+    print("      • Leyendo parámetros del modelo...")
+    hojas = cargar_hojas_parametros("mr_prepago_consumo")
+
+    # SMM_MODELO desde hoja SMM_PREPAGO
+    df_smm = hojas["SMM_PREPAGO"]
     smm_modelo_dict = {}
     nombre_subproductos = ["CONSUMO", "AUTOMOTRIZ", "REFINANCIADO", "RENEGOCIADO", "CONSOLIDADO"]
     count=0
     for columna in df_smm.columns:
-        # Eliminar valores NaN y convertir a lista
         smm_modelo_dict[nombre_subproductos[count]] = df_smm[columna].dropna().tolist()
         print(f"        - {len(smm_modelo_dict[nombre_subproductos[count]])} tasas SMM cargadas para {nombre_subproductos[count]}")
         count += 1
-    
-    # Leer ESCENARIOS desde la hoja ESCENARIO
-    df_escenarios = pd.read_excel(ARCHIVO_PARAMETROS, sheet_name='ESCENARIO')
-    
-    # Asumiendo que el Excel tiene columnas: ID_ESCENARIO, DESCRIPCION, PHI
+
+    # ESCENARIOS desde hoja ESCENARIO
+    df_escenarios = hojas["ESCENARIO"]
     escenarios_dict = {}
     for _, row in df_escenarios.iterrows():
         id_esc = int(row['ID_ESCENARIO'])

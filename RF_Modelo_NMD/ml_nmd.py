@@ -149,16 +149,20 @@ def cargar_dap_contractual(fecha_t: datetime) -> pd.DataFrame:
 
 def cargar_parametros() -> tuple[pd.DataFrame, dict, pd.DataFrame, pd.DataFrame]:
     """
-    Carga los parámetros del modelo desde archivos Excel.
-    Incluye factores de decay rate y parámetros de core vigente.
+    Carga los parámetros del modelo.
+    FACTORES: JSON preferido, fallback Excel.
+    CORE_VIGENTE: siempre desde Excel de red (archivo externo, no migrado).
     """
+    from procesamiento_datos_input.cargador_parametros import cargar_hojas_parametros
+
     print("      • Leyendo parámetros del modelo...")
     
-    # Cargar parámetros de decay rate
-    parametros_modelo = pd.read_excel(RUTA_PARAMETROS_NMD, sheet_name="FACTORES")
+    # FACTORES desde JSON/Excel local
+    hojas = cargar_hojas_parametros("ml_nmd")
+    parametros_modelo = hojas["FACTORES"]
     print(f"        - Factores de decay rate cargados: {len(parametros_modelo)} productos")
     
-    # Cargar parámetros de core vigente
+    # CORE_VIGENTE desde Excel de red (no migrado a JSON)
     parametros_core = pd.read_excel(RUTA_PARAMETROS_CORE, sheet_name="CORE_VIGENTE")
     
     # Transponer parámetros core para formato largo

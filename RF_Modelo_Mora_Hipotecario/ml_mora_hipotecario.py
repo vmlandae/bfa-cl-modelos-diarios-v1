@@ -27,9 +27,14 @@ RUTA_OUTPUT_MODELO = cr.resolver_ruta(config_ext['modelos']['ml_mora_hipotecario
     
 
 def lectura_parametros_modelo():
-    factores_mora = pd.read_excel(RUTA_PARAMETOS_MORA_HIPOTECARIO, sheet_name="FACTORES_MORA", dtype={"FACTOR_MORA_HIPOTECARIO": "float"})
-    matriz_mora_hipotecario = pd.read_excel(RUTA_PARAMETOS_MORA_HIPOTECARIO, sheet_name="MATRIZ_HIPOTECARIO")
-    factores_globales_mora = pd.read_excel(RUTA_PARAMETOS_MORA_HIPOTECARIO, sheet_name="FACTORES_GLOBALES").iloc[0,0]
+    """Lee parámetros de mora hipotecario (JSON preferido, fallback Excel)."""
+    from procesamiento_datos_input.cargador_parametros import cargar_hojas_parametros
+
+    hojas = cargar_hojas_parametros("ml_mora_hipotecario")
+    factores_mora = hojas["FACTORES_MORA"]
+    factores_mora["FACTOR_MORA_HIPOTECARIO"] = factores_mora["FACTOR_MORA_HIPOTECARIO"].astype(float)
+    matriz_mora_hipotecario = hojas["MATRIZ_HIPOTECARIO"]
+    factores_globales_mora = hojas["FACTORES_GLOBALES"].iloc[0,0]
     return factores_mora, matriz_mora_hipotecario.iloc[:366,:366], factores_globales_mora
 
 def lectura_interfaz_de_datos(fecha_t: datetime.datetime)-> pd.DataFrame:
