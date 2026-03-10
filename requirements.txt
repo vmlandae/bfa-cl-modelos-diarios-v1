@@ -93,6 +93,7 @@ watchdog==6.0.0
 wcwidth==0.4.0
 widgetsnbextension==4.0.15
 xlrd==2.0.2
+xlsxwriter==3.2.9
 zipp==3.23.0
 zope.interface==8.1.1
 

@@ -6,7 +6,7 @@ import datetime
 import yaml
 from pathlib import Path
 import sys
-import bfa_cl_utilidades as ut
+from core.excel_output import guardar_excel
 
 
 
@@ -404,10 +404,11 @@ def procesamiento_y_guardado(
 
     print("\n      • Guardando resultados...")
     print("        - Actualizando archivo principal...")
-    ut.cargar_datos_xlsm(ruta_archivo=ARCHIVO_OUTPUT_MODELO,
-                         nombre_hoja="DESARROLLO",
-                         datos=tabla_desarrollo,
-                         formatos_columnas=formatos_excel)
+    guardar_excel(
+        ruta_archivo=ARCHIVO_OUTPUT_MODELO,
+        hojas={"DESARROLLO": tabla_desarrollo},
+        formatos_columnas=formatos_excel,
+    )
     print("          ✓ Archivo principal actualizado")
 
     # print("        - Guardando copia en directorio de ejecuciones...")

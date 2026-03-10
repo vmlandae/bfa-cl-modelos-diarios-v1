@@ -5,6 +5,7 @@ import yaml
 import sys
 import bfa_cl_utilidades as ut
 import math
+from core.excel_output import guardar_excel
 from scipy.stats import norm
 from pathlib import Path
 
@@ -344,11 +345,11 @@ def ejecutar_modelo(fecha_proceso: datetime) -> bool:
         }
         
         print("        - Actualizando archivo principal...")
-        ut.cargar_datos_xlsm(ruta_archivo=RUTA_OUTPUT_MODELO,
-                             nombre_hoja="DESARROLLO",
-                             datos=tabla_desarrollo,
-                             formatos_columnas=formatos_excel
-                             )
+        guardar_excel(
+            ruta_archivo=RUTA_OUTPUT_MODELO,
+            hojas={"DESARROLLO": tabla_desarrollo},
+            formatos_columnas=formatos_excel,
+        )
         print("          ✓ Archivo principal actualizado")
         
         print("\n" + "="*60)

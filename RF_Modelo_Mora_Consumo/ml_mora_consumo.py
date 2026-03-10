@@ -5,7 +5,7 @@ import datetime
 import yaml
 from pathlib import Path
 import sys
-import bfa_cl_utilidades as ut
+from core.excel_output import guardar_excel
 
 ### Para una ejecucion directa del script
 # BASE_DIR = Path(__file__).resolve().parent.parent
@@ -361,52 +361,32 @@ def procesamiento_y_guardado(fecha_t: datetime.datetime,
 
     print("\n      • Guardando resultados en archivo Excel...")
 
-    print(f"        - Guardando hoja 'DESARROLLO_MODELO' con {len(tabla_desarrollo):,} registros")
-    ut.cargar_datos_xlsm(ruta_archivo=RUTA_OUTPUT_MODELO,
-                         nombre_hoja="DESARROLLO_MODELO",
-                         datos=tabla_desarrollo[tabla_desarrollo["CODIGO_SUBPRODUCTO"] != "ML_C46_MORA_CREDITO_RENEGOCIADO"],
-                         formatos_columnas=formatos_excel
-                         )
-    print(f"        - Guardando hoja 'DESARROLLO_MODELO_RENEGOCIADO' con {len(tabla_desarrollo):,} registros")
-    ut.cargar_datos_xlsm(ruta_archivo=RUTA_OUTPUT_MODELO_RENEGOCIADO,
-                         nombre_hoja="DESARROLLO_MODELO",
-                         datos=tabla_desarrollo[tabla_desarrollo["CODIGO_SUBPRODUCTO"] == "ML_C46_MORA_CREDITO_RENEGOCIADO"],
-                         formatos_columnas=formatos_excel
-                         )
+    cols_detalle = ["FECHA_PROCESO","PRODUCTO",'FECHA_VENCIMIENTO_CUOTA_MODELO', 'FECHA_VENCIMIENTO_CUOTA', 
+                    'FLUJO_MO','AMORTIZACION_MO', 'INTERES_MO', 
+                    'FLUJO_MODELO_MO','AMORTIZACION_MODELO_MO', 'INTERES_MODELO_MO', 
+                    'FLUJO_MORA_VIGENTE_MO','AMORTIZACION_MORA_VIGENTE_MO', 'INTERES_MORA_VIGENTE_MO']
 
-    print(f"        - Guardando hoja 'DESARROLLO' con {len(tabla_desarrollo_output):,} registros")
-    ut.cargar_datos_xlsm(ruta_archivo=RUTA_OUTPUT_MODELO,
-                        nombre_hoja="DESARROLLO",
-                        datos=tabla_desarrollo_output,
-                        formatos_columnas=formatos_excel
-                        )
+    print(f"        - Guardando archivo principal con 3 hojas...")
+    guardar_excel(
+        ruta_archivo=RUTA_OUTPUT_MODELO,
+        hojas={
+            "DESARROLLO_MODELO": tabla_desarrollo[tabla_desarrollo["CODIGO_SUBPRODUCTO"] != "ML_C46_MORA_CREDITO_RENEGOCIADO"],
+            "DESARROLLO": tabla_desarrollo_output,
+            "DETALLE_FLUJOS": flujo_estimado_agrupado[flujo_estimado_agrupado['PRODUCTO']!='RENEGOCIADO'][cols_detalle],
+        },
+        formatos_columnas=formatos_excel,
+    )
 
-    print(f"        - Guardando hoja 'DESARROLLO_RENEGOCIADO' con {len(tabla_desarrollo_renegociado_output):,} registros")
-    ut.cargar_datos_xlsm(ruta_archivo=RUTA_OUTPUT_MODELO_RENEGOCIADO,
-                        nombre_hoja="DESARROLLO",
-                        datos=tabla_desarrollo_renegociado_output,
-                        formatos_columnas=formatos_excel
-                        )
-                        
-    print(f"        - Guardando hoja 'DETALLE_FLUJOS' con {len(flujo_estimado_agrupado):,} registros")
-    ut.cargar_datos_xlsm(ruta_archivo=RUTA_OUTPUT_MODELO,
-                        nombre_hoja="DETALLE_FLUJOS",
-                        datos=flujo_estimado_agrupado[flujo_estimado_agrupado['PRODUCTO']!='RENEGOCIADO'][["FECHA_PROCESO","PRODUCTO",'FECHA_VENCIMIENTO_CUOTA_MODELO', 'FECHA_VENCIMIENTO_CUOTA', 
-                                               'FLUJO_MO','AMORTIZACION_MO', 'INTERES_MO', 
-                                               'FLUJO_MODELO_MO','AMORTIZACION_MODELO_MO', 'INTERES_MODELO_MO', 
-                                               'FLUJO_MORA_VIGENTE_MO','AMORTIZACION_MORA_VIGENTE_MO', 'INTERES_MORA_VIGENTE_MO']],
-                        formatos_columnas=formatos_excel
-                        )
-
-    print(f"        - Guardando hoja 'DETALLE_FLUJOS_RENEGOCIADO' con {len(flujo_estimado_agrupado):,} registros")
-    ut.cargar_datos_xlsm(ruta_archivo=RUTA_OUTPUT_MODELO_RENEGOCIADO,
-                        nombre_hoja="DETALLE_FLUJOS",
-                        datos=flujo_estimado_agrupado[flujo_estimado_agrupado['PRODUCTO']=='RENEGOCIADO'][["FECHA_PROCESO","PRODUCTO",'FECHA_VENCIMIENTO_CUOTA_MODELO', 'FECHA_VENCIMIENTO_CUOTA', 
-                                                'FLUJO_MO','AMORTIZACION_MO', 'INTERES_MO', 
-                                                'FLUJO_MODELO_MO','AMORTIZACION_MODELO_MO', 'INTERES_MODELO_MO', 
-                                                'FLUJO_MORA_VIGENTE_MO','AMORTIZACION_MORA_VIGENTE_MO', 'INTERES_MORA_VIGENTE_MO']],
-                        formatos_columnas=formatos_excel
-                        )
+    print(f"        - Guardando archivo renegociado con 3 hojas...")
+    guardar_excel(
+        ruta_archivo=RUTA_OUTPUT_MODELO_RENEGOCIADO,
+        hojas={
+            "DESARROLLO_MODELO": tabla_desarrollo[tabla_desarrollo["CODIGO_SUBPRODUCTO"] == "ML_C46_MORA_CREDITO_RENEGOCIADO"],
+            "DESARROLLO": tabla_desarrollo_renegociado_output,
+            "DETALLE_FLUJOS": flujo_estimado_agrupado[flujo_estimado_agrupado['PRODUCTO']=='RENEGOCIADO'][cols_detalle],
+        },
+        formatos_columnas=formatos_excel,
+    )
 
 
     # print("\n      • Respaldando archivo en carpeta de ejecuciones...")
