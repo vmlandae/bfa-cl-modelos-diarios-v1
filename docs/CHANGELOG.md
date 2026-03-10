@@ -5,6 +5,36 @@ Registro de cambios y actualizaciones del proyecto BFA-CL Modelos Diarios.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0-dev] - 2026-03-10 - Sprint S5: Optimización de Rendimiento del Pipeline
+
+### Agregado
+- **Ejecución secuencial V1 (F21)** (`core/orquestador.py`): reemplazar `ThreadPoolExecutor` por loop `for` secuencial
+  - Benchmark demostró speedup 1.01× con threading (GIL elimina beneficio para CPU-bound)
+  - Reduce ~83 MB de consumo de RAM y simplifica debugging/logging
+  - Rama: `feat/v1-secuencial` (239b62a)
+- **WHERE exacto Access inversiones (F22)** (`RF_Modelo_Inversiones/io/data_sources.py`): filtrar `RF_base_Completa_Hist` con `WHERE Fec_Pro = fecha` en vez de cargar tabla completa
+  - Reduce de ~308K filas (6 fechas) a ~51K filas (1 fecha)
+  - Test `test_where_completa_hist.py` valida que output de cartera es idéntico con/sin WHERE
+  - Verificado: BQ hist vs daily = MATCH PERFECTO (828 filas, schema idéntico)
+  - Rama: `feat/where-access-inversiones` (1a04bf6, 6d760e8)
+- **xlsxwriter para output Excel (F23)**: reemplazar openpyxl por xlsxwriter en los 10 modelos
+  - Nuevo `core/excel_output.py` con `guardar_excel()` que agrupa múltiples hojas en una escritura
+  - 9 modelos migrados de `ut.cargar_datos_xlsm()` (openpyxl) a `guardar_excel()` (xlsxwriter)
+  - Inversiones: `engine='openpyxl'` → `engine='xlsxwriter'` en `excel_writer.py`
+  - Confirmado: 10 archivos .xlsm con 0 macros VBA (vbaProject vacío en todos)
+  - Benchmark: openpyxl 2.07s vs xlsxwriter 1.16s (~2× más rápido, 2 hojas × 5000 filas)
+  - mora_consumo: 6 llamadas → 2 llamadas (1 por archivo output)
+  - Rama: `feat/xlsxwriter-output` (7e74573)
+- **Benchmark pipeline completo (F24)** (`sandbox/benchmark_pipeline_completo.py`): script de instrumentación de las 4 fases del pipeline
+  - Rama: `feat/benchmark-pipeline` (60e7036)
+- **Dashboard control histórico BQ** (`dashboard/app.py`): WIP Streamlit dashboard comparando SUM(AMORTIZACION) t vs t-1
+  - Rama: `feat/dashboard-control-historico` (0b82bf6)
+
+### Cambiado
+- **Config YAML**: 10 extensiones de output `.xlsm` → `.xlsx` (sin macros VBA)
+- **requirements.txt**: +`xlsxwriter==3.2.9`
+- **Env conda**: `bfa-cl-modelos` → `bfa-cl-modelos-v2`
+
 ## [1.7.0-dev] - 2026-03-02 - Snapshots, Idempotencia y Documentación Integral
 
 ### Agregado
