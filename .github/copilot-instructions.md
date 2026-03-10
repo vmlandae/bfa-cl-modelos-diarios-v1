@@ -7,8 +7,8 @@ PowerShell 7+ (pwsh) is available via Scoop. The `powershell` tool can be used t
 
 ## Python environment
 
-- Conda env: `bfa-cl-modelos` (activate: `conda activate bfa-cl-modelos`)
-- Python executable: `/c/Users/vlandaetat/AppData/Local/anaconda3/envs/bfa-cl-modelos/python`
+- Conda env: `bfa-cl-modelos-v2` (activate: `conda activate bfa-cl-modelos-v2`)
+- Python executable: `/c/Users/vlandaetat/AppData/Local/anaconda3/envs/bfa-cl-modelos-v2/python`
 - Always use this Python, never the base Anaconda or system Python.
 
 ## Project context
