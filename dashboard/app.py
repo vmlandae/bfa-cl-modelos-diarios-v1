@@ -17,11 +17,31 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
-import streamlit as st
+_DEPS_FALTANTES = []
+try:
+    import streamlit as st
+except ImportError:
+    _DEPS_FALTANTES.append("streamlit")
+
+try:
+    import plotly.graph_objects as go
+except ImportError:
+    _DEPS_FALTANTES.append("plotly")
+
+try:
+    from google.cloud import bigquery
+    from google.oauth2 import service_account
+except ImportError:
+    _DEPS_FALTANTES.append("google-cloud-bigquery")
+
+if _DEPS_FALTANTES:
+    print(
+        f"ERROR: Faltan dependencias para el dashboard: {', '.join(_DEPS_FALTANTES)}\n"
+        f"Instalar con: pip install {' '.join(_DEPS_FALTANTES)}"
+    )
+    sys.exit(1)
+
 import pandas as pd
-import plotly.graph_objects as go
-from google.cloud import bigquery
-from google.oauth2 import service_account
 
 from config import config_rutas as cr
 
