@@ -163,7 +163,7 @@ def exportar_excel_modelo_inversiones(
     if verbose:
         print(f"\n  Exportando Excel: {ruta.name}")
 
-    with pd.ExcelWriter(ruta, engine='openpyxl') as writer:
+    with pd.ExcelWriter(ruta, engine='xlsxwriter') as writer:
         df_interfaz.to_excel(
             writer, sheet_name='INTERFAZ_MODELO_INVERSIONES', index=False)
         df_modelo_inversiones.to_excel(

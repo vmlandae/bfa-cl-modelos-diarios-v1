@@ -6,6 +6,7 @@ import yaml
 from pathlib import Path
 import sys
 import bfa_cl_utilidades as ut
+from core.excel_output import guardar_excel
 
 # Configuración de importación para ejecución directa
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -692,21 +693,16 @@ def ejecutar_modelo(fecha_proceso: datetime) -> bool:
             "FECHA_REPRICING": "dd-mm-yyyy"
         }
         
-        print("      • Guardando hoja de flujos...")
-        ut.cargar_datos_xlsm(ruta_archivo=RUTA_OUTPUT_MODELO,
-                             nombre_hoja="FLUJOS",
-                             datos=tabla_final_flujos,
-                             formatos_columnas=formatos_excel
-                             )
-        print("        ✓ Hoja FLUJOS actualizada")
-        
-        print("      • Guardando hoja de desarrollo...")
-        ut.cargar_datos_xlsm(ruta_archivo=RUTA_OUTPUT_MODELO,
-                             nombre_hoja="DESARROLLO",
-                             datos=tabla_desarrollo,
-                             formatos_columnas=formatos_excel
-                             )
-        print("        ✓ Hoja DESARROLLO actualizada")
+        print("      • Guardando resultados en archivo Excel...")
+        guardar_excel(
+            ruta_archivo=RUTA_OUTPUT_MODELO,
+            hojas={
+                "FLUJOS": tabla_final_flujos,
+                "DESARROLLO": tabla_desarrollo,
+            },
+            formatos_columnas=formatos_excel,
+        )
+        print("        ✓ Hojas FLUJOS y DESARROLLO actualizadas")
         
         print("\n" + "="*50)
         print("PROCESO FINALIZADO EXITOSAMENTE")

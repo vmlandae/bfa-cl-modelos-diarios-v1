@@ -5,7 +5,7 @@ import datetime
 import yaml
 from pathlib import Path
 import sys
-import bfa_cl_utilidades as ut
+from core.excel_output import guardar_excel
 
 # Configuración de importación para ejecución directa
 # BASE_DIR = Path(__file__).resolve().parent.parent
@@ -265,21 +265,18 @@ def procesamiento_y_guardado(fecha_t: datetime.datetime,
 
     print("      • Guardando resultados en archivo Excel...")
     print(f"        - Guardando hoja 'DESARROLLO' con {len(tabla_desarrollo):,} registros")
-    ut.cargar_datos_xlsm(ruta_archivo=RUTA_OUTPUT_MODELO,
-                         nombre_hoja="DESARROLLO",
-                         datos=tabla_desarrollo,
-                         formatos_columnas=formatos_excel
-                         )
-    
-    print(f"        - Guardando hoja 'DETALLE_FLUJOS' con {len(flujo_estimado_iter):,} registros")                     
-    ut.cargar_datos_xlsm(ruta_archivo=RUTA_OUTPUT_MODELO,
-                        nombre_hoja="DETALLE_FLUJOS",
-                        datos=flujo_estimado_iter[["FECHA_PROCESO","PRODUCTO",'FECHA_VENCIMIENTO_CUOTA_MODELO', 'FECHA_VENCIMIENTO_CUOTA', 
+    print(f"        - Guardando hoja 'DETALLE_FLUJOS' con {len(flujo_estimado_iter):,} registros")
+    guardar_excel(
+        ruta_archivo=RUTA_OUTPUT_MODELO,
+        hojas={
+            "DESARROLLO": tabla_desarrollo,
+            "DETALLE_FLUJOS": flujo_estimado_iter[["FECHA_PROCESO","PRODUCTO",'FECHA_VENCIMIENTO_CUOTA_MODELO', 'FECHA_VENCIMIENTO_CUOTA', 
                                                 'FLUJO_MO','AMORTIZACION_MO', 'INTERES_MO', 
                                                 'FLUJO_MODELO_MO','AMORTIZACION_MODELO_MO', 'INTERES_MODELO_MO', 
                                                 'FLUJO_MORA_VIGENTE_MO','AMORTIZACION_MORA_VIGENTE_MO', 'INTERES_MORA_VIGENTE_MO']],
-                        formatos_columnas=formatos_excel
-                        )
+        },
+        formatos_columnas=formatos_excel,
+    )
 
     # print("      • Respaldando archivo en carpeta de ejecuciones...")
     # ut.copia_archivo_en_ruta(RUTA_OUTPUT_MODELO,

@@ -6,6 +6,7 @@ import yaml
 from pathlib import Path
 import sys
 import bfa_cl_utilidades as ut
+from core.excel_output import guardar_excel
 
 # # Para una ejecucion directa del script
 # BASE_DIR = Path(__file__).resolve().parent.parent
@@ -463,10 +464,11 @@ def procesamiento_y_guardado(fecha_t: datetime.datetime,
 
     print("\n      • Guardando resultados...")
     print("        - Actualizando archivo principal...")
-    ut.cargar_datos_xlsm(ruta_archivo=ARCHIVO_OUTPUT_MODELO,
-                         nombre_hoja="DESARROLLO",
-                         datos=tabla_desarrollo,
-                         formatos_columnas=formatos_excel)
+    guardar_excel(
+        ruta_archivo=ARCHIVO_OUTPUT_MODELO,
+        hojas={"DESARROLLO": tabla_desarrollo},
+        formatos_columnas=formatos_excel,
+    )
     print("          ✓ Archivo principal actualizado")
 
 
