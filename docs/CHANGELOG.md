@@ -5,7 +5,52 @@ Registro de cambios y actualizaciones del proyecto BFA-CL Modelos Diarios.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.8.0-dev] - 2026-03-10 - Sprint S5: Optimización de Rendimiento del Pipeline
+## [1.9.0-dev] - 2026-03-11 - Sprint S5: Handoff Practicante + Observabilidad Remota
+
+### Agregado
+- **Parametros JSON con fallback (F20)** (`tools/excel_a_json.py`, `procesamiento_datos_input/cargador_parametros.py`): migrar parametros de Excel a JSON
+  - Herramienta de migracion `tools/excel_a_json.py` genera 9 archivos JSON con schema consistente
+  - `cargador_parametros.py` reescrito: carga JSON primario con fallback a Excel
+  - Todos los modelo integrados con nuevo sistema de carga
+  - Rama: `feat/F20-parametros-json` (4afdd4d)
+- **Reporte de ejecucion (F25)** (`core/reporte_ejecucion.py`): reportes estructurados post-ejecucion
+  - Clase `ReporteEjecucion` con tracking por modelo (inicio/fin/duracion/status/error)
+  - Benchmark historico contra promedio de ejecuciones anteriores (`data/benchmark/historial.jsonl`)
+  - Alertas automaticas cuando duracion >50% sobre promedio historico
+  - Output: JSON estructurado + Markdown legible en `reports/{YYYYMMDD}/`
+  - Rama: `sprint/S5-optimizacion-pipeline` (e06d80c)
+- **Sincronizacion BigQuery (F25)** (`core/sync_reportes.py`): reportes de ejecucion a BigQuery
+  - Tabla `bfa_cl_prd_financial_risk_dly_proc_models.reportes_ejecucion` (auto-creada)
+  - Fallback local en `reports/_pendientes_sync/` si falla la conexion
+  - `sync_pendientes()` para reintentar uploads fallidos
+  - Rama: `sprint/S5-optimizacion-pipeline` (e06d80c)
+- **Health check de entorno** (`tools/check_env.py`): diagnostico de 14 puntos
+  - Python, conda, dependencias, ODBC Access, GCP, YAML, carpetas, red, BigQuery
+  - `--rapido` omite checks de red; `--json-only` para scripts
+  - Integrado en `main.py` como `--check-env`
+  - Compatible con cmd.exe (cp1252 safe, UTF-8 reconfigure)
+  - Rama: `sprint/S5-optimizacion-pipeline` (16b35a8)
+- **Scripts wrapper .bat** para practicante:
+  - `setup_env.bat`: crea env conda + instala deps + wheel + health check
+  - `run_diario.bat`: menu interactivo (fecha, vueltas, carga GCP, consolidar)
+  - `check_env.bat`: wrapper para health check completo
+  - Rama: `sprint/S5-optimizacion-pipeline` (91828f6)
+- **Wheel vendorizado** (`vendor/bfa_cl_utilidades-1.0.4-py3-none-any.whl`): instalacion offline de bfa_cl_utilidades
+  - Elimina dependencia de `Z:/RF_INSTALADORES/` para setup del practicante
+  - Rama: `sprint/S5-optimizacion-pipeline` (fca5dbe)
+- **Documentacion handoff** (`docs/guia/`):
+  - `SETUP.md`: guia de instalacion paso a paso para practicante
+  - `DAILY_WORKFLOW.md`: flujo de trabajo diario detallado
+  - `TROUBLESHOOTING.md`: solucion de problemas comunes
+  - `docs/feats/handoff-practicante/PLAN.md`: plan completo del feature
+
+### Cambiado
+- **`core/orquestador.py`**: integrado `ReporteEjecucion` — tracking automatico de inicio/fin/error por modelo
+- **`main.py`**: generacion de reporte + sync a BigQuery post-ejecucion; flag `--check-env`
+- **`README.md`**: actualizado con `.xlsx` (era `.xlsm`), nuevos modulos core, `.bat` scripts, `vendor/`, `reports/`, `tools/`
+- **`docs/`**: actualizados index.md, guia/instalacion.md, guia/uso-basico.md, desarrollo/arquitectura.md, mkdocs.yml
+
+## [1.8.0-dev] - 2026-03-10 - Sprint S5: Optimizacion de Rendimiento del Pipeline
 
 ### Agregado
 - **Ejecución secuencial V1 (F21)** (`core/orquestador.py`): reemplazar `ThreadPoolExecutor` por loop `for` secuencial

@@ -1,7 +1,7 @@
 # BFA-CL Modelos Diarios
 
 > **Última actualización por:** vlandaetat  
-> **Fecha:** 2026-03-02
+> **Fecha:** 2026-03-11
 
 Bienvenido a la documentación del sistema de **Modelos Diarios de Riesgo Financiero**.
 
@@ -16,16 +16,27 @@ Sistema de ejecución automatizada de modelos de riesgo financiero que:
 
 ## Inicio Rápido
 
-```bash
-# Clonar repositorio
-git clone https://gitlab.falabella.tech/rmunozb/bfa-cl-modelos-diarios.git
+=== "Practicante (ZIP)"
 
-# Instalar dependencias
-pip install -r requirements.txt
+    ```
+    1. Descomprimir ZIP en C:\Users\TU_USUARIO\code\
+    2. Doble-click en setup_env.bat
+    3. Doble-click en check_env.bat (verificar 14/14 OK)
+    4. Doble-click en run_diario.bat
+    ```
 
-# Ejecutar interfaz gráfica
-python main.py
-```
+    Ver [Guía de Setup Completa](guia/SETUP.md) para más detalles.
+
+=== "Desarrollador (Git)"
+
+    ```bash
+    git clone https://gitlab.falabella.tech/rmunozb/bfa-cl-modelos-diarios.git
+    conda create -n bfa-cl-modelos-v2 python=3.11 -y
+    conda activate bfa-cl-modelos-v2
+    pip install -r requirements.txt
+    pip install vendor/bfa_cl_utilidades-1.0.4-py3-none-any.whl
+    python main.py --check-env
+    ```
 
 ## Modelos Disponibles
 
@@ -47,15 +58,24 @@ python main.py
 ```
 bfa-cl-modelos-diarios/
 ├── main.py                     # Punto de entrada
+├── setup_env.bat               # Instalación automática
+├── run_diario.bat              # Ejecución diaria interactiva
+├── check_env.bat               # Verificación de entorno
 ├── config/                     # Configuraciones
-├── core/                       # Orquestador + logger
+├── core/                       # Motor del sistema
 │   ├── orquestador.py          # Orquestación de modelos
-│   └── logger.py               # Logging JSONL + consola
+│   ├── logger.py               # Logging JSONL + consola
+│   ├── excel_output.py         # Escritura Excel (xlsxwriter)
+│   ├── reporte_ejecucion.py    # Reportes + benchmark (F25)
+│   └── sync_reportes.py        # Sync reportes a BigQuery (F25)
 ├── gui/                        # Interfaz gráfica
 ├── procesamiento_datos_input/  # Carga de datos + caché
 ├── carga_modelos_gcp/          # Carga a BigQuery (daily + hist)
 ├── RF_Modelo_*/                # Módulos de cada modelo
+├── vendor/                     # bfa_cl_utilidades .whl
+├── tools/                      # Scripts de utilidad
 ├── logs/                       # Logs JSONL por fecha
+├── reports/                    # Reportes de ejecución
 ├── snapshots/                  # Snapshots de parámetros (F02)
 └── docs/                       # Documentación
 ```

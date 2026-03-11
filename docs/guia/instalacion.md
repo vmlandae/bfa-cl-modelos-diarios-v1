@@ -3,14 +3,18 @@
 > **Autor:** vlandaetat  
 > **Fecha de creación:** 2026-01-29  
 > **Última edición por:** vlandaetat  
-> **Fecha última edición:** 2026-01-29
+> **Fecha última edición:** 2026-03-11
 
 ---
 
+!!! tip "Practicante / Primera vez?"
+    Si recibiste un ZIP, ve directo a [Setup Practicante](SETUP.md) que tiene instrucciones paso a paso con scripts automáticos.
+
 ## Requisitos Previos
 
-- Python 3.10 o superior
-- Acceso a carpetas compartidas de red (para inputs)
+- Anaconda o Miniconda (Python 3.11+)
+- Acceso VPN a red interna (para `\\vmdvorak`)
+- Microsoft Access Database Engine 2016 (64-bit)
 - Credenciales de Google Cloud Platform
 - Git
 
@@ -23,26 +27,18 @@ git clone https://gitlab.falabella.tech/rmunozb/bfa-cl-modelos-diarios.git
 cd bfa-cl-modelos-diarios
 ```
 
-### 2. Crear entorno virtual (recomendado)
+### 2. Crear entorno conda
 
-=== "Windows"
-
-    ```bash
-    python -m venv .venv
-    .venv\Scripts\activate
-    ```
-
-=== "Linux/Mac"
-
-    ```bash
-    python -m venv .venv
-    source .venv/bin/activate
-    ```
+```bash
+conda create -n bfa-cl-modelos-v2 python=3.11 -y
+conda activate bfa-cl-modelos-v2
+```
 
 ### 3. Instalar dependencias
 
 ```bash
 pip install -r requirements.txt
+pip install vendor/bfa_cl_utilidades-1.0.4-py3-none-any.whl
 ```
 
 ### 4. Configurar credenciales GCP
@@ -54,22 +50,14 @@ pip install -r requirements.txt
 ### 5. Verificar instalación
 
 ```bash
-python -c "import pandas; import openpyxl; import google.cloud.bigquery; print('✅ Todo OK')"
+python main.py --check-env
 ```
+
+Debe mostrar **14/14 OK**.
 
 ## Problemas Comunes
 
-### Error de conexión a carpetas compartidas
-
-Si ves errores de acceso a `\\vmdvorak\...`:
-
-1. Verificar que tienes acceso VPN activo
-2. Verificar permisos de usuario en las carpetas
-3. Probar acceder manualmente desde Explorador de Windows
-
-### Error de credenciales GCP
-
-Si ves `DefaultCredentialsError`:
+Ver [Troubleshooting](TROUBLESHOOTING.md) para la guía completa de solución de problemas.
 
 1. Verificar que el archivo JSON existe
 2. Verificar que la variable de entorno `GOOGLE_APPLICATION_CREDENTIALS` apunta al archivo
