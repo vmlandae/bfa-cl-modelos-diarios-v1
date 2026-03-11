@@ -27,6 +27,10 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 os.chdir(BASE_DIR)
 
+# ── Forzar UTF-8 en stdout (necesario para cmd.exe / cp1252) ─────────
+if sys.stdout.encoding and sys.stdout.encoding.lower().replace("-", "") != "utf8":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 # ── Colores ANSI para consola ────────────────────────────────────────
 _GREEN = "\033[92m"
 _RED = "\033[91m"
@@ -37,15 +41,15 @@ _BOLD = "\033[1m"
 
 
 def _ok(msg: str) -> str:
-    return f"  {_GREEN}✓{_RESET} {msg}"
+    return f"  {_GREEN}[OK]{_RESET} {msg}"
 
 
 def _fail(msg: str) -> str:
-    return f"  {_RED}✗{_RESET} {msg}"
+    return f"  {_RED}[FAIL]{_RESET} {msg}"
 
 
 def _warn(msg: str) -> str:
-    return f"  {_YELLOW}⚠{_RESET} {msg}"
+    return f"  {_YELLOW}[WARN]{_RESET} {msg}"
 
 
 # ── Checks individuales ──────────────────────────────────────────────
@@ -352,7 +356,7 @@ def ejecutar_checks(rapido: bool = False) -> dict:
 
 def imprimir_resultados(resultados: dict) -> None:
     """Imprime los resultados en consola con colores."""
-    print(f"\n{_BOLD}{_CYAN}═══ Health Check — Modelos Diarios ═══{_RESET}")
+    print(f"\n{_BOLD}{_CYAN}=== Health Check -- Modelos Diarios ==={_RESET}")
     print(f"  Fecha: {resultados['timestamp']}")
     print(f"  Host:  {resultados['hostname']}")
     print(f"  Modo:  {resultados['modo']}\n")
@@ -361,19 +365,19 @@ def imprimir_resultados(resultados: dict) -> None:
         if check["ok"]:
             print(_ok(f"{check['nombre']}: {check['detalle']}"))
         else:
-            etiqueta = "CRÍTICO" if check.get("critico") else "warning"
+            etiqueta = "CRITICO" if check.get("critico") else "warning"
             print(_fail(f"{check['nombre']}: {check['detalle']} [{etiqueta}]"))
 
     resumen = resultados["resumen"]
     print(f"\n{_BOLD}Resumen: {resumen['ok']}/{resumen['total']} OK", end="")
     if resumen["errores"] > 0:
-        print(f"  —  {_RED}{resumen['errores']} errores", end="")
+        print(f"  --  {_RED}{resumen['errores']} errores", end="")
         if resumen["criticos_fallidos"] > 0:
-            print(f" ({resumen['criticos_fallidos']} críticos)", end="")
+            print(f" ({resumen['criticos_fallidos']} criticos)", end="")
     print(f"{_RESET}\n")
 
     if resumen["criticos_fallidos"] > 0:
-        print(f"{_RED}{_BOLD}⚠ HAY ERRORES CRÍTICOS. Resolver antes de ejecutar modelos.{_RESET}\n")
+        print(f"{_RED}{_BOLD}!! HAY ERRORES CRITICOS. Resolver antes de ejecutar modelos.{_RESET}\n")
 
 
 def guardar_json(resultados: dict) -> Path:
