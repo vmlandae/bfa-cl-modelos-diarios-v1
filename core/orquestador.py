@@ -8,6 +8,7 @@ import traceback
 import yaml
 
 from core.logger import get_logger, contexto_modelo
+from core.reporte_ejecucion import ReporteEjecucion
 
 logger = get_logger(__name__)
 
@@ -16,6 +17,7 @@ _CONFIG_EXT_YAML = Path(__file__).resolve().parent.parent / "config" / "config_r
 
 class OrquestadorModelos:
     def __init__(self):
+        self.reporte: ReporteEjecucion | None = None
         self.modelos = {
             "mr_prepago_consumo": {
                 "nombre": "Modelo Prepago Consumo",
@@ -289,6 +291,8 @@ class OrquestadorModelos:
 
     def ejecutar_modelo(self, nombre_modelo: str, config: Dict[str, Any], fecha: datetime) -> bool:
         with contexto_modelo(nombre_modelo):
+            if self.reporte:
+                self.reporte.registrar_modelo_inicio(nombre_modelo)
             try:
                 logger.info(f"\n{'='*60}")
                 logger.info(f"Iniciando ejecución de {config['nombre']}")
@@ -301,11 +305,16 @@ class OrquestadorModelos:
                 modelo = importlib.import_module(config["modulo"])
                 
                 # Todos los modelos ahora tienen la función ejecutar_modelo unificada
-                return modelo.ejecutar_modelo(fecha)
+                resultado = modelo.ejecutar_modelo(fecha)
+                if self.reporte:
+                    self.reporte.registrar_modelo_fin(nombre_modelo, resultado)
+                return resultado
                 
             except Exception as e:
                 logger.error(f"Error en la ejecución de {config['nombre']}: {str(e)}")
                 logger.error(f"Detalles del error: {traceback.format_exc()}")
+                if self.reporte:
+                    self.reporte.registrar_modelo_fin(nombre_modelo, False, error_msg=str(e))
                 return False
 
     def cargar_modelos_gcp(self, modelos_a_cargar: List[str], fecha: datetime) -> Dict[str, bool]:
@@ -401,6 +410,11 @@ class OrquestadorModelos:
         """Ejecuta un único modelo de forma secuencial"""
         logger.info(f"Iniciando ejecución secuencial del modelo para fecha: {fecha.strftime('%Y-%m-%d')}")
 
+        # F25: Inicializar reporte si no viene de ejecutar_modelos_paralelo
+        if self.reporte is None:
+            self.reporte = ReporteEjecucion(fecha)
+            self.reporte.registrar_inicio()
+
         # F14: pre-ejecución (copia interfaz si es vuelta 1)
         self._pre_ejecucion_primera_vuelta([nombre_modelo], fecha)
         # F22: pre-ejecución (copia Access a local si es vuelta 2)
@@ -433,6 +447,10 @@ class OrquestadorModelos:
         consume ~83 MB menos de RAM y simplifica el debugging.
         Se mantiene el nombre del método por retrocompatibilidad con main.py y GUI.
         """
+        # F25: Inicializar reporte de ejecución
+        self.reporte = ReporteEjecucion(fecha)
+        self.reporte.registrar_inicio()
+
         if len(modelos_seleccionados) == 1:
             return self.ejecutar_modelo_secuencial(modelos_seleccionados[0], fecha)
 

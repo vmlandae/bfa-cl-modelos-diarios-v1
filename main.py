@@ -299,6 +299,19 @@ def ejecutar_modo_consola(args):
     # Mostrar tabla resumen final
     mostrar_tabla_resumen(orquestador, resultados, resultados_carga, args.cargar_gcp)
 
+    # F25: Generar reporte de ejecución y sincronizar a BigQuery
+    if orquestador.reporte:
+        orquestador.reporte.registrar_fin(resultados_carga_gcp=resultados_carga)
+        json_path = orquestador.reporte.guardar()
+
+        # Sincronizar a BigQuery (con fallback local si falla)
+        from core.sync_reportes import sync_reporte_a_bigquery, sync_pendientes
+        reporte_dict = orquestador.reporte.generar()
+        sync_reporte_a_bigquery(reporte_dict, fecha.strftime("%Y%m%d"))
+
+        # Reintentar pendientes anteriores (si hay)
+        sync_pendientes()
+
 def ejecutar_modo_gui():
     root = tk.Tk()
     interfaz = InterfazModelos(root)
