@@ -275,19 +275,33 @@ def copiar_interfaz_a_local(
                 _guardar_metadata(ruta_local, checksum_local)
                 return ruta_local
 
-            # Difieren → re-copiar
-            logger.info(
-                f"  🔄 Interfaz cambió en red — re-copiando: {ruta_local.name}\n"
-                f"    MD5 local: {checksum_local[:12]}...\n"
-                f"    MD5 red  : {checksum_red[:12]}..."
+            # Difieren → preservar versión anterior y re-copiar
+            ts_anterior = datetime.now().strftime("%H%M%S")
+            ruta_backup = ruta_local.with_suffix(f".pre_{ts_anterior}.txt")
+            shutil.copy2(str(ruta_local), str(ruta_backup))
+
+            logger.warning(
+                f"\n{'!'*60}\n"
+                f"  ⚠️  INTERFAZ PML CAMBIÓ EN RED\n"
+                f"{'!'*60}\n"
+                f"  Archivo   : {ruta_local.name}\n"
+                f"  MD5 local : {checksum_local[:12]}...\n"
+                f"  MD5 red   : {checksum_red[:12]}...\n"
+                f"  Backup    : {ruta_backup.name}\n"
+                f"\n"
+                f"  Se usará la versión nueva de la red.\n"
+                f"  Si ya ejecutó modelos de primera vuelta con la versión\n"
+                f"  anterior, considere re-ejecutarlos para consistencia.\n"
+                f"{'!'*60}"
             )
+
             # Invalidar parquet para forzar re-parseo
             _, _, ruta_parquet, _ = _resolver_rutas_interfaz(
                 ruta_red, fecha_proceso, cache_dir,
             )
             if ruta_parquet.exists():
                 ruta_parquet.unlink()
-                logger.info(f"    → Parquet invalidado: {ruta_parquet.name}")
+                logger.info(f"    Parquet invalidado: {ruta_parquet.name}")
 
         # --- Copiar desde red ---
         if not ruta_origen.exists():
