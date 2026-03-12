@@ -43,36 +43,44 @@ echo [OK] Entorno verificado.
 echo.
 
 :: ── Pedir fecha ────────────────────────────────────────────────────────────
-:: Calcular fecha de hoy como default
-for /f "tokens=1-3 delims=/" %%a in ('echo %date%') do (
-    set TODAY=%%c-%%b-%%a 2>nul
-)
-:: Fallback: usar Python para obtener la fecha
-for /f %%d in ('python -c "from datetime import datetime; print(datetime.now().strftime('%%Y-%%m-%%d'))"') do set TODAY=%%d
+:: Calcular t-1 habil (lun-vie): si hoy es lunes, t-1 = viernes anterior
+for /f %%d in ('python -c "from datetime import datetime,timedelta; t=datetime.now(); d={0:3,5:1,6:2}.get(t.weekday(),1); print((t-timedelta(days=d)).strftime('%%Y-%%m-%%d'))"') do set DEFAULT_FECHA=%%d
 
-echo Fecha de hoy: %TODAY%
-set /p FECHA="Ingrese fecha de ejecucion (YYYY-MM-DD) [%TODAY%]: "
-if "%FECHA%"=="" set FECHA=%TODAY%
+:: Mostrar dia de la semana de la fecha default
+for /f %%w in ('python -c "from datetime import datetime; dias=['Lunes','Martes','Miercoles','Jueves','Viernes','Sabado','Domingo']; print(dias[datetime.strptime('%DEFAULT_FECHA%','%%Y-%%m-%%d').weekday()])"') do set DIA_DEFAULT=%%w
+echo Fecha default (t-1 habil): %DEFAULT_FECHA% (%DIA_DEFAULT%)
+set /p FECHA="Ingrese fecha de ejecucion (YYYY-MM-DD) [%DEFAULT_FECHA%]: "
+if "%FECHA%"=="" set FECHA=%DEFAULT_FECHA%
 
-:: Validar formato de fecha
-python -c "from datetime import datetime; datetime.strptime('%FECHA%', '%%Y-%%m-%%d')" 2>nul
-if %ERRORLEVEL% neq 0 (
+:: Validar formato de fecha y obtener dia de la semana
+for /f %%w in ('python -c "from datetime import datetime; dias=['Lunes','Martes','Miercoles','Jueves','Viernes','Sabado','Domingo']; print(dias[datetime.strptime('%FECHA%','%%Y-%%m-%%d').weekday()])" 2^>nul') do set DIA_SEMANA=%%w
+if "%DIA_SEMANA%"=="" (
     echo [ERROR] Formato de fecha invalido. Use YYYY-MM-DD
     goto :fin_error
 )
 
 :: ── Menú de ejecución ──────────────────────────────────────────────────────
+:menu_principal
 echo.
-echo Fecha seleccionada: %FECHA%
+echo Fecha seleccionada: %FECHA% (%DIA_SEMANA%)
 echo.
 echo Opciones de ejecucion:
+echo.
+echo   --- Con carga a GCP ---
 echo   1. Ejecutar TODOS los modelos + cargar a GCP (recomendado)
 echo   2. Ejecutar solo PRIMERA VUELTA + cargar a GCP
 echo   3. Ejecutar solo SEGUNDA VUELTA + cargar a GCP
-echo   4. Ejecutar TODOS sin cargar a GCP (solo local)
-echo   5. Solo cargar a GCP (sin ejecutar modelos)
-echo   6. Consolidar historico
-echo   7. Cancelar
+echo.
+echo   --- Solo local (sin GCP) ---
+echo   4. Ejecutar TODOS sin cargar a GCP
+echo   5. Ejecutar solo PRIMERA VUELTA sin GCP
+echo   6. Ejecutar solo SEGUNDA VUELTA sin GCP
+echo   7. Ejecutar modelo individual...
+echo.
+echo   --- Otras ---
+echo   8. Solo cargar a GCP (sin ejecutar modelos)
+echo   9. Consolidar historico
+echo   0. Cancelar
 echo.
 set /p OPCION="Seleccione opcion [1]: "
 if "%OPCION%"=="" set OPCION=1
@@ -81,9 +89,12 @@ if "%OPCION%"=="1" goto :todos_gcp
 if "%OPCION%"=="2" goto :v1_gcp
 if "%OPCION%"=="3" goto :v2_gcp
 if "%OPCION%"=="4" goto :todos_local
-if "%OPCION%"=="5" goto :solo_carga
-if "%OPCION%"=="6" goto :consolidar
-if "%OPCION%"=="7" goto :fin
+if "%OPCION%"=="5" goto :v1_local
+if "%OPCION%"=="6" goto :v2_local
+if "%OPCION%"=="7" goto :modelo_individual
+if "%OPCION%"=="8" goto :solo_carga
+if "%OPCION%"=="9" goto :consolidar
+if "%OPCION%"=="0" goto :fin
 echo [ERROR] Opcion invalida.
 goto :fin_error
 
@@ -113,6 +124,77 @@ echo.
 echo Ejecutando TODOS los modelos (sin carga GCP) para %FECHA%...
 echo ─────────────────────────────────────────────────────────
 python main.py --fecha %FECHA% --modelos todos
+goto :post_ejecucion
+
+:v1_local
+echo.
+echo Ejecutando PRIMERA VUELTA (sin carga GCP) para %FECHA%...
+echo ─────────────────────────────────────────────────────────
+python main.py --fecha %FECHA% --modelos primera_vuelta
+goto :post_ejecucion
+
+:v2_local
+echo.
+echo Ejecutando SEGUNDA VUELTA (sin carga GCP) para %FECHA%...
+echo ─────────────────────────────────────────────────────────
+python main.py --fecha %FECHA% --modelos segunda_vuelta
+goto :post_ejecucion
+
+:modelo_individual
+echo.
+echo ─────────────────────────────────────────────────────────
+echo   Seleccione un modelo para ejecutar:
+echo ─────────────────────────────────────────────────────────
+echo.
+echo   --- Primera Vuelta ---
+echo    1. Prepago Consumo          (mr_prepago_consumo)
+echo    2. Prepago Hipotecario      (mr_prepago_hipotecario)
+echo    3. Mora Consumo             (ml_mora_consumo)
+echo    4. Mora CAE                 (ml_mora_cae)
+echo    5. Mora Hipotecario         (ml_mora_hipotecario)
+echo    6. Mora Comercial           (ml_mora_comercial)
+echo.
+echo   --- Segunda Vuelta ---
+echo    7. Prepago CMR              (mr_prepago_cmr)
+echo    8. NMD                      (ml_nmd)
+echo    9. Linea de Credito         (ml_lc)
+echo   10. Inversiones              (ml_inversiones)
+echo.
+echo    0. Volver al menu principal
+echo.
+set /p MOD_SEL="Seleccione modelo: "
+
+if "%MOD_SEL%"=="1" set MODELO_KEY=mr_prepago_consumo
+if "%MOD_SEL%"=="2" set MODELO_KEY=mr_prepago_hipotecario
+if "%MOD_SEL%"=="3" set MODELO_KEY=ml_mora_consumo
+if "%MOD_SEL%"=="4" set MODELO_KEY=ml_mora_cae
+if "%MOD_SEL%"=="5" set MODELO_KEY=ml_mora_hipotecario
+if "%MOD_SEL%"=="6" set MODELO_KEY=ml_mora_comercial
+if "%MOD_SEL%"=="7" set MODELO_KEY=mr_prepago_cmr
+if "%MOD_SEL%"=="8" set MODELO_KEY=ml_nmd
+if "%MOD_SEL%"=="9" set MODELO_KEY=ml_lc
+if "%MOD_SEL%"=="10" set MODELO_KEY=ml_inversiones
+if "%MOD_SEL%"=="0" goto :menu_principal
+
+if not defined MODELO_KEY (
+    echo [ERROR] Opcion invalida.
+    set MODELO_KEY=
+    goto :modelo_individual
+)
+
+set /p CON_GCP="Cargar a GCP? (s/N): "
+if /I "%CON_GCP%"=="s" (
+    echo.
+    echo Ejecutando %MODELO_KEY% + carga GCP para %FECHA%...
+    echo ─────────────────────────────────────────────────────────
+    python main.py --fecha %FECHA% --modelos %MODELO_KEY% --cargar-gcp
+) else (
+    echo.
+    echo Ejecutando %MODELO_KEY% (sin carga GCP) para %FECHA%...
+    echo ─────────────────────────────────────────────────────────
+    python main.py --fecha %FECHA% --modelos %MODELO_KEY%
+)
+set MODELO_KEY=
 goto :post_ejecucion
 
 :solo_carga

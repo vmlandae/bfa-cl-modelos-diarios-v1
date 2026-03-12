@@ -2,6 +2,21 @@
 chcp 65001 >nul
 title Instalación de Entorno — Modelos Diarios BFA
 
+:: ── Logging: redirigir toda la salida a archivo y consola ──────────────────
+set LOGFILE=%~dp0setup_env.log
+echo [%date% %time%] === Inicio setup_env.bat === > "%LOGFILE%"
+:: Re-invocar con logging si no estamos ya redirigiendo
+if not defined _SETUP_LOGGED (
+    set _SETUP_LOGGED=1
+    call "%~f0" %* 2>&1 | findstr /R ".*" >> "%LOGFILE%"
+    echo.
+    echo [LOG] Salida guardada en: %LOGFILE%
+    echo Revise ese archivo si la ventana se cerro antes de tiempo.
+    echo.
+    pause
+    exit /b
+)
+
 :: ============================================================================
 :: setup_env.bat — Configura el entorno conda e instala dependencias
 ::
