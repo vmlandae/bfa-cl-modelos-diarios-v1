@@ -28,9 +28,10 @@ Fecha: 2026-02
 import os
 import pandas as pd
 import numpy as np
+from datetime import timedelta
 from enum import Enum
 from pathlib import Path
-from typing import Dict, Callable, Optional, Any, Union
+from typing import Dict, Callable, Optional, Any, List, Union
 from functools import wraps
 
 # Importaciones condicionales para evitar errores si no están instaladas
@@ -162,6 +163,89 @@ def limpiar_montos_liq(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # =============================================================================
+# GENERACIÓN DE QUERIES CON WHERE (F22)
+# =============================================================================
+
+# Ventanas de fecha por tabla: cuántos días hacia atrás necesita cada tabla.
+# Se usa un margen mayor al estrictamente necesario para evitar perder datos
+# por diferencias de timezone o redondeo.
+_VENTANAS_FECHA: Dict[str, dict] = {
+    # RF_base_Completa_Hist: el modelo solo usa Fec_Pro == fecha_proceso
+    # en todas las carteras y pasos. Filtro exacto.
+    'RF_base_Completa_Hist': {
+        'columna': 'Fec_Pro',
+        'dias': 0,
+        'operador': '=',
+    },
+    # RF_Base_Diaria_Precios: solo se necesita Fecha == fecha_proceso (paso 20).
+    # Margen: 5 días.
+    'RF_Base_Diaria_Precios': {
+        'columna': 'Fecha',
+        'dias': 5,
+        'operador': '>=',
+    },
+    # RF_BD_Gestion_RM: cada modelo lo filtra por Fec_Pro == fecha exacta.
+    # Margen: 1 día (solo fecha actual).
+    'RF_BD_Gestion_RM': {
+        'columna': 'Fec_Pro',
+        'dias': 0,
+        'operador': '=',
+    },
+}
+
+
+def _generar_queries_where(
+    tablas_spec: List[dict],
+    fecha_proceso: int,
+) -> List[dict]:
+    """
+    Enriquece las especificaciones de tablas con queries WHERE.
+
+    Para las tablas que tienen una ventana de fecha definida en _VENTANAS_FECHA,
+    genera un query ``SELECT * FROM [tabla] WHERE col >= #fecha#`` que filtra
+    en origen en lugar de traer todos los registros.
+
+    Las tablas sin ventana definida mantienen el comportamiento original
+    (``SELECT * FROM [tabla]``).
+
+    Args:
+        tablas_spec: Lista de dicts con al menos 'nombre_fuente'.
+        fecha_proceso: Fecha YYYYMMDD como int.
+
+    Returns:
+        Lista enriquecida (copias, no muta las originales).
+    """
+    from datetime import datetime as dt
+
+    fecha = dt.strptime(str(fecha_proceso), '%Y%m%d')
+    resultado = []
+
+    for spec in tablas_spec:
+        spec_copia = dict(spec)
+        nombre = spec_copia['nombre_fuente']
+
+        # Solo inyectar WHERE si no viene un query explícito
+        if 'query' not in spec_copia and nombre in _VENTANAS_FECHA:
+            ventana = _VENTANAS_FECHA[nombre]
+            fecha_corte = fecha - timedelta(days=ventana['dias'])
+            # Formato Access date literal: #YYYY-MM-DD#
+            fecha_access = fecha_corte.strftime('%Y-%m-%d')
+
+            if ventana['operador'] == '=':
+                # Para operador igual, filtrar por fecha exacta
+                fecha_access = fecha.strftime('%Y-%m-%d')
+
+            spec_copia['query'] = (
+                f"SELECT * FROM [{nombre}] "
+                f"WHERE [{ventana['columna']}] {ventana['operador']} #{fecha_access}#"
+            )
+
+        resultado.append(spec_copia)
+
+    return resultado
+
+
+# =============================================================================
 # FUNCIONES DE CARGA POR MODO
 # =============================================================================
 
@@ -246,8 +330,14 @@ def _cargar_desde_live(
     
     # --- Formato multi-source (ml_inversiones) ---
     if 'ms_access_sources' in rutas_config:
+        # F22: usar copias locales si el orquestador las preparó
+        from procesamiento_datos_input.cache_tablas import obtener_mapa_access_local
+        _mapa_local = obtener_mapa_access_local()
+
         for source in rutas_config['ms_access_sources']:
-            access_path = Path(source['path'])
+            access_path_red = Path(source['path'])
+            # Usar copia local si existe, o la ruta original
+            access_path = Path(_mapa_local.get(str(access_path_red), access_path_red))
             # Filtrar tablas si se solicitaron específicas
             tablas_spec = []
             for tabla_config in source.get('tablas', []):
@@ -258,6 +348,9 @@ def _cargar_desde_live(
 
             if not tablas_spec:
                 continue
+
+            # F22: inyectar WHERE clauses según ventanas de fecha
+            tablas_spec = _generar_queries_where(tablas_spec, fecha_proceso)
 
             try:
                 resultado = leer_multiples_tablas_con_cache(

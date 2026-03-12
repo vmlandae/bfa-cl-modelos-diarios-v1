@@ -138,6 +138,11 @@ class JsonlFormatter(logging.Formatter):
         }
         if record.exc_info and record.exc_info[0]:
             entry["exception"] = self.formatException(record.exc_info)
+        # Campos extra estructurados (ej: event, sha256, archivo)
+        for key in ("event", "sha256", "archivo", "store_path", "is_new"):
+            val = getattr(record, key, None)
+            if val is not None:
+                entry[key] = val
         return json.dumps(entry, ensure_ascii=False)
 
 

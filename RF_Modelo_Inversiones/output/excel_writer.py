@@ -15,11 +15,14 @@ Autor: Modelos & Metodologías
 Fecha: 2026-02
 """
 
+import logging
 import pandas as pd
 import numpy as np
 from pathlib import Path
 from typing import Dict, Optional, Union
 from datetime import datetime
+
+from core.excel_output import _EXCEL_ENGINE
 
 from .tabla_final import (
     COLUMNAS_TABLA_DESARROLLO,
@@ -163,7 +166,7 @@ def exportar_excel_modelo_inversiones(
     if verbose:
         print(f"\n  Exportando Excel: {ruta.name}")
 
-    with pd.ExcelWriter(ruta, engine='openpyxl') as writer:
+    with pd.ExcelWriter(ruta, engine=_EXCEL_ENGINE) as writer:
         df_interfaz.to_excel(
             writer, sheet_name='INTERFAZ_MODELO_INVERSIONES', index=False)
         df_modelo_inversiones.to_excel(

@@ -14,7 +14,7 @@ graph TB
     subgraph Inputs
         A[Carpetas Compartidas]
         B[MS Access]
-        C[Archivos Excel]
+        C[Archivos Excel/JSON]
     end
     
     subgraph Core
@@ -22,12 +22,16 @@ graph TB
         E[Cargador Datos]
         F[Cargador Parámetros]
         G[Modelos Python]
+        H[Excel Output]
+        R[Reporte Ejecución]
     end
     
     subgraph Outputs
-        H[Excel .xlsm]
-        I[BigQuery]
-        J[DuckDB Local]
+        I[Excel .xlsx]
+        J[BigQuery Daily]
+        K[BigQuery Histórico]
+        L[Reportes JSON/MD]
+        M[BigQuery Reportes]
     end
     
     A --> E
@@ -36,9 +40,12 @@ graph TB
     E --> D
     F --> D
     D --> G
-    G --> H
-    G --> I
+    G --> H --> I
     G --> J
+    J --> K
+    D --> R
+    R --> L
+    R --> M
 ```
 
 ## Componentes Principales
@@ -57,9 +64,10 @@ Coordina la ejecución de modelos:
 | Módulo | Responsabilidad |
 |--------|-----------------|
 | `cargador_datos.py` | Lee datos de carteras |
-| `cargador_parametros.py` | Lee parámetros de Excel |
+| `cargador_parametros.py` | Lee parámetros JSON (fallback Excel) |
 | `cargador_modelos.py` | Importa módulos de modelos |
 | `limpiador_datos.py` | Normaliza y valida datos |
+| `cache_tablas.py` | Cache parquet de tablas Access |
 
 ### 3. Modelos (`RF_Modelo_*/`)
 
@@ -69,12 +77,21 @@ Cada modelo es un módulo independiente con:
 RF_Modelo_X/
 ├── __init__.py
 ├── ml_x.py           # Lógica principal
-├── ml_x_cc.xlsm      # Template Excel
+├── ml_x_cc.xlsx      # Output Excel
 └── parametros/
-    └── parametros_ml_x.xlsx
+    ├── parametros_ml_x.json   # Parámetros (primario)
+    └── parametros_ml_x.xlsx   # Parámetros (fallback)
 ```
 
-### 4. Carga GCP (`carga_modelos_gcp/`)
+### 4. Reportes y Observabilidad (`core/`)
+
+| Módulo | Responsabilidad |
+|--------|------------------|
+| `reporte_ejecucion.py` | Genera reportes JSON/MD con benchmark |
+| `sync_reportes.py` | Sincroniza reportes a BigQuery |
+| `excel_output.py` | Escritura Excel con xlsxwriter |
+
+### 5. Carga GCP (`carga_modelos_gcp/`)
 
 Módulos para interactuar con BigQuery:
 

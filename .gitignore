@@ -1,6 +1,8 @@
 # Credenciales y archivos sensibles
 credenciales/
 *.json
+# Excepciones: parámetros JSON de modelos (F20)
+!RF_Modelo_*/parametros/parametros_*.json
 *.key
 *.pem
 .env
@@ -113,10 +115,17 @@ test/
 # Archivos específicos del proyecto
 config/parametros_input_modelos.xlsx
 
-# Outputs generados por modelos
+# Outputs generados por modelos (.xlsx de cada modelo)
+RF_Modelo_*/ml_*.xlsx
+RF_Modelo_*/mr_*.xlsx
 RF_Modelo_Inversiones/output_validacion/
-RF_Modelo_Inversiones/ml_inversiones.xlsx
 RF_Modelo_Inversiones/*.CSV
+
+# Reportes de ejecución e historial benchmark
+reports/
+
+# Freeze de requirements (solo se versiona requirements.txt)
+requirements_freeze_*.txt
 
 # Carpetas de desarrollo / análisis (no van a producción)
 RF_Modelo_Inversiones/dev/

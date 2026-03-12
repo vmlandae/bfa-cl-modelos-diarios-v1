@@ -5,6 +5,7 @@ import yaml
 import sys
 import bfa_cl_utilidades as ut
 import math
+from core.excel_output import guardar_excel
 from scipy.stats import norm
 from pathlib import Path
 
@@ -74,22 +75,23 @@ def cargar_datos_balance(fecha_t: datetime) -> pd.DataFrame:
 
 def cargar_parametros() -> tuple[pd.DataFrame, dict, pd.DataFrame, pd.DataFrame]:
     """
-    Carga los parámetros del modelo desde archivos Excel.
-    Incluye factores de decay rate y parámetros de core vigente.
+    Carga los parámetros del modelo (JSON preferido, fallback Excel).
     """
+    from procesamiento_datos_input.cargador_parametros import cargar_hojas_parametros
+
     print("      • Leyendo parámetros del modelo...")
-    
-    # Cargar parámetros de decay rate
-    parametros_modelo = pd.read_excel(RUTA_PARAMETROS_LC, sheet_name="FACTORES")
-    
+    hojas = cargar_hojas_parametros("ml_lc")
+    parametros_modelo = hojas["FACTORES"]
 
     return parametros_modelo
 
 
 def cargar_ml_lc_egreso(fecha_proceso: datetime):
+    from procesamiento_datos_input.cargador_parametros import cargar_hojas_parametros
+
     print("      • Cargando datos de egresos LC...")
-    ml_lc_egreso = pd.read_excel(RUTA_PARAMETROS_LC, sheet_name="LC_EGRESO")
-    ml_lc_egreso
+    hojas = cargar_hojas_parametros("ml_lc")
+    ml_lc_egreso = hojas["LC_EGRESO"]
     ml_lc_egreso['FECHA_PROCESO'] = fecha_proceso
     ml_lc_egreso['FECHA_VENCIMIENTO_CUOTA'] = ml_lc_egreso['FECHA_PROCESO'] + pd.to_timedelta(ml_lc_egreso['DIAS_AL_VENCIMIENTO_BORRAR'], unit='D')
     ml_lc_egreso['FECHA_PAGO'] = ml_lc_egreso['FECHA_VENCIMIENTO_CUOTA']
@@ -344,11 +346,11 @@ def ejecutar_modelo(fecha_proceso: datetime) -> bool:
         }
         
         print("        - Actualizando archivo principal...")
-        ut.cargar_datos_xlsm(ruta_archivo=RUTA_OUTPUT_MODELO,
-                             nombre_hoja="DESARROLLO",
-                             datos=tabla_desarrollo,
-                             formatos_columnas=formatos_excel
-                             )
+        guardar_excel(
+            ruta_archivo=RUTA_OUTPUT_MODELO,
+            hojas={"DESARROLLO": tabla_desarrollo},
+            formatos_columnas=formatos_excel,
+        )
         print("          ✓ Archivo principal actualizado")
         
         print("\n" + "="*60)

@@ -96,6 +96,11 @@ ENV_FORZAR_RECARGA = 'CACHE_FORZAR_RECARGA'
 _MAX_REINTENTOS = 3
 _ESPERA_BASE_SECS = 2.0
 
+# F22: Mapa global de rutas Access UNC → rutas locales.
+# Lo setea el orquestador via copiar_access_a_local();
+# lo lee data_sources.py via obtener_mapa_access_local().
+_ACCESS_LOCAL_MAP: Dict[str, Path] = {}
+
 # Nombre del archivo de interfaz (PML = ProductosMercadoLiquidez)
 INTERFAZ_PML_PATRON = "ProductosMercadoLiquidezGCP{fecha}.txt"
 
@@ -437,6 +442,114 @@ def leer_interfaz_con_cache(
         warnings.warn(f"No se pudo guardar caché {ruta_parquet.name}: {e}")
 
     return df
+# =============================================================================
+
+# =============================================================================
+# COPIA LOCAL DE ARCHIVOS ACCESS (F22)
+# =============================================================================
+#
+# Pre-copia de archivos .accdb desde UNC a disco local antes de leer.
+# La lectura pyodbc desde disco local es significativamente más rápida que
+# desde rutas UNC de red.
+#
+# Flujo:
+#   PRE-EJECUCIÓN (orquestador, 1 sola vez):
+#     copiar_access_a_local()  — copia .accdb desde UNC → data/cache/access/
+#
+#   DURANTE EJECUCIÓN (model code):
+#     leer_multiples_tablas_con_cache() recibe la ruta local directamente
+#
+#   POST-EJECUCIÓN:
+#     limpiar_access_local()  — elimina copias locales para liberar espacio
+# =============================================================================
+
+_lock_copia_access = threading.Lock()
+
+
+def copiar_access_a_local(
+    rutas_red: List[Union[str, Path]],
+    cache_dir: Optional[Path] = None,
+    forzar_recarga: bool = False,
+) -> Dict[str, Path]:
+    """Copia archivos .accdb desde UNC a disco local para lectura rápida.
+
+    Args:
+        rutas_red: Lista de rutas UNC a archivos .accdb.
+        cache_dir: Directorio de caché. None = data/cache/.
+        forzar_recarga: Si True, recopia aunque ya exista localmente.
+
+    Returns:
+        Dict[ruta_red_str, ruta_local] con las rutas locales de las copias.
+    """
+    forzar_recarga = forzar_recarga or os.environ.get(ENV_FORZAR_RECARGA, '') == '1'
+
+    if cache_dir is None:
+        cache_dir = CACHE_DIR_DEFAULT
+    cache_dir = Path(cache_dir)
+    access_dir = cache_dir / 'access'
+    access_dir.mkdir(parents=True, exist_ok=True)
+
+    resultado = {}
+
+    with _lock_copia_access:
+        for ruta_red in rutas_red:
+            ruta_red = Path(ruta_red)
+            nombre = ruta_red.name
+            ruta_local = access_dir / nombre
+
+            if ruta_local.exists() and not forzar_recarga:
+                size_mb = ruta_local.stat().st_size / (1024 * 1024)
+                logger.info(
+                    f"  ✓ Access local vigente: {nombre} ({size_mb:.0f} MB)"
+                )
+                resultado[str(ruta_red)] = ruta_local
+                continue
+
+            if not ruta_red.exists():
+                logger.error(f"  ✗ Archivo Access no encontrado en red: {ruta_red}")
+                continue
+
+            logger.info(f"  📥 Copiando {nombre} a local...")
+            t0 = time.perf_counter()
+            shutil.copy2(str(ruta_red), str(ruta_local))
+            dt = time.perf_counter() - t0
+            size_mb = ruta_local.stat().st_size / (1024 * 1024)
+            logger.info(
+                f"  ✓ {nombre}: {size_mb:.0f} MB copiado en {dt:.1f}s"
+            )
+            resultado[str(ruta_red)] = ruta_local
+
+    # Actualizar mapa global para que data_sources.py pueda leerlo
+    _ACCESS_LOCAL_MAP.update(resultado)
+
+    return resultado
+
+
+def obtener_mapa_access_local() -> Dict[str, Path]:
+    """Retorna el mapa actual de rutas UNC → rutas locales de Access."""
+    return dict(_ACCESS_LOCAL_MAP)
+
+
+def limpiar_access_local(cache_dir: Optional[Path] = None) -> None:
+    """Elimina copias locales de archivos .accdb para liberar espacio.
+
+    Args:
+        cache_dir: Directorio de caché. None = data/cache/.
+    """
+    if cache_dir is None:
+        cache_dir = CACHE_DIR_DEFAULT
+    access_dir = Path(cache_dir) / 'access'
+
+    if not access_dir.exists():
+        return
+
+    for archivo in access_dir.glob('*.accdb'):
+        size_mb = archivo.stat().st_size / (1024 * 1024)
+        archivo.unlink()
+        logger.info(f"  🗑 Eliminado: {archivo.name} ({size_mb:.0f} MB)")
+    # Limpiar mapa global
+    _ACCESS_LOCAL_MAP.clear()
+
 # =============================================================================
 
 def _conectar_access(

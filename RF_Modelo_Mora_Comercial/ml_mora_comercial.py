@@ -6,7 +6,7 @@ import datetime
 import yaml
 from pathlib import Path
 import sys
-import bfa_cl_utilidades as ut
+from core.excel_output import guardar_excel
 
 
 # #  # Para una ejecucion directa del script
@@ -30,9 +30,14 @@ RUTA_OUTPUT_MODELO = cr.resolver_ruta(config_ext['modelos']['ml_mora_comercial']
 
 
 def lectura_parametros_modelo():
-    factores_mora = pd.read_excel(RUTA_PARAMETOS_MORA_COMERCIAL, sheet_name="FACTORES_MORA", dtype={"FACTOR_MORA_COMERCIAL": "float"})
-    matriz_mora_comercial = pd.read_excel(RUTA_PARAMETOS_MORA_COMERCIAL, sheet_name="MATRIZ_COMERCIAL")
-    factores_globales_mora = pd.read_excel(RUTA_PARAMETOS_MORA_COMERCIAL, sheet_name="FACTORES_GLOBALES").iloc[0,0]
+    """Lee parámetros de mora comercial (JSON preferido, fallback Excel)."""
+    from procesamiento_datos_input.cargador_parametros import cargar_hojas_parametros
+
+    hojas = cargar_hojas_parametros("ml_mora_comercial")
+    factores_mora = hojas["FACTORES_MORA"]
+    factores_mora["FACTOR_MORA_COMERCIAL"] = factores_mora["FACTOR_MORA_COMERCIAL"].astype(float)
+    matriz_mora_comercial = hojas["MATRIZ_COMERCIAL"]
+    factores_globales_mora = hojas["FACTORES_GLOBALES"].iloc[0,0]
     return factores_mora, matriz_mora_comercial.iloc[:366,:366], factores_globales_mora
 
 def lectura_interfaz_de_datos(fecha_t: datetime.datetime)-> pd.DataFrame:
@@ -238,21 +243,18 @@ def procesamiento_y_guardado(fecha_t: datetime.datetime,
 
     print("      • Guardando resultados en archivo Excel...")
     print(f"        - Guardando hoja 'DESARROLLO' con {len(tabla_desarrollo):,} registros")
-    ut.cargar_datos_xlsm(ruta_archivo=RUTA_OUTPUT_MODELO,
-                         nombre_hoja="DESARROLLO",
-                         datos=tabla_desarrollo,
-                         formatos_columnas=formatos_excel
-                         )
-    
-    print(f"        - Guardando hoja 'DETALLE_FLUJOS' con {len(flujo_estimado_iter):,} registros")                     
-    ut.cargar_datos_xlsm(ruta_archivo=RUTA_OUTPUT_MODELO,
-                        nombre_hoja="DETALLE_FLUJOS",
-                        datos=flujo_estimado_iter[["FECHA_PROCESO","PRODUCTO",'FECHA_VENCIMIENTO_CUOTA_MODELO', 'FECHA_VENCIMIENTO_CUOTA', 
+    print(f"        - Guardando hoja 'DETALLE_FLUJOS' con {len(flujo_estimado_iter):,} registros")
+    guardar_excel(
+        ruta_archivo=RUTA_OUTPUT_MODELO,
+        hojas={
+            "DESARROLLO": tabla_desarrollo,
+            "DETALLE_FLUJOS": flujo_estimado_iter[["FECHA_PROCESO","PRODUCTO",'FECHA_VENCIMIENTO_CUOTA_MODELO', 'FECHA_VENCIMIENTO_CUOTA', 
                                                 'FLUJO_MO','AMORTIZACION_MO', 'INTERES_MO', 
                                                 'FLUJO_MODELO_MO','AMORTIZACION_MODELO_MO', 'INTERES_MODELO_MO', 
                                                 'FLUJO_MORA_VIGENTE_MO','AMORTIZACION_MORA_VIGENTE_MO', 'INTERES_MORA_VIGENTE_MO']],
-                        formatos_columnas=formatos_excel
-                        )
+        },
+        formatos_columnas=formatos_excel,
+    )
 
     # print("      • Respaldando archivo en carpeta de ejecuciones...")
     # ut.copia_archivo_en_ruta(RUTA_OUTPUT_MODELO,

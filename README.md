@@ -33,7 +33,10 @@ Los modelos están diseñados para procesar datos en lotes, generar predicciones
 ### 📁 Directorio Raíz
 ```
 main.py                          # Punto de entrada principal de la aplicación
-VARIACION_CARTERA_ML.xlsm       # Archivo de análisis de variación de cartera
+setup_env.bat                    # Instalación automática del entorno (practicante)
+run_diario.bat                   # Ejecución diaria interactiva
+check_env.bat                    # Verificación de entorno
+requirements.txt                 # Dependencias Python (pip freeze)
 ```
 
 ### 📁 Configuración y Core
@@ -46,6 +49,9 @@ config/                          # Configuraciones del sistema
 core/                           # Núcleo del sistema
 ├── orquestador.py              # Orquestador principal de procesos
 ├── logger.py                   # Logging estructurado (JSONL + consola)
+├── excel_output.py             # Escritura Excel con xlsxwriter (F23)
+├── reporte_ejecucion.py        # Reportes de ejecución + benchmark (F25)
+├── sync_reportes.py            # Sincronización de reportes a BigQuery (F25)
 └── __init__.py
 
 credenciales/                   # Credenciales de acceso (no versionado)
@@ -74,62 +80,58 @@ gui/                            # Interfaz gráfica de usuario
 ```
 RF_Modelo_Mora_CAE/             # Modelo de mora para CAE (Crédito Automotriz Empresas)
 ├── ml_mora_cae.py              # Implementación del modelo
-├── ml_mora_cae_cc.xlsm         # Plantilla Excel para cálculos
-└── parametros/                 # Parámetros específicos del modelo
+├── ml_mora_cae_cc.xlsx         # Output Excel
+└── parametros/                 # Parámetros JSON + Excel
 
 RF_Modelo_Mora_Comercial/       # Modelo de mora para créditos comerciales
 ├── ml_mora_comercial.py        # Implementación del modelo
-├── ml_mora_comercial_cc.xlsm   # Plantilla Excel para cálculos
-└── parametros/                 # Parámetros específicos del modelo
+├── ml_mora_comercial_cc.xlsx   # Output Excel
+└── parametros/                 # Parámetros JSON + Excel
 
 RF_Modelo_Mora_Consumo/         # Modelo de mora para créditos de consumo
 ├── ml_mora_consumo.py          # Implementación del modelo
-├── ml_mora_consumo_cc.xlsm     # Plantilla Excel para cálculos
-├── ml_mora_renegociado_cc.xlsm # Plantilla para créditos renegociados
-└── parametros/                 # Parámetros específicos del modelo
+├── ml_mora_consumo_cc.xlsx     # Output Excel
+├── ml_mora_renegociado_cc.xlsx # Output renegociados
+└── parametros/                 # Parámetros JSON + Excel
 
 RF_Modelo_Mora_Hipotecario/     # Modelo de mora para créditos hipotecarios
 ├── ml_mora_hipotecario.py      # Implementación del modelo
-├── ml_mora_hipotecario_cc.xlsm # Plantilla Excel para cálculos
-└── parametros/                 # Parámetros específicos del modelo
+├── ml_mora_hipotecario_cc.xlsx # Output Excel
+└── parametros/                 # Parámetros JSON + Excel
 ```
 
 #### Modelos de Prepago
 ```
 RF_Modelo_Prepago_CMR/          # Modelo de prepago para tarjetas CMR
 ├── mr_prepago_cmr.py           # Implementación del modelo
-├── mr_prepago_cmr.xlsm         # Plantilla Excel para cálculos
-├── Generador_Prepago_TC_CMR_Productivo.ipynb  # Notebook de desarrollo
-└── parametros/                 # Parámetros específicos del modelo
+├── mr_prepago_cmr.xlsx         # Output Excel
+└── parametros/                 # Parámetros JSON + Excel
 
 RF_Modelo_Prepago_Consumo/      # Modelo de prepago para créditos de consumo
 ├── mr_prepago_consumo.py       # Implementación del modelo
-├── mr_prepago_consumo.xlsm     # Plantilla Excel para cálculos
-├── EJECUCIONES/                # Historial de ejecuciones
-└── parametros/                 # Parámetros específicos del modelo
+├── mr_prepago_consumo.xlsx     # Output Excel
+└── parametros/                 # Parámetros JSON + Excel
 
 RF_Modelo_Prepago_Hipotecario/  # Modelo de prepago para créditos hipotecarios
 ├── mr_prepago_hipotecario.py   # Implementación del modelo
-├── mr_prepago_hipotecario.xlsm # Plantilla Excel para cálculos
-├── EJECUCIONES/                # Historial de ejecuciones
-├── OTROS/                      # Archivos adicionales
-└── parametros/                 # Parámetros específicos del modelo
+├── mr_prepago_hipotecario.xlsx # Output Excel
+└── parametros/                 # Parámetros JSON + Excel
 ```
 
 #### Modelos de No Maduración de Depósitos (NMD)
 ```
 RF_Modelo_NMD/                  # Modelo de no maduración para productos de depósitos
 ├── ml_nmd.py                   # Implementación del modelo
-├── ml_nmd_cc.xlsm             # Plantilla Excel para cálculos
-└── parametros/                 # Parámetros específicos del modelo
+├── ml_nmd_cc.xlsx             # Output Excel
+└── parametros/                 # Parámetros JSON + Excel
 ```
 
 #### Modelos de Línea de Crédito
 ```
 RF_Modelo_Linea_de_Credito/     # Modelo de línea de crédito
 ├── ml_lc.py                    # Implementación del modelo
-├── ml_lc.xlsm                  # Plantilla Excel para cálculos
-└── parametros/                 # Parámetros específicos del modelo (GAMMA, DELTA, DECAY_RATE)
+├── ml_lc.xlsx                  # Output Excel
+└── parametros/                 # Parámetros JSON + Excel (GAMMA, DELTA, DECAY_RATE)
 ```
 
 #### Modelos de Inversiones
@@ -145,10 +147,20 @@ RF_Modelo_Inversiones/          # Modelo de inversiones (pipeline modular)
 └── dev/                        # Scripts de desarrollo y documentación GCP
 ```
 
-### 📁 Documentación
+### 📁 Datos, Reportes y Logs
 ```
 logs/                           # Logs estructurados por fecha
 └── {YYYYMMDD}/modelos.jsonl     # JSONL con contexto modelo/fecha
+
+reports/                        # Reportes de ejecución (F25)
+├── {YYYYMMDD}/reporte_*.json    # Reporte estructurado
+├── {YYYYMMDD}/reporte_*.md      # Reporte legible
+├── health_check.json           # Último diagnóstico de entorno
+└── _pendientes_sync/           # Reportes pendientes de sync a BQ
+
+data/
+├── cache/                      # Caché parquet de tablas Access
+└── benchmark/historial.jsonl   # Historial de benchmark de ejecuciones
 
 snapshots/                      # Snapshots de parámetros (F02)
 └── {YYYYMMDD}/{modelo}/         # Copia de Excel antes de cada ejecución
@@ -156,12 +168,23 @@ snapshots/                      # Snapshots de parámetros (F02)
 backups_historicos/             # Backups pre-DELETE de históricos BQ (F16)
 └── {YYYYMMDD}/{tabla}/          # CSV + metadata JSON
 
+vendor/                         # Dependencia offline
+└── bfa_cl_utilidades-1.0.4-py3-none-any.whl
+```
+
+### 📁 Documentación
+```
 docs/                           # Documentación del proyecto (MkDocs)
 ├── CHANGELOG.md                # Registro de cambios
 ├── roadmap/                    # Roadmap visual, plan de sprints y workflow
 ├── modelos/                    # Documentación técnica de cada modelo
-├── guia/                       # Guías de uso y configuración
+├── guia/                       # Guías de uso, instalación y troubleshooting
 └── desarrollo/                 # Benchmarks y notas de desarrollo
+
+tools/                          # Scripts de utilidad
+├── check_env.py                # Health check del entorno (14 verificaciones)
+├── test_gcp_permisos.py        # Diagnóstico de permisos GCP
+└── excel_a_json.py             # Migración Excel → JSON de parámetros
 ```
 
 ## Arquitectura del Sistema
@@ -204,11 +227,12 @@ El sistema implementa logging dual a través de `core/logger.py`:
 
 ## Requisitos
 
-- Python 3.11+
-- Acceso a Google Cloud Platform (BigQuery)
-- Credenciales de servicio configuradas
-- Librerías especificadas en cada módulo de modelo
-- Librería customizada bfa_cl_utilidades: https://gitlab.falabella.tech/rmunozb/bfa-cl-utilidades
+- Python 3.11+ (entorno conda `bfa-cl-modelos-v2`)
+- Anaconda o Miniconda
+- Microsoft Access Database Engine 2016 (64-bit)
+- Acceso VPN a red interna (para `\\vmdvorak`)
+- Credenciales GCP (`credenciales/*.json`)
+- `bfa_cl_utilidades` 1.0.4 (incluido en `vendor/` como `.whl`)
 
 ## Uso
 

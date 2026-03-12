@@ -6,6 +6,7 @@ import yaml
 from pathlib import Path
 import sys
 import bfa_cl_utilidades as ut
+from core.excel_output import guardar_excel
 
 # Configuración de importación para ejecución directa
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -148,16 +149,20 @@ def cargar_dap_contractual(fecha_t: datetime) -> pd.DataFrame:
 
 def cargar_parametros() -> tuple[pd.DataFrame, dict, pd.DataFrame, pd.DataFrame]:
     """
-    Carga los parámetros del modelo desde archivos Excel.
-    Incluye factores de decay rate y parámetros de core vigente.
+    Carga los parámetros del modelo.
+    FACTORES: JSON preferido, fallback Excel.
+    CORE_VIGENTE: siempre desde Excel de red (archivo externo, no migrado).
     """
+    from procesamiento_datos_input.cargador_parametros import cargar_hojas_parametros
+
     print("      • Leyendo parámetros del modelo...")
     
-    # Cargar parámetros de decay rate
-    parametros_modelo = pd.read_excel(RUTA_PARAMETROS_NMD, sheet_name="FACTORES")
+    # FACTORES desde JSON/Excel local
+    hojas = cargar_hojas_parametros("ml_nmd")
+    parametros_modelo = hojas["FACTORES"]
     print(f"        - Factores de decay rate cargados: {len(parametros_modelo)} productos")
     
-    # Cargar parámetros de core vigente
+    # CORE_VIGENTE desde Excel de red (no migrado a JSON)
     parametros_core = pd.read_excel(RUTA_PARAMETROS_CORE, sheet_name="CORE_VIGENTE")
     
     # Transponer parámetros core para formato largo
@@ -692,21 +697,16 @@ def ejecutar_modelo(fecha_proceso: datetime) -> bool:
             "FECHA_REPRICING": "dd-mm-yyyy"
         }
         
-        print("      • Guardando hoja de flujos...")
-        ut.cargar_datos_xlsm(ruta_archivo=RUTA_OUTPUT_MODELO,
-                             nombre_hoja="FLUJOS",
-                             datos=tabla_final_flujos,
-                             formatos_columnas=formatos_excel
-                             )
-        print("        ✓ Hoja FLUJOS actualizada")
-        
-        print("      • Guardando hoja de desarrollo...")
-        ut.cargar_datos_xlsm(ruta_archivo=RUTA_OUTPUT_MODELO,
-                             nombre_hoja="DESARROLLO",
-                             datos=tabla_desarrollo,
-                             formatos_columnas=formatos_excel
-                             )
-        print("        ✓ Hoja DESARROLLO actualizada")
+        print("      • Guardando resultados en archivo Excel...")
+        guardar_excel(
+            ruta_archivo=RUTA_OUTPUT_MODELO,
+            hojas={
+                "FLUJOS": tabla_final_flujos,
+                "DESARROLLO": tabla_desarrollo,
+            },
+            formatos_columnas=formatos_excel,
+        )
+        print("        ✓ Hojas FLUJOS y DESARROLLO actualizadas")
         
         print("\n" + "="*50)
         print("PROCESO FINALIZADO EXITOSAMENTE")

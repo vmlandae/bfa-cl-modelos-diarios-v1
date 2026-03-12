@@ -5,6 +5,81 @@ Registro de cambios y actualizaciones del proyecto BFA-CL Modelos Diarios.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0-dev] - 2026-03-11 - Sprint S5: Handoff Practicante + Observabilidad Remota
+
+### Agregado
+- **Parametros JSON con fallback (F20)** (`tools/excel_a_json.py`, `procesamiento_datos_input/cargador_parametros.py`): migrar parametros de Excel a JSON
+  - Herramienta de migracion `tools/excel_a_json.py` genera 9 archivos JSON con schema consistente
+  - `cargador_parametros.py` reescrito: carga JSON primario con fallback a Excel
+  - Todos los modelo integrados con nuevo sistema de carga
+  - Rama: `feat/F20-parametros-json` (4afdd4d)
+- **Reporte de ejecucion (F25)** (`core/reporte_ejecucion.py`): reportes estructurados post-ejecucion
+  - Clase `ReporteEjecucion` con tracking por modelo (inicio/fin/duracion/status/error)
+  - Benchmark historico contra promedio de ejecuciones anteriores (`data/benchmark/historial.jsonl`)
+  - Alertas automaticas cuando duracion >50% sobre promedio historico
+  - Output: JSON estructurado + Markdown legible en `reports/{YYYYMMDD}/`
+  - Rama: `sprint/S5-optimizacion-pipeline` (e06d80c)
+- **Sincronizacion BigQuery (F25)** (`core/sync_reportes.py`): reportes de ejecucion a BigQuery
+  - Tabla `bfa_cl_prd_financial_risk_dly_proc_models.reportes_ejecucion` (auto-creada)
+  - Fallback local en `reports/_pendientes_sync/` si falla la conexion
+  - `sync_pendientes()` para reintentar uploads fallidos
+  - Rama: `sprint/S5-optimizacion-pipeline` (e06d80c)
+- **Health check de entorno** (`tools/check_env.py`): diagnostico de 14 puntos
+  - Python, conda, dependencias, ODBC Access, GCP, YAML, carpetas, red, BigQuery
+  - `--rapido` omite checks de red; `--json-only` para scripts
+  - Integrado en `main.py` como `--check-env`
+  - Compatible con cmd.exe (cp1252 safe, UTF-8 reconfigure)
+  - Rama: `sprint/S5-optimizacion-pipeline` (16b35a8)
+- **Scripts wrapper .bat** para practicante:
+  - `setup_env.bat`: crea env conda + instala deps + wheel + health check
+  - `run_diario.bat`: menu interactivo (fecha, vueltas, carga GCP, consolidar)
+  - `check_env.bat`: wrapper para health check completo
+  - Rama: `sprint/S5-optimizacion-pipeline` (91828f6)
+- **Wheel vendorizado** (`vendor/bfa_cl_utilidades-1.0.4-py3-none-any.whl`): instalacion offline de bfa_cl_utilidades
+  - Elimina dependencia de `Z:/RF_INSTALADORES/` para setup del practicante
+  - Rama: `sprint/S5-optimizacion-pipeline` (fca5dbe)
+- **Documentacion handoff** (`docs/guia/`):
+  - `SETUP.md`: guia de instalacion paso a paso para practicante
+  - `DAILY_WORKFLOW.md`: flujo de trabajo diario detallado
+  - `TROUBLESHOOTING.md`: solucion de problemas comunes
+  - `docs/feats/handoff-practicante/PLAN.md`: plan completo del feature
+
+### Cambiado
+- **`core/orquestador.py`**: integrado `ReporteEjecucion` — tracking automatico de inicio/fin/error por modelo
+- **`main.py`**: generacion de reporte + sync a BigQuery post-ejecucion; flag `--check-env`
+- **`README.md`**: actualizado con `.xlsx` (era `.xlsm`), nuevos modulos core, `.bat` scripts, `vendor/`, `reports/`, `tools/`
+- **`docs/`**: actualizados index.md, guia/instalacion.md, guia/uso-basico.md, desarrollo/arquitectura.md, mkdocs.yml
+
+## [1.8.0-dev] - 2026-03-10 - Sprint S5: Optimizacion de Rendimiento del Pipeline
+
+### Agregado
+- **Ejecución secuencial V1 (F21)** (`core/orquestador.py`): reemplazar `ThreadPoolExecutor` por loop `for` secuencial
+  - Benchmark demostró speedup 1.01× con threading (GIL elimina beneficio para CPU-bound)
+  - Reduce ~83 MB de consumo de RAM y simplifica debugging/logging
+  - Rama: `feat/v1-secuencial` (239b62a)
+- **WHERE exacto Access inversiones (F22)** (`RF_Modelo_Inversiones/io/data_sources.py`): filtrar `RF_base_Completa_Hist` con `WHERE Fec_Pro = fecha` en vez de cargar tabla completa
+  - Reduce de ~308K filas (6 fechas) a ~51K filas (1 fecha)
+  - Test `test_where_completa_hist.py` valida que output de cartera es idéntico con/sin WHERE
+  - Verificado: BQ hist vs daily = MATCH PERFECTO (828 filas, schema idéntico)
+  - Rama: `feat/where-access-inversiones` (1a04bf6, 6d760e8)
+- **xlsxwriter para output Excel (F23)**: reemplazar openpyxl por xlsxwriter en los 10 modelos
+  - Nuevo `core/excel_output.py` con `guardar_excel()` que agrupa múltiples hojas en una escritura
+  - 9 modelos migrados de `ut.cargar_datos_xlsm()` (openpyxl) a `guardar_excel()` (xlsxwriter)
+  - Inversiones: `engine='openpyxl'` → `engine='xlsxwriter'` en `excel_writer.py`
+  - Confirmado: 10 archivos .xlsm con 0 macros VBA (vbaProject vacío en todos)
+  - Benchmark: openpyxl 2.07s vs xlsxwriter 1.16s (~2× más rápido, 2 hojas × 5000 filas)
+  - mora_consumo: 6 llamadas → 2 llamadas (1 por archivo output)
+  - Rama: `feat/xlsxwriter-output` (7e74573)
+- **Benchmark pipeline completo (F24)** (`sandbox/benchmark_pipeline_completo.py`): script de instrumentación de las 4 fases del pipeline
+  - Rama: `feat/benchmark-pipeline` (60e7036)
+- **Dashboard control histórico BQ** (`dashboard/app.py`): WIP Streamlit dashboard comparando SUM(AMORTIZACION) t vs t-1
+  - Rama: `feat/dashboard-control-historico` (0b82bf6)
+
+### Cambiado
+- **Config YAML**: 10 extensiones de output `.xlsm` → `.xlsx` (sin macros VBA)
+- **requirements.txt**: +`xlsxwriter==3.2.9`
+- **Env conda**: `bfa-cl-modelos` → `bfa-cl-modelos-v2`
+
 ## [1.7.0-dev] - 2026-03-02 - Snapshots, Idempotencia y Documentación Integral
 
 ### Agregado

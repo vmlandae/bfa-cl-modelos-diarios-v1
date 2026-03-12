@@ -5,7 +5,7 @@ from typing import Dict, Any, Tuple
 import yaml
 
 from .cargador_datos import CargadorDatosModelos
-from .cargador_parametros import CargadorParametrosModelos
+from .cargador_parametros import cargar_hojas_parametros
 from .limpiador_datos import LimpiadorDatos
 from config import config_rutas as cr
 
@@ -62,7 +62,7 @@ class CargadorModelos:
         
         return configuraciones
     
-    def _obtener_cargadores(self, codigo_modelo: str) -> Tuple[CargadorDatosModelos, CargadorParametrosModelos]:
+    def _obtener_cargadores(self, codigo_modelo: str):
         """
         Obtener instancias de cargadores para un modelo específico
         
@@ -70,7 +70,7 @@ class CargadorModelos:
             codigo_modelo: Código del modelo
             
         Returns:
-            Tupla con (CargadorDatosModelos, CargadorParametrosModelos)
+            Tupla con (CargadorDatosModelos, dict_hojas_parametros)
         """
         if codigo_modelo not in self.configuraciones:
             raise ValueError(f"Modelo '{codigo_modelo}' no está configurado")
@@ -78,9 +78,9 @@ class CargadorModelos:
         config = self.configuraciones[codigo_modelo]
         
         cargador_datos = CargadorDatosModelos(config['ruta_interfaz'])
-        cargador_parametros = CargadorParametrosModelos(config['ruta_parametros'])
+        hojas_parametros = cargar_hojas_parametros(codigo_modelo)
         
-        return cargador_datos, cargador_parametros
+        return cargador_datos, hojas_parametros
     
     # === MODELOS DE PREPAGO ===
     

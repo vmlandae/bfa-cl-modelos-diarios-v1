@@ -299,6 +299,19 @@ def ejecutar_modo_consola(args):
     # Mostrar tabla resumen final
     mostrar_tabla_resumen(orquestador, resultados, resultados_carga, args.cargar_gcp)
 
+    # F25: Generar reporte de ejecución y sincronizar a BigQuery
+    if orquestador.reporte:
+        orquestador.reporte.registrar_fin(resultados_carga_gcp=resultados_carga)
+        json_path = orquestador.reporte.guardar()
+
+        # Sincronizar a BigQuery (con fallback local si falla)
+        from core.sync_reportes import sync_reporte_a_bigquery, sync_pendientes
+        reporte_dict = orquestador.reporte.generar()
+        sync_reporte_a_bigquery(reporte_dict, fecha.strftime("%Y%m%d"))
+
+        # Reintentar pendientes anteriores (si hay)
+        sync_pendientes()
+
 def ejecutar_modo_gui():
     root = tk.Tk()
     interfaz = InterfazModelos(root)
@@ -366,11 +379,21 @@ Ejemplos de uso:
                        help='Permitir re-inserción en históricos: backup CSV + DELETE + INSERT')
     parser.add_argument('--forzar-recarga', action='store_true',
                        help='Ignorar caché parquet y leer directamente de Access')
+    parser.add_argument('--check-env', action='store_true',
+                       help='Ejecutar diagnóstico del entorno y salir')
     args = parser.parse_args()
 
     # Inicializar logging estructurado (F11)
     fecha_log = args.fecha.replace('-', '') if args.fecha else None
     setup_logging(fecha_proceso=fecha_log)
+
+    # Health check rápido (no requiere --fecha)
+    if args.check_env:
+        from tools.check_env import ejecutar_checks, imprimir_resultados, guardar_json
+        resultados = ejecutar_checks(rapido=False)
+        imprimir_resultados(resultados)
+        guardar_json(resultados)
+        return
 
     if args.gui:
         ejecutar_modo_gui()
