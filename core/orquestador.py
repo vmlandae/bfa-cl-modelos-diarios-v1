@@ -1,4 +1,6 @@
+import hashlib
 import importlib
+import json
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -114,22 +116,47 @@ class OrquestadorModelos:
     # -----------------------------------------------------------------
     # F02 — Máquina del Tiempo: Snapshots de parámetros
     # -----------------------------------------------------------------
+    #
+    # Almacenamiento content-addressable con manifiesto diario.
+    #
+    # Estructura:
+    #   snapshots/
+    #     store/{modelo}/{sha256_12}.{ext}    ← archivo único por contenido
+    #     manifests/{YYYYMMDD}.json           ← qué se usó cada día
+    #
+    # Beneficios:
+    #   - Deduplicación automática (no copia si el hash ya existe)
+    #   - Historial ilimitado sin crecimiento de disco
+    #   - Manifiesto = registro perfecto para auditoría
+    #   - Re-ejecución con params distintos crea nuevo hash, no sobreescribe
+    # -----------------------------------------------------------------
+
+    @staticmethod
+    def _sha256_file(path: Path) -> str:
+        """Calcula SHA-256 de un archivo."""
+        h = hashlib.sha256()
+        with open(path, "rb") as f:
+            for chunk in iter(lambda: f.read(8192), b""):
+                h.update(chunk)
+        return h.hexdigest()
 
     def _snapshot_parametros(self, modelo_key: str, fecha: datetime) -> None:
-        """Copia los Excel de parámetros del modelo a snapshots/{YYYYMMDD}/{modelo_key}/.
+        """Snapshot content-addressable de parámetros con manifiesto diario.
 
-        Lee los campos ``excel_parametros_*`` del YAML de configuración
-        externa y copia cada archivo con ``shutil.copy2`` (preserva
-        metadata).  Si alguna copia falla (red caída, archivo no
-        encontrado), lanza excepción para abortar la ejecución del
-        modelo.
+        Para cada archivo de parámetros (Excel + JSON sibling si existe):
+        1. Calcula SHA-256 del archivo fuente.
+        2. Si el hash no existe en ``store/`` → copia.
+        3. Registra hash y metadata en el manifiesto del día.
+
+        Si alguna operación falla (red caída, archivo no encontrado),
+        lanza excepción para abortar la ejecución del modelo.
 
         Args:
-            modelo_key: Clave del modelo en ``self.modelos`` (ej: ``mr_prepago_consumo``).
+            modelo_key: Clave del modelo (ej: ``mr_prepago_consumo``).
             fecha: Fecha de proceso.
 
         Raises:
-            RuntimeError: Si no se puede copiar algún archivo de parámetros.
+            RuntimeError: Si no se puede leer o copiar algún archivo de parámetros.
         """
         from config.config_rutas import resolver_ruta, BASE_DIR
 
@@ -141,32 +168,89 @@ class OrquestadorModelos:
             logger.debug(f"Sin configuración externa para '{modelo_key}', omitiendo snapshot")
             return
 
-        # Recolectar todos los campos que apuntan a Excel de parámetros
+        # Recolectar rutas de parámetros (Excel) + JSON siblings
         rutas_parametros: List[Path] = []
         for campo, valor in modelo_cfg.items():
             if campo.startswith("excel_parametros") and isinstance(valor, str):
-                rutas_parametros.append(resolver_ruta(valor))
+                ruta_excel = resolver_ruta(valor)
+                rutas_parametros.append(ruta_excel)
+                # JSON sibling (mismo nombre, extensión .json)
+                ruta_json = ruta_excel.with_suffix(".json")
+                if ruta_json.exists():
+                    rutas_parametros.append(ruta_json)
 
         if not rutas_parametros:
             logger.debug(f"Modelo '{modelo_key}' sin rutas de parámetros en YAML, omitiendo snapshot")
             return
 
         fecha_str = fecha.strftime("%Y%m%d")
-        destino_dir = BASE_DIR / "snapshots" / fecha_str / modelo_key
-        destino_dir.mkdir(parents=True, exist_ok=True)
+        store_dir = BASE_DIR / "snapshots" / "store" / modelo_key
+        store_dir.mkdir(parents=True, exist_ok=True)
+        manifest_dir = BASE_DIR / "snapshots" / "manifests"
+        manifest_dir.mkdir(parents=True, exist_ok=True)
+        manifest_path = manifest_dir / f"{fecha_str}.json"
+
+        # Cargar manifiesto existente (puede haber otros modelos ya registrados)
+        if manifest_path.exists():
+            with open(manifest_path, "r", encoding="utf-8") as f:
+                manifest = json.load(f)
+        else:
+            manifest = {"fecha": fecha_str, "modelos": {}}
+
+        modelo_entries: Dict[str, Any] = {}
 
         for ruta_origen in rutas_parametros:
-            destino = destino_dir / ruta_origen.name
             try:
-                shutil.copy2(str(ruta_origen), str(destino))
-                logger.info(f"📸 Snapshot: {ruta_origen.name} → snapshots/{fecha_str}/{modelo_key}/")
+                file_hash = self._sha256_file(ruta_origen)
             except Exception as e:
-                msg = (
-                    f"No se pudo copiar parámetros para snapshot: {ruta_origen} → {destino}. "
-                    f"Error: {e}"
-                )
+                msg = f"No se pudo leer parámetros para snapshot: {ruta_origen}. Error: {e}"
                 logger.error(f"❌ {msg}")
                 raise RuntimeError(msg) from e
+
+            hash_prefix = file_hash[:12]
+            ext = ruta_origen.suffix
+            store_name = f"{hash_prefix}{ext}"
+            store_path = store_dir / store_name
+            is_new = not store_path.exists()
+
+            if is_new:
+                try:
+                    shutil.copy2(str(ruta_origen), str(store_path))
+                except Exception as e:
+                    msg = (
+                        f"No se pudo copiar parámetros para snapshot: "
+                        f"{ruta_origen} → {store_path}. Error: {e}"
+                    )
+                    logger.error(f"❌ {msg}")
+                    raise RuntimeError(msg) from e
+
+            stat = ruta_origen.stat()
+            modelo_entries[ruta_origen.name] = {
+                "sha256": file_hash,
+                "store": f"store/{modelo_key}/{store_name}",
+                "size_bytes": stat.st_size,
+                "is_new": is_new,
+            }
+
+            # Log con fingerprint
+            if is_new:
+                logger.info(
+                    f"📸 Snapshot (NUEVO): {ruta_origen.name} "
+                    f"(sha256: {hash_prefix}…) → store/{modelo_key}/{store_name}"
+                )
+            else:
+                logger.info(
+                    f"📸 Snapshot (sin cambios): {ruta_origen.name} "
+                    f"(sha256: {hash_prefix}…)"
+                )
+
+        manifest["modelos"][modelo_key] = {
+            "ts_snapshot": datetime.now().isoformat(timespec="seconds"),
+            "archivos": modelo_entries,
+        }
+
+        with open(manifest_path, "w", encoding="utf-8") as f:
+            json.dump(manifest, f, indent=2, ensure_ascii=False)
 
     # -----------------------------------------------------------------
     # F14 — Pre/Post hooks para copia de interfaz PML
