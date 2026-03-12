@@ -279,7 +279,13 @@ class OrquestadorModelos:
         )
 
     def _pre_ejecucion_primera_vuelta(self, modelos_seleccionados: List[str], fecha: datetime) -> None:
-        """Hook pre-ejecución: copia interfaz PML una sola vez si hay modelos de vuelta 1."""
+        """Hook pre-ejecución: sincroniza interfaz PML con caché local.
+
+        Si ya existe copia local, compara MD5 contra la red:
+        - Iguales → usa local (sin recopia).
+        - Distintos → re-copia desde red e invalida parquet.
+        Si no existe → copia desde red.
+        """
         modelos_v1 = [
             m for m in modelos_seleccionados
             if m in self.modelos and self.modelos[m].get("vuelta") == 1
@@ -293,30 +299,10 @@ class OrquestadorModelos:
         ruta_red = self._obtener_ruta_interfaz_red()
 
         logger.info(f"\n{'─'*60}")
-        logger.info("PRE-EJECUCIÓN: Copiando interfaz PML a caché local...")
+        logger.info("PRE-EJECUCIÓN: Sincronizando interfaz PML...")
         logger.info(f"{'─'*60}")
 
         copiar_interfaz_a_local(ruta_red, fecha_str)
-
-    def _post_ejecucion_primera_vuelta(self, modelos_seleccionados: List[str], fecha: datetime) -> None:
-        """Hook post-ejecución: verifica que el archivo de red no cambió."""
-        modelos_v1 = [
-            m for m in modelos_seleccionados
-            if m in self.modelos and self.modelos[m].get("vuelta") == 1
-        ]
-        if not modelos_v1:
-            return
-
-        from procesamiento_datos_input.cache_tablas import verificar_interfaz_post_ejecucion
-
-        fecha_str = fecha.strftime("%Y%m%d")
-        ruta_red = self._obtener_ruta_interfaz_red()
-
-        logger.info(f"\n{'─'*60}")
-        logger.info("POST-EJECUCIÓN: Verificando integridad de interfaz PML...")
-        logger.info(f"{'─'*60}")
-
-        verificar_interfaz_post_ejecucion(ruta_red, fecha_str)
 
     # -----------------------------------------------------------------
     # F22 — Pre/Post hooks para copia local de Access (segunda vuelta)
@@ -516,8 +502,6 @@ class OrquestadorModelos:
             logger.error(f"El modelo {nombre_modelo} no existe")
             resultados[nombre_modelo] = False
 
-        # F14: post-ejecución (verifica integridad si es vuelta 1)
-        self._post_ejecucion_primera_vuelta([nombre_modelo], fecha)
         # F22: post-ejecución (limpia copias Access si es vuelta 2)
         self._post_ejecucion_segunda_vuelta([nombre_modelo], fecha)
             
@@ -561,8 +545,6 @@ class OrquestadorModelos:
                 logger.error(f"El modelo {nombre_modelo} no existe")
                 resultados[nombre_modelo] = False
 
-        # F14: post-ejecución (verifica integridad si hubo modelos de vuelta 1)
-        self._post_ejecucion_primera_vuelta(modelos_seleccionados, fecha)
         # F22: post-ejecución (limpia copias Access si hubo modelos de vuelta 2)
         self._post_ejecucion_segunda_vuelta(modelos_seleccionados, fecha)
         return resultados
