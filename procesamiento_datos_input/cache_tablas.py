@@ -131,9 +131,9 @@ INTERFAZ_PML_DTYPES = {
 #     leer_interfaz_con_cache()  — lee SOLO desde local/parquet,
 #                                  NUNCA toca la red
 #
-#   POST-EJECUCIÓN  (orquestador, 1 sola vez, hilo principal):
-#     verificar_interfaz_post_ejecucion()  — compara checksum local vs red,
-#                                            emite WARNING si el archivo cambió
+#   PRE-EJECUCIÓN incluye verificación contra red:
+#     Si existe copia local → compara MD5 con red → re-copia si difieren.
+#     Esto reemplaza la verificación post-ejecución anterior.
 #
 # Lock de seguridad: si un modelo se ejecuta sin orquestador,
 # copiar_interfaz_a_local() usa un threading.Lock para evitar copias
@@ -214,16 +214,14 @@ def copiar_interfaz_a_local(
     """Copia el .txt de interfaz desde red a local (raw, sin modificar).
 
     Diseñado para ser llamado **una sola vez** desde el orquestador
-    antes de lanzar los hilos de los modelos.  Usa un ``threading.Lock``
-    como guardia adicional para el caso en que un modelo se ejecute
-    individualmente sin orquestador.
+    antes de lanzar los modelos de primera vuelta.
 
-    Si el archivo local ya existe y ``forzar_recarga=False``:
-      - Verifica checksum de la **copia local** contra su metadata.
-      - Si la metadata coincide → no recopia (rápido, sin tocar red).
-      - Si no hay metadata → recalcula md5 local, guarda metadata.
-      - NO accede a la red aquí; la verificación de red se hace en
-        ``verificar_interfaz_post_ejecucion()`` al final.
+    Lógica de caché inteligente:
+      1. Si no existe copia local → copia desde red.
+      2. Si existe copia local → compara MD5 local vs red.
+         - Si son iguales → skip (log "sin cambios").
+         - Si son distintos → re-copia desde red (log "ACTUALIZADA").
+      3. Si ``forzar_recarga=True`` → siempre copia desde red.
 
     Args:
         ruta_red: Ruta de red a la carpeta que contiene el .txt.
@@ -244,27 +242,52 @@ def copiar_interfaz_a_local(
     )
 
     with _lock_copia_interfaz:
-        # Dentro del lock: verificar de nuevo (double-check locking)
         raw_dir = ruta_local.parent
         raw_dir.mkdir(parents=True, exist_ok=True)
 
-        # --- Ya existe copia local ---
+        # --- Ya existe copia local: comparar con red ---
         if ruta_local.exists() and not forzar_recarga:
-            meta = _leer_metadata(ruta_local)
-            if meta and meta.get("checksum_md5"):
-                logger.info(
-                    f"  ✓ Interfaz local vigente: {ruta_local.name} "
-                    f"(copiado {meta['timestamp_copia']}, md5={meta['checksum_md5'][:8]}...)"
-                )
-                return ruta_local
-            # Sin metadata → calcular md5 del archivo existente y guardar
             checksum_local = _md5_archivo(ruta_local)
-            _guardar_metadata(ruta_local, checksum_local)
+
+            try:
+                if not ruta_origen.exists():
+                    logger.warning(
+                        f"  ⚠ Archivo de red no disponible ({ruta_origen.name}), "
+                        f"usando copia local (md5={checksum_local[:8]}...)"
+                    )
+                    _guardar_metadata(ruta_local, checksum_local)
+                    return ruta_local
+
+                checksum_red = _md5_archivo(ruta_origen)
+            except Exception as e:
+                logger.warning(
+                    f"  ⚠ No se pudo leer archivo de red para comparar: {e}. "
+                    f"Usando copia local (md5={checksum_local[:8]}...)"
+                )
+                _guardar_metadata(ruta_local, checksum_local)
+                return ruta_local
+
+            if checksum_red == checksum_local:
+                logger.info(
+                    f"  ✓ Interfaz local vigente (coincide con red): "
+                    f"{ruta_local.name} (md5={checksum_local[:8]}...)"
+                )
+                _guardar_metadata(ruta_local, checksum_local)
+                return ruta_local
+
+            # Difieren → re-copiar
             logger.info(
-                f"  ✓ Interfaz local existente (metadata regenerada): "
-                f"{ruta_local.name} (md5={checksum_local[:8]}...)"
+                f"  🔄 Interfaz cambió en red — re-copiando: {ruta_local.name}\n"
+                f"    MD5 local: {checksum_local[:12]}...\n"
+                f"    MD5 red  : {checksum_red[:12]}..."
             )
-            return ruta_local
+            # Invalidar parquet para forzar re-parseo
+            _, _, ruta_parquet, _ = _resolver_rutas_interfaz(
+                ruta_red, fecha_proceso, cache_dir,
+            )
+            if ruta_parquet.exists():
+                ruta_parquet.unlink()
+                logger.info(f"    → Parquet invalidado: {ruta_parquet.name}")
 
         # --- Copiar desde red ---
         if not ruta_origen.exists():
