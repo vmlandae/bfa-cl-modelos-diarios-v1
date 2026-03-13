@@ -27,6 +27,7 @@ gantt
     section S2: Observabilidad
     F12 Config Unificada         :f12, 2026-03-10, 3d
     F01 Torre de Control         :f01, 2026-03-13, 5d
+    Dashboard Quick Wins         :done, dqw, 2026-03-12, 2d
     F09 Alertas Inteligentes     :f09, 2026-03-18, 3d
 
     section S3: Migración

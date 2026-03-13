@@ -84,6 +84,9 @@ nav:
     - Plan de Desarrollo: roadmap/index.md
     - Workflow Colaborativo: roadmap/workflow.md
   - Features:
+    - Dashboard Quick Wins:
+      - Brainstorm: feats/dashboard-quick-wins/brainstorm.md
+      - Especificación: feats/dashboard-quick-wins/quick_wins_spec.md
     - Handoff Practicante:
       - Plan: feats/handoff-practicante/PLAN.md
     - Carga Históricos Pre-Python:

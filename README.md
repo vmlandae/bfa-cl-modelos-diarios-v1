@@ -172,11 +172,28 @@ vendor/                         # Dependencia offline
 └── bfa_cl_utilidades-1.0.4-py3-none-any.whl
 ```
 
+### 📁 Dashboard de Monitoreo
+```
+dashboard/                      # Dashboard Streamlit multi-página
+├── app.py                      # Entry point (st.navigation)
+├── pages/                      # Páginas del dashboard
+│   ├── 1_Home.py               # Mission Control — vista consolidada por día
+│   ├── 2_Logs.py               # Explorador de logs JSONL con filtros
+│   ├── 3_Comparacion.py        # Comparación outputs t vs t-1 (BQ hist)
+│   ├── 4_Benchmark.py          # Trending de performance por fase
+│   └── 5_Parametros.py         # Diff de parámetros entre fechas
+└── utils/                      # Utilidades compartidas
+    ├── bq_client.py            # Cliente BQ cacheado
+    ├── local_data.py           # Acceso a datos locales
+    └── theme.py                # Constantes de estilo y modelos canónicos
+```
+
 ### 📁 Documentación
 ```
 docs/                           # Documentación del proyecto (MkDocs)
 ├── CHANGELOG.md                # Registro de cambios
 ├── roadmap/                    # Roadmap visual, plan de sprints y workflow
+├── feats/dashboard-quick-wins/ # Brainstorm y spec del dashboard
 ├── modelos/                    # Documentación técnica de cada modelo
 ├── guia/                       # Guías de uso, instalación y troubleshooting
 └── desarrollo/                 # Benchmarks y notas de desarrollo
