@@ -86,3 +86,15 @@ modelos:
     # --- Outputs ---
     excel_output: "RF_Modelo_Inversiones/ml_inversiones.xlsx"
     csv_output_dir: "RF_Modelo_Inversiones"
+
+# ============================================================================
+# Reporte de amortización por email (primera vuelta)
+# ============================================================================
+email_report:
+  enabled: true
+  destinatarios:
+    - "supervisor.riesgo@falabella.com"
+    # - "gerencia.riesgo@falabella.com"
+  modo: "send"            # "send" = envío directo | "display" = abre en Outlook para revisión
+  auto_post_ejecucion: false   # true = envía automáticamente tras primera_vuelta en run_diario.bat
+  asunto_template: "Reporte Amortización Primera Vuelta — {fecha}"

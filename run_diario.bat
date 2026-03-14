@@ -223,6 +223,39 @@ if %EXIT_CODE% equ 0 (
 )
 echo   Revise logs\ y reports\ para mas detalles
 echo =========================================================
+
+:: ── Email report (solo si incluye primera vuelta) ──────────────────────────
+:: Lee auto_post_ejecucion del YAML. Si es true, envía sin preguntar.
+:: Si es false (default), pregunta al usuario.
+if "%OPCION%"=="3" goto :skip_email
+if "%OPCION%"=="6" goto :skip_email
+
+:: Verificar si auto_post_ejecucion está habilitado
+for /f %%a in ('python -c "import yaml; cfg=yaml.safe_load(open('config/config_rutas_ext_y_archivos.yaml',encoding='utf-8')); print(cfg.get('email_report',{}).get('auto_post_ejecucion',False))" 2^>nul') do set AUTO_EMAIL=%%a
+
+if /I "%AUTO_EMAIL%"=="True" (
+    echo.
+    echo Enviando reporte de amortizacion por email (automatico)...
+    python -m core.email_report --fecha %FECHA%
+    goto :skip_email
+)
+
+echo.
+echo Enviar reporte de amortizacion por email?
+echo   [1] Si, enviar ahora
+echo   [2] Si, pero abrir en Outlook para revisar (display)
+echo   [3] No, saltar
+set /p EMAIL_CHOICE="Opcion [3]: "
+if "%EMAIL_CHOICE%"=="" set EMAIL_CHOICE=3
+
+if "%EMAIL_CHOICE%"=="1" (
+    python -m core.email_report --fecha %FECHA% --modo send
+)
+if "%EMAIL_CHOICE%"=="2" (
+    python -m core.email_report --fecha %FECHA% --modo display
+)
+
+:skip_email
 goto :fin
 
 :fin_error
