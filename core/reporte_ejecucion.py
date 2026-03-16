@@ -90,49 +90,131 @@ class ReporteEjecucion:
             self._carga_gcp = resultados_carga_gcp
 
     # ------------------------------------------------------------------
-    # Generación del reporte
+    # Benchmark
     # ------------------------------------------------------------------
 
+    # Modelos por vuelta (debe coincidir con theme.MODELOS_CANONICOS)
+    _VUELTA_1 = frozenset([
+        "mr_prepago_consumo", "mr_prepago_hipotecario",
+        "ml_mora_consumo", "ml_mora_cae",
+        "ml_mora_hipotecario", "ml_mora_comercial",
+    ])
+    _VUELTA_2 = frozenset([
+        "mr_prepago_cmr", "ml_nmd", "ml_lc", "ml_inversiones",
+    ])
+
+    @staticmethod
+    def _clasificar_fase(modelos_keys: set[str]) -> str:
+        """Clasifica un conjunto de modelos en primera_vuelta, segunda_vuelta o mixta."""
+        if modelos_keys and modelos_keys <= ReporteEjecucion._VUELTA_1:
+            return "primera_vuelta"
+        if modelos_keys and modelos_keys <= ReporteEjecucion._VUELTA_2:
+            return "segunda_vuelta"
+        return "mixta"
+
     def _calcular_benchmark(self) -> Dict[str, Any]:
-        """Calcula benchmark comparando con historial previo."""
+        """Calcula benchmark comparando con historial previo de la misma fase."""
         total_seg = round((self._fin or time.time()) - (self._inicio or 0), 2)
         por_modelo = {
             k: v.get("duracion_seg", 0) for k, v in self._modelos.items()
         }
-        modelo_mas_lento = max(por_modelo, key=por_modelo.get, default="N/A") if por_modelo else "N/A"
+        modelo_mas_lento = (
+            max(por_modelo, key=por_modelo.get, default="N/A")
+            if por_modelo else "N/A"
+        )
+        fase_actual = self._clasificar_fase(set(por_modelo.keys()))
+        suma_modelos = sum(por_modelo.values())
+        overhead_seg = round(total_seg - suma_modelos, 2)
 
-        benchmark = {
+        benchmark: Dict[str, Any] = {
             "total_seg": total_seg,
             "por_modelo": por_modelo,
             "modelo_mas_lento": modelo_mas_lento,
+            "fase": fase_actual,
+            "overhead_seg": overhead_seg,
         }
 
-        # Comparar con historial
-        if _BENCHMARK_FILE.exists():
-            try:
-                tiempos_previos = []
-                with open(_BENCHMARK_FILE, "r", encoding="utf-8") as f:
-                    for line in f:
-                        line = line.strip()
-                        if line:
-                            entry = json.loads(line)
-                            tiempos_previos.append(entry.get("total_seg", 0))
-                if tiempos_previos:
-                    promedio = sum(tiempos_previos) / len(tiempos_previos)
-                    benchmark["promedio_historico_seg"] = round(promedio, 2)
-                    benchmark["n_ejecuciones_previas"] = len(tiempos_previos)
-                    if promedio > 0:
-                        diff_pct = round(((total_seg - promedio) / promedio) * 100, 1)
-                        benchmark["comparacion_vs_promedio"] = f"{diff_pct:+.1f}%"
-                        if diff_pct > 50:
-                            self._alertas.append(
-                                f"Duración total {diff_pct:+.1f}% sobre promedio histórico "
-                                f"({total_seg:.0f}s vs {promedio:.0f}s promedio)"
-                            )
-            except Exception:
-                pass
+        if not _BENCHMARK_FILE.exists():
+            return benchmark
+
+        # Leer historial y filtrar por misma fase
+        try:
+            entradas_misma_fase: list[dict] = []
+            with open(_BENCHMARK_FILE, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    entry = json.loads(line)
+                    entry_modelos = set(entry.get("por_modelo", {}).keys())
+                    entry_fase = entry.get("fase") or self._clasificar_fase(entry_modelos)
+                    if entry_fase == fase_actual:
+                        entradas_misma_fase.append(entry)
+        except Exception:
+            return benchmark
+
+        if not entradas_misma_fase:
+            return benchmark
+
+        n_previas = len(entradas_misma_fase)
+        benchmark["n_ejecuciones_previas"] = n_previas
+        benchmark["fase_label"] = fase_actual
+
+        # --- Comparación total (misma fase) ---
+        totales_previos = [e.get("total_seg", 0) for e in entradas_misma_fase]
+        promedio_total = sum(totales_previos) / len(totales_previos)
+        benchmark["promedio_historico_seg"] = round(promedio_total, 2)
+        if promedio_total > 0:
+            diff_total_pct = round(((total_seg - promedio_total) / promedio_total) * 100, 1)
+            benchmark["comparacion_vs_promedio"] = f"{diff_total_pct:+.1f}%"
+            if diff_total_pct > 50:
+                self._alertas.append(
+                    f"Duración {fase_actual} {diff_total_pct:+.1f}% sobre promedio "
+                    f"({total_seg:.0f}s vs {promedio_total:.0f}s, {n_previas} ejecuciones previas)"
+                )
+
+        # --- Comparación overhead (misma fase) ---
+        overheads_previos = []
+        for e in entradas_misma_fase:
+            e_total = e.get("total_seg", 0)
+            e_suma = sum(e.get("por_modelo", {}).values())
+            overheads_previos.append(e_total - e_suma)
+        if overheads_previos:
+            prom_overhead = sum(overheads_previos) / len(overheads_previos)
+            if prom_overhead > 0 and overhead_seg > 0:
+                diff_oh_pct = round(((overhead_seg - prom_overhead) / prom_overhead) * 100, 1)
+                if diff_oh_pct > 100:
+                    self._alertas.append(
+                        f"Overhead (pre/post ejecución) {diff_oh_pct:+.1f}% sobre promedio "
+                        f"({overhead_seg:.0f}s vs {prom_overhead:.0f}s)"
+                    )
+
+        # --- Comparación por modelo ---
+        alertas_modelos: list[str] = []
+        for modelo_id, dur_actual in por_modelo.items():
+            durs_previas = [
+                e["por_modelo"][modelo_id]
+                for e in entradas_misma_fase
+                if modelo_id in e.get("por_modelo", {})
+            ]
+            if not durs_previas:
+                continue
+            prom_modelo = sum(durs_previas) / len(durs_previas)
+            if prom_modelo > 0:
+                diff_m_pct = round(((dur_actual - prom_modelo) / prom_modelo) * 100, 1)
+                if diff_m_pct > 100:
+                    alertas_modelos.append(
+                        f"{modelo_id} {diff_m_pct:+.1f}% sobre promedio "
+                        f"({dur_actual:.1f}s vs {prom_modelo:.1f}s)"
+                    )
+        if alertas_modelos:
+            self._alertas.extend(alertas_modelos)
 
         return benchmark
+
+    # ------------------------------------------------------------------
+    # Generación del reporte
+    # ------------------------------------------------------------------
 
     def generar(self) -> Dict[str, Any]:
         """Genera el dict completo del reporte."""
@@ -195,6 +277,7 @@ class ReporteEjecucion:
             "fecha": reporte["fecha_proceso"],
             "total_seg": reporte["duracion_total_seg"],
             "por_modelo": reporte["benchmark"]["por_modelo"],
+            "fase": reporte["benchmark"].get("fase", "mixta"),
             "hostname": self.hostname,
             "status": reporte["status_global"],
         }
