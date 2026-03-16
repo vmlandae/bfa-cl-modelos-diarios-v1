@@ -359,6 +359,30 @@ class OrquestadorModelos:
 
         limpiar_access_local()
 
+    # -----------------------------------------------------------------
+    # F13 — Pre-flight Checks
+    # -----------------------------------------------------------------
+
+    def _ejecutar_preflight(self, modelos_seleccionados: List[str]) -> List[str]:
+        """Ejecuta pre-flight checks y retorna los modelos que pasaron.
+
+        Si algún modelo falla checks críticos, se excluye de la ejecución
+        y se emite un warning. Los modelos que pasaron siguen adelante.
+        """
+        from core.preflight import ejecutar_preflight, filtrar_modelos_aptos
+
+        reportes = ejecutar_preflight(modelos_seleccionados, self.modelos)
+        modelos_aptos = filtrar_modelos_aptos(modelos_seleccionados, reportes)
+
+        excluidos = set(modelos_seleccionados) - set(modelos_aptos)
+        if excluidos:
+            for m in excluidos:
+                logger.warning(
+                    f"⛔ Modelo '{m}' excluido por pre-flight checks fallidos"
+                )
+
+        return modelos_aptos
+
     def ejecutar_modelo(self, nombre_modelo: str, config: Dict[str, Any], fecha: datetime) -> bool:
         with contexto_modelo(nombre_modelo):
             if self.reporte:
@@ -485,6 +509,12 @@ class OrquestadorModelos:
             self.reporte = ReporteEjecucion(fecha)
             self.reporte.registrar_inicio()
 
+        # F13: Pre-flight checks
+        modelos_aptos = self._ejecutar_preflight([nombre_modelo])
+        if not modelos_aptos:
+            logger.error(f"Pre-flight falló para {nombre_modelo}. Abortando ejecución.")
+            return {nombre_modelo: False}
+
         # F14: pre-ejecución (copia interfaz si es vuelta 1)
         self._pre_ejecucion_primera_vuelta([nombre_modelo], fecha)
         # F22: pre-ejecución (copia Access a local si es vuelta 2)
@@ -523,6 +553,12 @@ class OrquestadorModelos:
             return self.ejecutar_modelo_secuencial(modelos_seleccionados[0], fecha)
 
         logger.info(f"Iniciando ejecución secuencial de {len(modelos_seleccionados)} modelos para fecha: {fecha.strftime('%Y-%m-%d')}")
+
+        # F13: Pre-flight checks — filtrar modelos que no pasaron
+        modelos_seleccionados = self._ejecutar_preflight(modelos_seleccionados)
+        if not modelos_seleccionados:
+            logger.error("Pre-flight falló para todos los modelos. Abortando ejecución.")
+            return {}
 
         # F14: pre-ejecución (copia interfaz una sola vez si hay modelos de vuelta 1)
         self._pre_ejecucion_primera_vuelta(modelos_seleccionados, fecha)
