@@ -35,8 +35,11 @@ def _fecha_proceso_default() -> date:
             d -= timedelta(days=1)
         return d
     except ImportError:
-        # Fallback: ayer (sin validar feriados)
-        return date.today() - timedelta(days=1)
+        # Fallback: ultimo dia habil (salta weekends, sin validar feriados)
+        d = date.today() - timedelta(days=1)
+        while d.weekday() >= 5:  # 5=sabado, 6=domingo
+            d -= timedelta(days=1)
+        return d
 
 # ---------------------------------------------------------------------------
 # Consultas BQ
@@ -344,9 +347,9 @@ for i, (modelo_id, info) in enumerate(MODELOS_CANONICOS.items()):
 # contra promedio global sin distinguir fase).
 _ALERTAS_FIABLES_DESDE = "2026-03-13"
 if alertas and fecha_iso >= _ALERTAS_FIABLES_DESDE:
-    st.subheader("⚠️ Alertas")
-    for alerta in alertas:
-        st.warning(alerta)
+    with st.expander(f"Alertas ({len(alertas)})", expanded=False):
+        for alerta in alertas:
+            st.warning(alerta)
 
 # --- Carga GCP ---
 carga_gcp = consolidado["carga_gcp"]
