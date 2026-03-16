@@ -194,27 +194,28 @@ F14 extiende este módulo para cubrir también la interfaz CSV de primera vuelta
 
 ---
 
-### F13: Pre-flight Checks — Verificación de dependencias
+### F13: Pre-flight Checks — Verificación de dependencias ✅
 
-> **Tamaño:** S (~2d) · **Asignado:** `________`
+> **Tamaño:** S (~2d) · **Asignado:** @vlandaetat · **Completado:** 2026-03-12
 
-**Qué:** Health checks de rutas de red y bases Access ANTES de ejecutar modelos
+**Qué:** Health checks de rutas de red, bases Access, Excel de parámetros
+y driver ODBC ANTES de ejecutar modelos
 
 **Archivos:**
 - `core/preflight.py` (nuevo)
-- `core/orquestador.py` — llamar pre-flight antes de ejecución
+- `core/orquestador.py` — integrado en `ejecutar_modelos_paralelo()` y `ejecutar_modelo_secuencial()`
 
 **Contexto:** Si la red está caída, el error aparece minutos después cuando `pyodbc.connect()` falla con timeout.
 
 **Tareas:**
-- [ ] Crear `core/preflight.py` con clase `PreflightChecker`
-- [ ] Parsear YAML para obtener rutas de red y Access por modelo seleccionado
-- [ ] Verificar accesibilidad con `os.path.exists()` + `os.access()`
-- [ ] Para Access: `pyodbc.connect()` con timeout corto (~5s)
-- [ ] Retornar `{modelo: {ok: bool, errores: [str]}}`
-- [ ] Integrar en `orquestador.py` antes de `ejecutar_modelos_paralelo()`
-- [ ] Permitir continuar solo con modelos que pasaron checks
-- [ ] Manejar caso `ml_inversiones` (múltiples Access DBs en `ms_access_sources`)
+- [x] Crear `core/preflight.py` con dataclasses `CheckResult` / `PreflightReport`
+- [x] Parsear YAML para obtener rutas de red y Access por modelo seleccionado
+- [x] Verificar accesibilidad de rutas de red, Excel de parámetros, bases Access
+- [x] Verificar driver ODBC Access instalado
+- [x] Deduplicar rutas compartidas entre modelos
+- [x] Integrar en `orquestador.py` (ambos métodos de ejecución)
+
+**Notas:** Rama `feat/F13-preflight-checks` (3e7889b), mergeado a `main`.
 
 **Preguntas por resolver:**
 - [ ] ❓ ¿`os.path.exists()` es suficiente o hay que intentar abrir los archivos?
@@ -393,6 +394,35 @@ Refactoriza OrquestadorModelos.__init__() para leer del YAML.
 Refactoriza main.py para generar MODELO_A_TABLAS desde el YAML.
 Elimina duplicación en hist.py.
 ```
+
+---
+
+### F26: Sistema de Reportes Email Multi-Tipo 🔄
+
+> **Tamaño:** M (~3d) · **Asignado:** @vlandaetat
+> **Rama:** `feature/email-report`
+
+**Qué:** Evolucionar `email_report.py` de reporte único (primera vuelta) a sistema
+multi-tipo con config YAML compartida e integración con orquestador.
+
+**Tipos de reporte:**
+1. **Primera vuelta** — amortización por moneda/producto (ya implementado)
+2. **Segunda vuelta** — misma estructura, tablas CMR/NMD/LC/Inversiones
+3. **Chequeo interfaces** — sumas amortización/interés + conteo registros por SISTEMA y MONEDA_ORIGEN
+
+**Criterio UX:** Todas las etiquetas visibles usan fechas reales (ej: "2026-03-10 vs 2026-03-07"),
+nunca "t" ni "t-1".
+
+**Fases:**
+- [~] Fase 1: Reestructuración YAML + refactor base
+- [ ] Fase 2: Reporte segunda vuelta
+- [ ] Fase 3: Actualización run_diario.bat
+- [ ] Fase 4: Integración con orquestador
+- [ ] Fase 5: Reporte chequeo de interfaces (pendiente detalle)
+- [ ] Fase 6: Dashboard email button (diferido a merge de ramas)
+- [ ] Fase 7: Auto-send inteligente (solo planificación)
+
+**Plan detallado:** `docs/feats/email-report/PLAN.md`
 
 ---
 

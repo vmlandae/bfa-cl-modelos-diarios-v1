@@ -5,6 +5,25 @@ Registro de cambios y actualizaciones del proyecto BFA-CL Modelos Diarios.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0-dev] - 2026-03-16 - Sprint S2: Reportes Email Multi-Tipo + Pre-flight Checks
+
+### Agregado
+- **Pre-flight Checks (F13)** (`core/preflight.py`): verificación de dependencias antes de ejecutar modelos
+  - Checks de rutas de red, bases Access, Excel de parámetros y driver ODBC
+  - Dataclasses `CheckResult` / `PreflightReport` para resultados estructurados
+  - Deduplicación automática de rutas compartidas entre modelos
+  - Integrado en `ejecutar_modelos_paralelo()` y `ejecutar_modelo_secuencial()`
+  - Rama: `feat/F13-preflight-checks` (3e7889b), mergeado a `main`
+- **Sistema de Reportes Email Multi-Tipo (F26)** (`core/email_report.py`): evolución a sistema multi-tipo
+  - Config YAML con sección compartida + sub-secciones por tipo de reporte
+  - Soporte para: primera vuelta, segunda vuelta, chequeo interfaces (WIP)
+  - Criterio UX: etiquetas visibles siempre usan fechas reales, nunca "t"/"t-1"
+  - Plan detallado en `docs/feats/email-report/PLAN.md`
+  - Rama: `feature/email-report`
+
+### Cambiado
+- **`config/config_rutas_ext_y_archivos.yaml`**: `email_report:` reestructurado a config jerárquica multi-tipo
+
 ## [1.9.0-dev] - 2026-03-11 - Sprint S5: Handoff Practicante + Observabilidad Remota
 
 ### Agregado

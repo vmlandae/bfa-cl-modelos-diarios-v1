@@ -44,8 +44,8 @@ sprints:
     nombre: "Observabilidad"
     inicio: "2026-03-10"
     fin: "2026-03-21"
-    objetivo: "Torre de Control MVP + Config unificada"
-    features: [F01, F12, F09]
+    objetivo: "Torre de Control MVP + Config unificada + Reportes Email"
+    features: [F01, F12, F09, F26]
 
   - id: "S3-2026"
     nombre: "Migración & Validación"
@@ -145,13 +145,16 @@ features:
   - id: F13
     titulo: "Pre-flight Checks — Verificación de dependencias"
     descripcion: >
-      Health checks de rutas de red y bases Access ANTES de ejecutar modelos.
-      Evita esperar minutos para descubrir que la red está caída.
-    estado: planificado
+      Health checks de rutas de red, bases Access, Excel de parámetros y
+      driver ODBC ANTES de ejecutar modelos. Evita esperar minutos para
+      descubrir que la red está caída. Deduplicación automática de rutas
+      compartidas entre modelos.
+    estado: completado
     prioridad: alta
     tamano: S
     sprint: "S1-2026"
-    asignado: null
+    asignado: vlandaetat
+    fecha_completado: "2026-03-12"
     etiquetas: [ux, robustez, red]
     dependencias: []
     archivos_afectados:
@@ -160,8 +163,14 @@ features:
     criterios_aceptacion:
       - "Verifica accesibilidad de rutas de red para modelos seleccionados"
       - "Verifica conexión a bases Access"
+      - "Verifica Excel de parámetros"
+      - "Verifica driver ODBC Access instalado"
       - "Reporta problemas ANTES de iniciar ejecución"
-      - "Opción para continuar solo con modelos que tienen recursos disponibles"
+      - "Deduplicación de rutas compartidas entre modelos"
+    notas: >
+      Rama: feat/F13-preflight-checks (3e7889b), mergeado a main.
+      Integrado en ejecutar_modelos_paralelo() y ejecutar_modelo_secuencial().
+      CheckResult/PreflightReport como dataclasses.
 
   - id: F15
     titulo: "Testing Mínimo Viable — Tests de configuración"
@@ -686,3 +695,43 @@ features:
     notas: >
       Rama: feat/benchmark-pipeline (60e7036).
       Extiende benchmark anterior (sandbox/benchmark_paralelo_vs_secuencial.py).
+
+  # ---------------------------------------------------------------------------
+  # REPORTES Y COMUNICACIÓN
+  # ---------------------------------------------------------------------------
+
+  - id: F26
+    titulo: "Sistema de Reportes Email Multi-Tipo"
+    descripcion: >
+      Evolucionar email_report.py de reporte único (primera vuelta) a sistema
+      multi-tipo: (1) primera vuelta, (2) segunda vuelta, (3) chequeo de
+      interfaces PML GCP/CMR. Config YAML compartida + asunto_template por
+      tipo. Integración con orquestador (hook post-ejecución) y, a futuro,
+      con dashboard Streamlit (botón de envío manual). Criterio UX: todas
+      las etiquetas visibles usan fechas reales, nunca "t" ni "t-1".
+    estado: en-progreso
+    prioridad: alta
+    tamano: M
+    sprint: "S2-2026"
+    asignado: vlandaetat
+    etiquetas: [email, outlook, observabilidad, comunicacion]
+    dependencias: [F11]
+    archivos_afectados:
+      - "core/email_report.py"
+      - "config/config_rutas_ext_y_archivos.yaml"
+      - "run_diario.bat"
+      - "core/orquestador.py"
+      - "docs/feats/email-report/PLAN.md (nuevo)"
+    criterios_aceptacion:
+      - "Config YAML soporta 3 tipos de reporte con asunto_template independiente"
+      - "generar_y_enviar_reporte() acepta parámetro tipo_reporte"
+      - "Reporte segunda vuelta genera comparación, charts, Excel y email"
+      - "run_diario.bat ofrece reporte correcto según vuelta ejecutada"
+      - "Orquestador puede enviar email como hook post-ejecución"
+      - "Todas las etiquetas visibles usan fechas reales, nunca t ni t-1"
+    notas: >
+      Rama: feature/email-report (4d2c12b = primera vuelta funcional).
+      Plan detallado en docs/feats/email-report/PLAN.md.
+      Fase 5 (chequeo interfaces) pendiente de más detalle.
+      Fase 6 (dashboard button) diferido hasta merge de ramas.
+      Fase 7 (auto-send inteligente) solo planificación.
