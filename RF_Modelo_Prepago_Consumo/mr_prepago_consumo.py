@@ -20,7 +20,7 @@ from config import config_rutas as cr
 
 
 # Cargar configuración de rutas externas
-with open(cr.CONFIG / 'config_rutas_ext_y_archivos.yaml', 'r') as file:
+with open(cr.CONFIG / 'config_rutas_ext_y_archivos.yaml', 'r', encoding='utf-8') as file:
     config_ext = yaml.safe_load(file)
 
 

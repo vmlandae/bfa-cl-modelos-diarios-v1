@@ -18,3 +18,10 @@ PowerShell 7+ (pwsh) is available via Scoop. The `powershell` tool can be used t
 - Dependencies: `requirements.txt` (pip)
 - Entry point: `python main.py`
 - Natural Language for code comments, documentation, and commit messages: Spanish, but use English for code identifiers (variable names, function names, etc.) to maintain readability and consistency with common programming practices, and also technical terms that may not have a direct translation in Spanish.
+
+## Unicode / encoding
+
+- **NEVER use emojis or non-ASCII symbols** (arrows like `←`, `→`, em-dashes `—`, etc.) in Python source files, YAML configs, or any file that Python reads at runtime. Windows default encoding is `cp1252` and these characters cause `UnicodeDecodeError` when read without explicit encoding.
+- Use ASCII equivalents instead: `<-`, `->`, `--`, etc.
+- **Always specify `encoding='utf-8'`** in every `open()` call that reads/writes text files. Never rely on the system default encoding.
+- Spanish accented characters (á, é, í, ó, ú, ñ) are acceptable **only in YAML/text comments and documentation**, never in Python identifiers.

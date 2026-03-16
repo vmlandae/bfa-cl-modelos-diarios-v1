@@ -16,7 +16,7 @@ class CargadorModelos:
     
     def __init__(self):
         # Cargar configuración directamente desde el YAML
-        with open(cr.CONFIG / 'config_rutas_ext_y_archivos.yaml', 'r') as file:
+        with open(cr.CONFIG / 'config_rutas_ext_y_archivos.yaml', 'r', encoding='utf-8') as file:
             config_ext = yaml.safe_load(file)
         
         # Construir configuraciones de modelos dinámicamente

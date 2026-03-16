@@ -18,7 +18,7 @@ from config import config_rutas as cr  # Configuración de rutas del proyecto
 
 
 # Carga de configuración desde archivo YAML
-with open(cr.CONFIG / 'config_rutas_ext_y_archivos.yaml', 'r') as file:
+with open(cr.CONFIG / 'config_rutas_ext_y_archivos.yaml', 'r', encoding='utf-8') as file:
     config_ext = yaml.safe_load(file)
 
 # Configuración de rutas (resolver_ruta maneja rutas relativas y absolutas)

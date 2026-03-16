@@ -88,21 +88,21 @@ modelos:
     csv_output_dir: "RF_Modelo_Inversiones"
 
 # ============================================================================
-# Reporte de amortización por email (primera vuelta)
+# Reporte de amortizacion por email (primera vuelta)
 # ============================================================================
-# Reportes de amortización por email — Sistema multi-tipo (F26)
+# Reportes de amortizacion por email -- Sistema multi-tipo (F26)
 # ============================================================================
 #
 # Estructura:
 #   email_report:
-#     <config compartida>          ← aplica a todos los tipos
+#     <config compartida>          <- aplica a todos los tipos
 #     reportes:
-#       primera_vuelta:            ← compara amortización V1 (t vs t-1)
-#       segunda_vuelta:            ← compara amortización V2 (t vs t-1)
-#       chequeo_interfaces:        ← sumas de control PML GCP/CMR (futuro)
+#       primera_vuelta:            <- compara amortizacion V1 (t vs t-1)
+#       segunda_vuelta:            <- compara amortizacion V2 (t vs t-1)
+#       chequeo_interfaces:        <- sumas de control PML GCP/CMR (futuro)
 #
 # Cada tipo tiene su propio asunto_template.
-# {fecha} y {fecha_anterior} se reemplazan automáticamente con las fechas
+# {fecha} y {fecha_anterior} se reemplazan automaticamente con las fechas
 # de proceso reales.
 # ============================================================================
 email_report:
@@ -110,16 +110,16 @@ email_report:
   destinatarios:
     - "supervisor.riesgo@falabella.com"
     # - "gerencia.riesgo@falabella.com"
-  modo: "send"            # "send" = envío directo | "display" = abre en Outlook para revisión
-  auto_post_ejecucion: false   # true = envía automáticamente tras ejecución en run_diario.bat
+  modo: "send"            # "send" = envio directo | "display" = abre en Outlook para revision
+  auto_post_ejecucion: false   # true = envia automaticamente tras ejecucion en run_diario.bat
 
   reportes:
     primera_vuelta:
       enabled: true
-      asunto_template: "Reporte Amortización Primera Vuelta — {fecha} vs {fecha_anterior}"
+      asunto_template: "Reporte Amortizacion Primera Vuelta -- {fecha} vs {fecha_anterior}"
     segunda_vuelta:
       enabled: true
-      asunto_template: "Reporte Amortización Segunda Vuelta — {fecha} vs {fecha_anterior}"
+      asunto_template: "Reporte Amortizacion Segunda Vuelta -- {fecha} vs {fecha_anterior}"
     chequeo_interfaces:
-      enabled: false       # pendiente de implementación (F26 Fase 5)
-      asunto_template: "Chequeo Interfaces PML — {fecha}"
+      enabled: false       # pendiente de implementacion (F26 Fase 5)
+      asunto_template: "Chequeo Interfaces PML -- {fecha}"

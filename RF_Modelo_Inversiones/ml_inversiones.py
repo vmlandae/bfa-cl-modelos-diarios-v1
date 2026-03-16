@@ -65,7 +65,7 @@ from RF_Modelo_Inversiones.pipeline.post_proceso import (
 
 
 # Carga de configuración desde archivo YAML
-with open(cr.CONFIG / 'config_rutas_ext_y_archivos.yaml', 'r') as file:
+with open(cr.CONFIG / 'config_rutas_ext_y_archivos.yaml', 'r', encoding='utf-8') as file:
     config_ext = yaml.safe_load(file)
 
 # Rutas configuradas
