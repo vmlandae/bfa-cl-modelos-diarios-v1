@@ -223,6 +223,77 @@ if %EXIT_CODE% equ 0 (
 )
 echo   Revise logs\ y reports\ para mas detalles
 echo =========================================================
+
+:: ── Email report (según vuelta ejecutada) ───────────────────────────────────
+:: Determina qué tipo de reporte enviar según la opción de ejecución.
+:: Opciones 3 y 6 = solo segunda vuelta → reporte segunda_vuelta
+:: Opciones 2 y 5 = solo primera vuelta → reporte primera_vuelta
+:: Opciones 1 y 4 = todas → ofrecer ambos reportes
+
+if "%OPCION%"=="3" set TIPO_REPORTE=segunda_vuelta& goto :menu_email
+if "%OPCION%"=="6" set TIPO_REPORTE=segunda_vuelta& goto :menu_email
+if "%OPCION%"=="2" set TIPO_REPORTE=primera_vuelta& goto :menu_email
+if "%OPCION%"=="5" set TIPO_REPORTE=primera_vuelta& goto :menu_email
+if "%OPCION%"=="1" goto :menu_email_ambas
+if "%OPCION%"=="4" goto :menu_email_ambas
+goto :skip_email
+
+:menu_email_ambas
+:: Verificar si auto_post_ejecucion está habilitado
+for /f %%a in ('python -c "import yaml; cfg=yaml.safe_load(open('config/config_rutas_ext_y_archivos.yaml',encoding='utf-8')); print(cfg.get('email_report',{}).get('auto_post_ejecucion',False))" 2^>nul') do set AUTO_EMAIL=%%a
+
+if /I "%AUTO_EMAIL%"=="True" (
+    echo.
+    echo Enviando reportes de amortizacion por email (automatico)...
+    python -m core.email_report --fecha %FECHA% --tipo primera_vuelta
+    python -m core.email_report --fecha %FECHA% --tipo segunda_vuelta
+    goto :skip_email
+)
+
+echo.
+echo Enviar reportes de amortizacion por email?
+echo   [1] Enviar reporte PRIMERA VUELTA
+echo   [2] Enviar reporte SEGUNDA VUELTA
+echo   [3] Enviar AMBOS reportes
+echo   [4] Abrir en Outlook para revisar (primera vuelta)
+echo   [5] Abrir en Outlook para revisar (segunda vuelta)
+echo   [6] No, saltar
+set /p EMAIL_CHOICE="Opcion [6]: "
+if "%EMAIL_CHOICE%"=="" set EMAIL_CHOICE=6
+
+if "%EMAIL_CHOICE%"=="1" python -m core.email_report --fecha %FECHA% --tipo primera_vuelta --modo send
+if "%EMAIL_CHOICE%"=="2" python -m core.email_report --fecha %FECHA% --tipo segunda_vuelta --modo send
+if "%EMAIL_CHOICE%"=="3" (
+    python -m core.email_report --fecha %FECHA% --tipo primera_vuelta --modo send
+    python -m core.email_report --fecha %FECHA% --tipo segunda_vuelta --modo send
+)
+if "%EMAIL_CHOICE%"=="4" python -m core.email_report --fecha %FECHA% --tipo primera_vuelta --modo display
+if "%EMAIL_CHOICE%"=="5" python -m core.email_report --fecha %FECHA% --tipo segunda_vuelta --modo display
+goto :skip_email
+
+:menu_email
+:: Verificar si auto_post_ejecucion está habilitado
+for /f %%a in ('python -c "import yaml; cfg=yaml.safe_load(open('config/config_rutas_ext_y_archivos.yaml',encoding='utf-8')); print(cfg.get('email_report',{}).get('auto_post_ejecucion',False))" 2^>nul') do set AUTO_EMAIL=%%a
+
+if /I "%AUTO_EMAIL%"=="True" (
+    echo.
+    echo Enviando reporte %TIPO_REPORTE% por email (automatico)...
+    python -m core.email_report --fecha %FECHA% --tipo %TIPO_REPORTE%
+    goto :skip_email
+)
+
+echo.
+echo Enviar reporte de amortizacion (%TIPO_REPORTE%) por email?
+echo   [1] Si, enviar ahora
+echo   [2] Si, pero abrir en Outlook para revisar (display)
+echo   [3] No, saltar
+set /p EMAIL_CHOICE="Opcion [3]: "
+if "%EMAIL_CHOICE%"=="" set EMAIL_CHOICE=3
+
+if "%EMAIL_CHOICE%"=="1" python -m core.email_report --fecha %FECHA% --tipo %TIPO_REPORTE% --modo send
+if "%EMAIL_CHOICE%"=="2" python -m core.email_report --fecha %FECHA% --tipo %TIPO_REPORTE% --modo display
+
+:skip_email
 goto :fin
 
 :fin_error
