@@ -108,8 +108,7 @@ modelos:
 email_report:
   enabled: true
   destinatarios:
-    - "supervisor.riesgo@falabella.com"
-    # - "gerencia.riesgo@falabella.com"
+    - "riesgofinanciero@bancofalabella.cl"
   modo: "send"            # "send" = envio directo | "display" = abre en Outlook para revision
   auto_post_ejecucion: false   # true = envia automaticamente tras ejecucion en run_diario.bat
 
