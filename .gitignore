@@ -123,6 +123,7 @@ RF_Modelo_Inversiones/*.CSV
 
 # Reportes de ejecución e historial benchmark
 reports/
+data/benchmark/historial.jsonl
 
 # Freeze de requirements (solo se versiona requirements.txt)
 requirements_freeze_*.txt

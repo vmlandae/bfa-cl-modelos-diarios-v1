@@ -14,6 +14,7 @@ import plotly.graph_objects as go
 import streamlit as st
 from google.cloud import bigquery
 
+from core.sync_benchmark import cargar_benchmark_desde_bq
 from dashboard.utils.bq_client import get_bq_client, PROJECT_ID, DATASET_DLY
 from dashboard.utils.local_data import cargar_benchmark_historial
 from dashboard.utils.theme import MODELOS_CANONICOS
@@ -24,7 +25,13 @@ from dashboard.utils.theme import MODELOS_CANONICOS
 
 @st.cache_data(ttl=120)
 def _cargar_benchmarks_bq(dias: int = 90) -> list[dict]:
-    """Lee benchmarks desde reporte_json en BQ."""
+    """Lee benchmarks desde tabla dedicada; fallback a reportes_ejecucion."""
+    # --- Tabla dedicada reportes_benchmark ---
+    entries = cargar_benchmark_desde_bq(dias)
+    if entries:
+        return entries
+
+    # --- Fallback: parsear reporte_json de reportes_ejecucion ---
     try:
         client = get_bq_client()
         sql = f"""
@@ -38,7 +45,9 @@ def _cargar_benchmarks_bq(dias: int = 90) -> list[dict]:
                 bigquery.ScalarQueryParameter("dias", "INT64", dias),
             ]
         )
-        df = client.query(sql, job_config=job_config).to_dataframe()
+        df = client.query(sql, job_config=job_config).to_dataframe(
+            create_bqstorage_client=False
+        )
         if df.empty:
             return []
 
@@ -54,7 +63,6 @@ def _cargar_benchmarks_bq(dias: int = 90) -> list[dict]:
             bench = rep.get("benchmark", {})
             por_modelo = bench.get("por_modelo", {})
             if not por_modelo:
-                # Construir desde modelos si benchmark no tiene desglose
                 modelos = rep.get("modelos", {})
                 por_modelo = {k: v.get("duracion_seg", 0) for k, v in modelos.items()}
             entries.append({
