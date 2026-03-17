@@ -5,6 +5,37 @@ Registro de cambios y actualizaciones del proyecto BFA-CL Modelos Diarios.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0-dev] - 2026-03-17 - Sprint S2: Dashboard Email + Encoding Hotfix + Chart Redesign
+
+### Agregado
+- **Pagina Email en Dashboard (F26 Fase 6)** (`dashboard/pages/6_Email.py`): preview y envio de reportes email desde Streamlit
+  - Tabla resumen por modelo con delta% por moneda (verde/rojo)
+  - Charts individuales por modelo con eje Y escalado inteligente (Millones / Miles de MM)
+  - Data card lateral con valores exactos, diferencia y variacion porcentual
+  - Selector de tipo de reporte (primera/segunda vuelta), fecha, modo y destinatarios
+  - Envio directo o apertura en Outlook para revision
+  - Registrado en `dashboard/app.py` como 6a pagina
+
+### Cambiado
+- **`core/email_report.py`**: rediseno completo de charts y HTML del email
+  - Charts individuales por modelo (antes: todos los modelos en 1 chart por moneda)
+  - Colores: celeste (#90CAF9) t-1, verde (#4CAF50) t (antes: rojo/azul)
+  - Eje Y escalado inteligente: auto-detecta Millones vs Miles de MM
+  - Delta% como anotacion centrada en el chart (verde alza, rojo baja)
+  - HTML: chart (340px) + data card lateral con montos formateados
+  - Tabla resumen por modelo con delta% por moneda (antes: total amortizacion por moneda)
+  - xaxis type=category para evitar timestamps con horas en eje X
+  - pythoncom CoInitialize/CoUninitialize para COM en threads Streamlit
+- **`dashboard/pages/1_Home.py`**: alertas en expander colapsable, fecha default salta fines de semana
+- **`config/config_rutas_ext_y_archivos.yaml`**: destinatario default actualizado a riesgofinanciero@bancofalabella.cl
+
+### Corregido
+- **Hotfix encoding UTF-8** (14 archivos): `UnicodeDecodeError` al ejecutar modelos en Windows (cp1252)
+  - 12 archivos Python: agregar `encoding='utf-8'` en `open()` de YAML
+  - YAML: reemplazar caracteres no-ASCII (flechas, em-dash) por equivalentes ASCII
+  - `core/email_report.py`: limpiar simbolos Unicode no compatibles con cp1252
+  - `.github/copilot-instructions.md`: agregar seccion `## Unicode / encoding`
+
 ## [1.10.0-dev] - 2026-03-16 - Sprint S2: Reportes Email Multi-Tipo + Pre-flight Checks
 
 ### Agregado

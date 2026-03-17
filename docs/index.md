@@ -1,18 +1,20 @@
 # BFA-CL Modelos Diarios
 
-> **Última actualización por:** vlandaetat  
-> **Fecha:** 2026-03-11
+> **Ultima actualizacion por:** vlandaetat  
+> **Fecha:** 2026-03-17
 
-Bienvenido a la documentación del sistema de **Modelos Diarios de Riesgo Financiero**.
+Bienvenido a la documentacion del sistema de **Modelos Diarios de Riesgo Financiero**.
 
-## ¿Qué es este proyecto?
+## Que es este proyecto?
 
-Sistema de ejecución automatizada de modelos de riesgo financiero que:
+Sistema de ejecucion automatizada de modelos de riesgo financiero que:
 
-- 📊 Procesa datos de carteras desde múltiples fuentes
-- 🧩 Ejecuta modelos de prepago, mora, NMD, línea de crédito e inversiones
-- ☁️ Carga resultados a Google Cloud BigQuery
-- 📈 Genera outputs en Excel para análisis
+- Procesa datos de carteras desde multiples fuentes
+- Ejecuta modelos de prepago, mora, NMD, linea de credito e inversiones
+- Carga resultados a Google Cloud BigQuery
+- Genera outputs en Excel para analisis
+- Dashboard Streamlit con 6 paginas para monitoreo y operacion
+- Reportes email automaticos via Outlook COM con charts por modelo
 
 ## Inicio Rápido
 
@@ -63,12 +65,16 @@ bfa-cl-modelos-diarios/
 ├── check_env.bat               # Verificación de entorno
 ├── config/                     # Configuraciones
 ├── core/                       # Motor del sistema
-│   ├── orquestador.py          # Orquestación de modelos
+│   ├── orquestador.py          # Orquestacion de modelos
 │   ├── logger.py               # Logging JSONL + consola
 │   ├── excel_output.py         # Escritura Excel (xlsxwriter)
+│   ├── email_report.py         # Reportes email multi-tipo (F26)
 │   ├── reporte_ejecucion.py    # Reportes + benchmark (F25)
 │   └── sync_reportes.py        # Sync reportes a BigQuery (F25)
-├── gui/                        # Interfaz gráfica
+├── dashboard/                  # Dashboard Streamlit (6 paginas)
+│   ├── app.py                  # Entry point (st.navigation)
+│   └── pages/                  # Home, Logs, Comparacion, Benchmark, Parametros, Email
+├── gui/                        # Interfaz grafica
 ├── procesamiento_datos_input/  # Carga de datos + caché
 ├── carga_modelos_gcp/          # Carga a BigQuery (daily + hist)
 ├── RF_Modelo_*/                # Módulos de cada modelo
@@ -80,8 +86,16 @@ bfa-cl-modelos-diarios/
 └── docs/                       # Documentación
 ```
 
-## Links Útiles
+## Links Utiles
 
-- [Guía de Instalación](guia/instalacion.md)
-- [Configuración](guia/configuracion.md)
+- [Guia de Instalacion](guia/instalacion.md)
+- [Configuracion](guia/configuracion.md)
 - [Contribuir](desarrollo/contribuir.md)
+
+## Dashboard
+
+```bash
+streamlit run dashboard/app.py
+```
+
+Abre en `http://localhost:8501` con 6 paginas: Home, Logs, Comparacion, Benchmark, Parametros y Email Report.

@@ -1,8 +1,8 @@
 # Plan de Ejecución — Roadmap BFA-CL Modelos Diarios
 
 > **Fuente de verdad del roadmap:** [`roadmap.yaml`](roadmap.yaml)
-> **Última actualización:** 2026-03-02
-> **Equipo:** Victor Landaeta (`@vlandaetat`), Rodrigo Muñoz (`@rmunozb`)
+> **Ultima actualizacion:** 2026-03-17
+> **Equipo:** Victor Landaeta (`@vlandaetat`), Rodrigo Munoz (`@rmunozb`)
 
 ---
 
@@ -23,8 +23,8 @@
 
 | Sprint | Fechas | Objetivo | Features |
 |--------|--------|----------|----------|
-| **S1** | Feb 25 → Mar 7 | Quick Wins & Fundamentos | F02, F16, F14, F13, F15, F11 |
-| **S2** | Mar 10 → Mar 21 | Observabilidad Core | F01, F12 |
+| **S1** | Feb 25 -> Mar 7 | Quick Wins & Fundamentos | F02, F16, F14, F13, F15, F11 |
+| **S2** | Mar 10 -> Mar 21 | Observabilidad Core | F01, F12, F26, DQW |
 | **S3** | Mar 24 → Abr 4 | Validación & Alertas | F03, F17, F09 |
 | **S4** | Abr 7 → Abr 18 | Datos Históricos & Legacy | F18, F19 |
 | **S5** | Abr 21 → May 9 | UX & Playground | F04, F06 |
@@ -315,43 +315,42 @@ Usa pytest. Todo debe pasar sin acceso a red.
 
 ## S2 — Observabilidad Core (Mar 10 → Mar 21)
 
-### F01: Torre de Control — Dashboard Streamlit
+### F01: Torre de Control -- Dashboard Streamlit
 
-> **Tamaño:** L (~8d) · **Asignado:** `________`
-> **Depende de:** F11 ✅
+> **Tamano:** L (~8d) -- **Asignado:** @vlandaetat
+> **Depende de:** F11
+> **Estado:** Parcialmente implementado como `dashboard/` (Quick-Wins DQW)
 
-**Qué:** Streamlit dashboard con estado/duración/errores de todos los modelos
+**Que:** Streamlit dashboard con estado/duracion/errores de todos los modelos
+
+**Nota:** El dashboard ya existe como `dashboard/app.py` con 6 paginas (Home, Logs,
+Comparacion, Benchmark, Parametros, Email Report). La "Torre de Control" original
+(F01) se implemento como Dashboard Quick-Wins (DQW) durante S2 con nombre `dashboard/`
+en vez de `torre_control/`. El scope de F01 se considera cubierto por DQW + las
+mejoras incrementales en S2.
 
 **Archivos:**
-- `torre_control/app.py` (nuevo)
-- `torre_control/data.py` (nuevo)
-- `requirements.txt` — agregar `streamlit`
+- `dashboard/app.py` -- entry point multi-pagina (`st.navigation`)
+- `dashboard/pages/1_Home.py` -- Mission Control: metricas, alertas, logs
+- `dashboard/pages/2_Logs.py` -- Explorador de logs JSONL
+- `dashboard/pages/3_Comparacion.py` -- Comparacion outputs t vs t-1 (BQ)
+- `dashboard/pages/4_Benchmark.py` -- Trending de performance por fase
+- `dashboard/pages/5_Parametros.py` -- Diff de parametros entre fechas
+- `dashboard/pages/6_Email.py` -- Preview + envio de reporte email
+- `dashboard/utils/` -- bq_client.py, local_data.py, theme.py
 
 **Tareas:**
-- [ ] Agregar `streamlit` a requirements.txt
-- [ ] Crear `torre_control/data.py` — parser de `logs/{fecha}/modelos.jsonl`
-- [ ] Crear `torre_control/app.py` — layout Streamlit
-- [ ] Sidebar: date picker para navegar días anteriores
-- [ ] Tabla principal: Modelo, Estado (✅❌⏳), Duración, Hora inicio, Errores
-- [ ] KPIs arriba: modelos ejecutados, duración total, tasa de éxito
-- [ ] Manejar caso "sin ejecución registrada" para el día seleccionado
-- [ ] Documentar cómo levantar: `streamlit run torre_control/app.py`
-- [ ] Test con logs de 3+ días → datos correctos
-
-**Preguntas por resolver:**
-- [ ] ❓ ¿Corre local (localhost) o hay infra para deploy (GCP Cloud Run)?
-- [ ] ❓ ¿Auto-refresh cada N segundos o refresh manual?
-- [ ] ❓ ¿Incluir gráfico de tendencia de duración por modelo?
-- [ ] ❓ ¿Necesita autenticación?
-
-**Prompt sugerido:**
-```
-Crea torre_control/ con:
-- torre_control/data.py: parsea logs/{fecha}/modelos.jsonl → DataFrames
-- torre_control/app.py: Streamlit con sidebar (date picker), tabla principal
-  (Modelo, Estado, Duración, Hora inicio, Errores), KPIs (modelos ejecutados,
-  duración total, tasa de éxito). streamlit run torre_control/app.py
-```
+- [x] Layout Streamlit multi-pagina con st.navigation
+- [x] Home: KPIs, tabla de modelos, alertas, logs recientes
+- [x] Logs: explorador con filtros por modelo/nivel
+- [x] Comparacion: delta t vs t-1 por moneda desde BQ
+- [x] Benchmark: trending de duracion por fase
+- [x] Parametros: diff JSON entre fechas
+- [x] Email: preview de comparacion + envio via Outlook COM
+- [x] Alertas en expander colapsable por defecto
+- [x] Fecha default salta fines de semana
+- [ ] Auto-refresh cada N segundos (WIP)
+- [ ] Autenticacion (si se despliega fuera de localhost)
 
 ---
 
@@ -397,32 +396,88 @@ Elimina duplicación en hist.py.
 
 ---
 
-### F26: Sistema de Reportes Email Multi-Tipo 🔄
+### F26: Sistema de Reportes Email Multi-Tipo + Dashboard Integration
 
-> **Tamaño:** M (~3d) · **Asignado:** @vlandaetat
-> **Rama:** `feature/email-report`
+> **Tamano:** M (~3d) -- **Asignado:** @vlandaetat
+> **Rama:** `feature/email-report` (mergeado a `main`)
 
-**Qué:** Evolucionar `email_report.py` de reporte único (primera vuelta) a sistema
-multi-tipo con config YAML compartida e integración con orquestador.
+**Que:** Evolucionar `email_report.py` de reporte unico (primera vuelta) a sistema
+multi-tipo con config YAML compartida e integracion con orquestador + dashboard Streamlit.
 
 **Tipos de reporte:**
-1. **Primera vuelta** — amortización por moneda/producto (ya implementado)
-2. **Segunda vuelta** — misma estructura, tablas CMR/NMD/LC/Inversiones
-3. **Chequeo interfaces** — sumas amortización/interés + conteo registros por SISTEMA y MONEDA_ORIGEN
+1. **Primera vuelta** -- amortizacion por moneda/producto (implementado)
+2. **Segunda vuelta** -- misma estructura, tablas CMR/NMD/LC/Inversiones
+3. **Chequeo interfaces** -- sumas amortizacion/interes + conteo registros por SISTEMA y MONEDA_ORIGEN
 
 **Criterio UX:** Todas las etiquetas visibles usan fechas reales (ej: "2026-03-10 vs 2026-03-07"),
 nunca "t" ni "t-1".
 
 **Fases:**
-- [~] Fase 1: Reestructuración YAML + refactor base
+- [x] Fase 1: Reestructuracion YAML + refactor base multi-tipo
 - [ ] Fase 2: Reporte segunda vuelta
-- [ ] Fase 3: Actualización run_diario.bat
-- [ ] Fase 4: Integración con orquestador
+- [ ] Fase 3: Actualizacion run_diario.bat
+- [ ] Fase 4: Integracion con orquestador (auto-send post-ejecucion)
 - [ ] Fase 5: Reporte chequeo de interfaces (pendiente detalle)
-- [ ] Fase 6: Dashboard email button (diferido a merge de ramas)
-- [ ] Fase 7: Auto-send inteligente (solo planificación)
+- [x] Fase 6: Dashboard email page (`dashboard/pages/6_Email.py`)
+  - Preview de comparacion con tabla resumen por modelo + delta%
+  - Charts por modelo con eje Y escalado inteligente (Millones / Miles de MM)
+  - Data card con valores exactos al costado de cada chart
+  - Envio directo o apertura en Outlook
+  - pythoncom CoInitialize/CoUninitialize para COM en threads Streamlit
+- [ ] Fase 7: Auto-send inteligente (solo planificacion)
+
+**Mejoras visuales aplicadas (Fase 6):**
+- Colores: celeste (#90CAF9) para t-1, verde (#4CAF50) para t
+- Delta% como anotacion centrada en el chart (verde alza, rojo baja)
+- Eje Y auto-escalado: Millones si < 1B, Miles de MM si >= 1B
+- xaxis type=category para evitar parsing de timestamps
+- Layout email: chart (340px) + data card lateral con montos formateados
+- Layout dashboard: chart izquierda + st.table derecha, un modelo por fila
 
 **Plan detallado:** `docs/feats/email-report/PLAN.md`
+
+---
+
+### DQW: Dashboard Quick-Wins -- Streamlit Multi-Pagina
+
+> **Tamano:** M (~3d) -- **Asignado:** @vlandaetat -- **Completado:** 2026-03-16
+> **Rama:** `feature/dashboard-quick-wins` (mergeado a `main`)
+
+**Que:** Dashboard Streamlit multi-pagina con 6 vistas para monitoreo y operacion diaria.
+
+**Implementado:**
+- [x] QW-0: App multi-pagina con `st.navigation()` (6 paginas)
+- [x] QW-1: Home -- Mission Control con KPIs, tabla de modelos, alertas, logs
+- [x] QW-2: Logs -- Explorador de logs JSONL con filtros
+- [x] QW-3: Comparacion -- Delta t vs t-1 por moneda desde BQ historico
+- [x] QW-4: Benchmark -- Trending de performance por fase
+- [x] QW-5: Parametros -- Diff JSON entre fechas
+- [x] Alertas en expander colapsable (UX fix)
+- [x] Fecha default salta fines de semana (UX fix)
+
+**Archivos creados/modificados:**
+- `dashboard/app.py`, `dashboard/pages/1_Home.py` a `5_Parametros.py`
+- `dashboard/utils/bq_client.py`, `local_data.py`, `theme.py`
+
+---
+
+### HF-ENCODING: Hotfix Encoding UTF-8
+
+> **Tamano:** XS (~0.5d) -- **Asignado:** @vlandaetat -- **Completado:** 2026-03-16
+
+**Que:** Fix `UnicodeDecodeError: 'charmap' codec can't decode byte 0x90` al ejecutar
+modelos de segunda vuelta en Windows (cp1252 default).
+
+**Causa raiz:** 12 archivos Python abrian `config_rutas_ext_y_archivos.yaml` con
+`open(..., 'r')` sin `encoding='utf-8'`, y el YAML contenia caracteres `<-` (antes `U+2190`)
+y `--` (antes `U+2014 EM DASH`) que no existen en cp1252.
+
+**Implementado:**
+- [x] 10 archivos de modelos: `open(yaml)` con `encoding='utf-8'`
+- [x] `cargador_modelos.py`, `cargar_output_modelos_bigquery_dly.py`: idem
+- [x] `config_rutas_ext_y_archivos.yaml`: reemplazar flechas y em-dash por ASCII
+- [x] `core/email_report.py`: limpiar simbolos no-ASCII
+- [x] `.github/copilot-instructions.md`: agregar seccion `## Unicode / encoding`
 
 ---
 

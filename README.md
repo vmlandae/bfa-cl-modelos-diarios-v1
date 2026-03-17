@@ -46,12 +46,13 @@ config/                          # Configuraciones del sistema
 ├── config_rutas.py              # Configuración de rutas del sistema
 └── __init__.py
 
-core/                           # Núcleo del sistema
+core/                           # Nucleo del sistema
 ├── orquestador.py              # Orquestador principal de procesos
 ├── logger.py                   # Logging estructurado (JSONL + consola)
 ├── excel_output.py             # Escritura Excel con xlsxwriter (F23)
-├── reporte_ejecucion.py        # Reportes de ejecución + benchmark (F25)
-├── sync_reportes.py            # Sincronización de reportes a BigQuery (F25)
+├── email_report.py             # Reportes email multi-tipo via Outlook COM (F26)
+├── reporte_ejecucion.py        # Reportes de ejecucion + benchmark (F25)
+├── sync_reportes.py            # Sincronizacion de reportes a BigQuery (F25)
 └── __init__.py
 
 credenciales/                   # Credenciales de acceso (no versionado)
@@ -172,20 +173,21 @@ vendor/                         # Dependencia offline
 └── bfa_cl_utilidades-1.0.4-py3-none-any.whl
 ```
 
-### 📁 Dashboard de Monitoreo
+### Dashboard de Monitoreo
 ```
-dashboard/                      # Dashboard Streamlit multi-página
+dashboard/                      # Dashboard Streamlit multi-pagina
 ├── app.py                      # Entry point (st.navigation)
-├── pages/                      # Páginas del dashboard
-│   ├── 1_Home.py               # Mission Control — vista consolidada por día
+├── pages/                      # Paginas del dashboard
+│   ├── 1_Home.py               # Mission Control -- KPIs, alertas, logs
 │   ├── 2_Logs.py               # Explorador de logs JSONL con filtros
-│   ├── 3_Comparacion.py        # Comparación outputs t vs t-1 (BQ hist)
+│   ├── 3_Comparacion.py        # Comparacion outputs t vs t-1 (BQ hist)
 │   ├── 4_Benchmark.py          # Trending de performance por fase
-│   └── 5_Parametros.py         # Diff de parámetros entre fechas
+│   ├── 5_Parametros.py         # Diff de parametros entre fechas
+│   └── 6_Email.py              # Preview + envio de reporte email
 └── utils/                      # Utilidades compartidas
     ├── bq_client.py            # Cliente BQ cacheado
     ├── local_data.py           # Acceso a datos locales
-    └── theme.py                # Constantes de estilo y modelos canónicos
+    └── theme.py                # Constantes de estilo y modelos canonicos
 ```
 
 ### 📁 Documentación
@@ -304,8 +306,23 @@ python main.py --fecha 2025-11-28 --solo-carga-gcp todos
 - `--force-historico`: Forzar re-inserción en tablas históricas (DELETE+INSERT con backup CSV)
 - `--listar`: Mostrar modelos disponibles y su estado
 
-### Ejecución de Modelos Individuales
+### Ejecucion de Modelos Individuales
 Cada modelo puede ejecutarse de forma independiente desde su directorio correspondiente.
+
+### Dashboard de Monitoreo
+```bash
+# Levantar dashboard Streamlit (6 paginas)
+streamlit run dashboard/app.py
+```
+
+### Reporte Email
+```bash
+# Enviar reporte de primera vuelta via Outlook COM
+python -m core.email_report --tipo primera_vuelta --fecha 2026-03-13
+
+# Abrir en Outlook para revision (sin enviar)
+python -m core.email_report --tipo primera_vuelta --fecha 2026-03-13 --modo display
+```
 
 
 ## Configuración
