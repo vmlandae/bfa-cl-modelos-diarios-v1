@@ -6,3 +6,5 @@
 {"fecha": "2026-03-12", "total_seg": 218.6, "por_modelo": {"mr_prepago_cmr": 26.71, "ml_nmd": 18.77, "ml_lc": 14.52, "ml_inversiones": 38.21}, "hostname": "NWBVLANDAETAT", "status": "OK"}
 {"fecha": "2026-03-13", "total_seg": 154.02, "por_modelo": {"mr_prepago_cmr": 0.79, "ml_nmd": 0.25, "ml_lc": 12.58, "ml_inversiones": 0.48}, "fase": "segunda_vuelta", "hostname": "NWBVLANDAETAT", "status": "ERROR"}
 {"fecha": "2026-03-13", "total_seg": 291.03, "por_modelo": {"mr_prepago_cmr": 12.64, "ml_nmd": 10.11, "ml_lc": 15.96, "ml_inversiones": 24.3}, "fase": "segunda_vuelta", "hostname": "NWBVLANDAETAT", "status": "OK"}
+{"fecha": "2026-03-16", "total_seg": 120.97, "por_modelo": {"mr_prepago_consumo": 7.2, "mr_prepago_hipotecario": 6.35, "ml_mora_consumo": 16.13, "ml_mora_cae": 3.63, "ml_mora_hipotecario": 4.3, "ml_mora_comercial": 3.58}, "fase": "primera_vuelta", "hostname": "NWBVLANDAETAT", "status": "OK"}
+{"fecha": "2026-03-16", "total_seg": 236.37, "por_modelo": {"mr_prepago_cmr": 18.22, "ml_nmd": 24.31, "ml_lc": 21.88, "ml_inversiones": 27.66}, "fase": "segunda_vuelta", "hostname": "NWBVLANDAETAT", "status": "OK"}
