@@ -1,4 +1,5 @@
 from pathlib import Path
+import yaml
 
 
 # Definición del directorio base del proyecto
@@ -46,6 +47,31 @@ def resolver_ruta(ruta: str) -> Path:
 # Funciones
 def obtener_ruta_credenciales_gcp():
     return CREDENCIALES / 'bfa-cl-trade-price-report-dev-9d137fc23b7f.json'
+
+
+def obtener_config_precios_db() -> dict:
+    """Retorna configuracion de DB de precios con rutas resueltas."""
+    config_path = CONFIG / 'config_rutas_ext_y_archivos.yaml'
+    if not config_path.exists():
+        return {}
+
+    with open(config_path, 'r', encoding='utf-8') as f:
+        cfg = yaml.safe_load(f) or {}
+
+    precios = cfg.get('precios_db', {})
+    if not precios:
+        return {}
+
+    out = dict(precios)
+    if 'db_maestra_red' in out:
+        out['db_maestra_red'] = str(resolver_ruta(out['db_maestra_red']))
+    if 'version_maestra_red' in out:
+        out['version_maestra_red'] = str(resolver_ruta(out['version_maestra_red']))
+    if 'db_local' in out:
+        out['db_local'] = str(resolver_ruta(out['db_local']))
+    if 'csv_tcrc_red' in out:
+        out['csv_tcrc_red'] = str(resolver_ruta(out['csv_tcrc_red']))
+    return out
 
 # def obtener_modulo_carga_gcp():
 #     """
