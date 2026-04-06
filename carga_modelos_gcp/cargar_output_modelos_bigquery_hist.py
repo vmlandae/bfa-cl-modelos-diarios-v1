@@ -252,19 +252,43 @@ def consolidar_historico_por_tabla(fecha_a_procesar: datetime.datetime,
         fecha_str
     )
     
+    # 2b. Verificar que la tabla DIARIA contiene datos para la fecha solicitada
+    logger.info(f"   Verificando que la tabla diaria {origen_tabla} tenga datos para {fecha_str}...")
+    sql_verificar_diario = f"""
+    SELECT COUNT(*) as total_registros
+    FROM `{PROJECT_ID}.{NOMBRE_COMPLETO_DIARIO}`
+    WHERE DATE({columna_fecha}) = DATE('{fecha_str}')
+    """
+    try:
+        total_diario = lector_trade_dev.leer_a_dataframe(sql_verificar_diario).iloc[0]['total_registros']
+    except Exception as e:
+        logger.error(f"Error verificando datos en tabla diaria {origen_tabla}: {e}")
+        return False
+
+    if total_diario == 0:
+        logger.error(
+            f"ERROR: La tabla diaria {origen_tabla} NO contiene datos para {fecha_str}. "
+            f"Los datos actuales en la tabla diaria corresponden a otra fecha de proceso. "
+            f"Debe ejecutar los modelos y cargar a GCP con --cargar-gcp para la fecha "
+            f"{fecha_str} antes de consolidar historico."
+        )
+        return False
+
+    logger.info(f"   Tabla diaria tiene {total_diario:,} registros para {fecha_str}")
+
     if datos_existentes:
         if not force:
             logger.warning(
-                f"⚠️ DATOS YA EXISTEN en {destino_tabla} para {fecha_str}. "
-                "Omitiendo inserción (use --force-historico para re-insertar)."
+                f"DATOS YA EXISTEN en {destino_tabla} para {fecha_str}. "
+                "Omitiendo insercion (use --force-historico para re-insertar)."
             )
             logger.info(f"--- {origen_tabla} OMITIDO ---\n")
             return True  # No es un error, simplemente no re-inserta
 
         # --- Modo force: backup + DELETE + INSERT ---
         logger.warning(
-            f"🔄 FORCE-HISTORICO: Datos existentes en {destino_tabla} para {fecha_str}. "
-            "Iniciando proceso de re-inserción..."
+            f"FORCE-HISTORICO: Datos existentes en {destino_tabla} para {fecha_str}. "
+            "Iniciando proceso de re-insercion..."
         )
 
         # 2a. Backup CSV + metadata
