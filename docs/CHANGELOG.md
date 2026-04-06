@@ -5,6 +5,41 @@ Registro de cambios y actualizaciones del proyecto BFA-CL Modelos Diarios.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.0-dev] - 2026-04-06 - Sprint S3: Cache Parquet Compartido + Control Interfaces
+
+### Agregado
+- **Cache parquet compartido por tabla Access** (`cache_tablas.py`, `ml_nmd.py`, `ml_lc.py`, `mr_prepago_cmr.py`):
+  NMD, LC y CMR ahora usan `leer_tabla_con_cache` con claves a nivel tabla
+  (`RF_BD_Gestion_RL`, `RF_BD_Gestion_RM`) en lugar de claves aisladas por modelo.
+  CMR reutiliza el parquet de inversiones (91K filas); NMD y LC comparten un unico parquet RL.
+- **Proteccion contra cache envenenado** (`cache_tablas.py`): resultados de 0 filas
+  no se guardan en parquet, evitando que una lectura fallida envenene el cache permanentemente.
+- **Lookup copia local Access** (`cache_tablas.py`): ambas funciones de cache
+  (`leer_tabla_con_cache`, `leer_multiples_tablas_con_cache`) buscan copia local
+  via `_ACCESS_LOCAL_MAP` antes de leer desde ruta UNC de red.
+- **Skip inteligente descarga Access** (`orquestador.py`): `_pre_ejecucion_segunda_vuelta`
+  verifica si cache parquet esta completo antes de copiar archivos Access (~2 GB) desde red.
+  `_CACHE_KEYS_MODELO_V2` define claves requeridas por modelo.
+- **Herramienta precios historicos** (`tools/build_precios_db.py`): construye y sincroniza
+  base SQLite de precios a partir de parquets de inversiones. Soporta roles reader/writer,
+  sync por version con DB maestra en red, export CSV TCRC.
+- **Config precios_db** (`config_rutas.py`, `config_rutas_ext_y_archivos.yaml`):
+  nueva funcion `obtener_config_precios_db()` y bloque YAML con rutas de DB maestra,
+  version, db local y CSV TCRC.
+- **Control exploratorio de interfaces PML** (`core/control_interfaces.py`, F26 Fase 5):
+  comparacion automatica de archivos ProductosMercadoLiquidez (GCP y CMR) entre t vs t-1.
+  Sumas de AMORTIZACION e INTERES por grupo, delta% con umbrales WARNING/CRITICAL,
+  reporte HTML via Outlook COM. CLI: `--control-interfaces [gcp|cmr|todos]`.
+- **Plan tecnico control interfaces** (`docs/feats/control-interfaces/PLAN.md`)
+
+### Corregido
+- **Validacion fecha consolidar-historico** (`cargar_output_modelos_bigquery_hist.py`):
+  verifica que la tabla diaria BigQuery contenga datos para la fecha solicitada
+  antes de ejecutar INSERT en historico. Previene copia silenciosa de datos de
+  otra fecha de proceso al partition equivocado.
+- **Deteccion rutas ms_access_input** (`orquestador.py`): `_obtener_rutas_access_v2`
+  ahora detecta tanto `ms_access_sources` (inversiones) como `ms_access_input` (NMD/LC/CMR).
+
 ## [1.11.0-dev] - 2026-03-17 - Sprint S2: Dashboard Email + Encoding Hotfix + Chart Redesign
 
 ### Agregado
