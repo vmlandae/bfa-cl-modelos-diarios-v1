@@ -29,39 +29,44 @@ RUTA_PARAMETROS_LC = cr.resolver_ruta(config_ext['modelos']['ml_lc']['excel_para
 
 def cargar_datos_balance(fecha_t: datetime) -> pd.DataFrame:
     """
-    Carga los datos de balance desde la base de datos de gestión.
+    Carga los datos de balance desde la base de datos de gestion.
+    Usa cache parquet compartido (RF_BD_Gestion_RL) para evitar lecturas
+    repetidas de Access y compartir datos con NMD.
     """
-    print("      • Ejecutando consulta de datos de balance...")
-    
-    query = """
-    SELECT
-        RF_BD_Gestion_RL.Fec_Pro,
-        RF_BD_Gestion_RL.Cod_A_P,
-        RF_BD_Gestion_RL.Moneda,
-        RF_BD_Gestion_RL.Cod_Pro,
-        RF_BD_Gestion_RL.Cod_Sub_Pro,
-        SUM(RF_BD_Gestion_RL.Cap_Amort + RF_BD_Gestion_RL.Int_Total_Cont) AS FLUJO_MO,
-        SUM(RF_BD_Gestion_RL.Cap_Amort) AS AMORTIZACION_MO,
-        SUM(RF_BD_Gestion_RL.Int_Total_Cont) AS INTERES_MO
-    FROM
-        RF_BD_Gestion_RL
-    WHERE
-        1 = 1
-        AND RF_BD_Gestion_RL.Fec_Pro = #{}#
-    GROUP BY
-        RF_BD_Gestion_RL.Fec_Pro,
-        RF_BD_Gestion_RL.Cod_A_P,
-        RF_BD_Gestion_RL.Moneda,
-        RF_BD_Gestion_RL.Cod_Pro,
-        RF_BD_Gestion_RL.Cod_Sub_Pro
-    HAVING
-        1 = 1
-        AND RF_BD_Gestion_RL.Cod_Sub_Pro = 'LINEA DE CREDITO'
-    ORDER BY
-        RF_BD_Gestion_RL.Cod_Sub_Pro DESC
-    """.format(fecha_t.strftime('%Y-%m-%d'))
+    from procesamiento_datos_input.cache_tablas import leer_tabla_con_cache
 
-    data = ut.lectura_datos_ms_access(ARCHIVO_INPUT, query)
+    print("      * Ejecutando consulta de datos de balance...")
+
+    # Leer tabla completa RL desde cache compartido (reutiliza parquet de NMD)
+    fecha_access = fecha_t.strftime('%Y-%m-%d')
+    query_rl = (
+        f"SELECT * FROM [RF_BD_Gestion_RL] "
+        f"WHERE [Fec_Pro] = #{fecha_access}#"
+    )
+    df_rl = leer_tabla_con_cache(
+        access_path=ARCHIVO_INPUT,
+        nombre_tabla='RF_BD_Gestion_RL',
+        fecha_proceso=fecha_t.strftime('%Y%m%d'),
+        query=query_rl,
+    )
+
+    # Filtro equivalente al HAVING del SQL original
+    mask = df_rl['Cod_Sub_Pro'] == 'LINEA DE CREDITO'
+    df_filtered = df_rl[mask]
+
+    # GROUP BY + SUM equivalente
+    data = df_filtered.groupby(
+        ['Fec_Pro', 'Cod_A_P', 'Moneda', 'Cod_Pro', 'Cod_Sub_Pro'],
+        as_index=False,
+    ).agg(
+        AMORTIZACION_MO=('Cap_Amort', 'sum'),
+        INTERES_MO=('Int_Total_Cont', 'sum'),
+    )
+    data['FLUJO_MO'] = data['AMORTIZACION_MO'] + data['INTERES_MO']
+
+    # ORDER BY Cod_Sub_Pro DESC
+    data = data.sort_values('Cod_Sub_Pro', ascending=False).reset_index(drop=True)
+
     data = ut.estandariza_nombre_columnas_dataframe(data)
 
     # Mapear códigos de producto del modelo
