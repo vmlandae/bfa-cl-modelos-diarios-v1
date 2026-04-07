@@ -39,8 +39,8 @@ DEFAULT_LOCAL_DB_PATH = os.path.join(BASE_DIR, "data", "precios_historico.db")
 CONFIG_EXT_YAML = os.path.join(BASE_DIR, "config", "config_rutas_ext_y_archivos.yaml")
 PARQUET_PATTERN = "RF_Base_Diaria_Precios_*.parquet"
 
-DEFAULT_REMOTE_DB_PATH = r"\\vmdvorak\RF_PROCESOS\RF_Modelos\db_precios.db"
-DEFAULT_REMOTE_VERSION_PATH = r"\\vmdvorak\RF_PROCESOS\RF_Modelos\db_precios.version"
+DEFAULT_REMOTE_DB_PATH = r"\\vmdvorak\Riesgo Financiero2\RF_PROCESOS\RF_Modelos\db_precios.db"
+DEFAULT_REMOTE_VERSION_PATH = r"\\vmdvorak\Riesgo Financiero2\RF_PROCESOS\RF_Modelos\db_precios.version"
 DEFAULT_CSV_TCRC_PATH = r"\\vmdvorak\Riesgo Financiero2\RF_PROCESOS\RF_Modelos\precios_TCRC.csv"
 DEFAULT_READER_ROLE = "reader"
 WRITER_LOCK_TIMEOUT_MINUTES = 10

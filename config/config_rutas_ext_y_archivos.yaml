@@ -91,8 +91,8 @@ modelos:
 # DB de precios (opcion 2: maestra en red + copia local de lectura)
 # ============================================================================
 precios_db:
-  db_maestra_red: "\\\\vmdvorak\\RF_PROCESOS\\RF_Modelos\\db_precios.db"
-  version_maestra_red: "\\\\vmdvorak\\RF_PROCESOS\\RF_Modelos\\db_precios.version"
+  db_maestra_red: "\\\\vmdvorak\\Riesgo Financiero2\\RF_PROCESOS\\RF_Modelos\\db_precios.db"
+  version_maestra_red: "\\\\vmdvorak\\Riesgo Financiero2\\RF_PROCESOS\\RF_Modelos\\db_precios.version"
   db_local: "data/precios_historico.db"
   csv_tcrc_red: "\\\\vmdvorak\\Riesgo Financiero2\\RF_PROCESOS\\RF_Modelos\\precios_TCRC.csv"
   rol_orquestador: "reader"
