@@ -56,9 +56,9 @@ def cargar_datos_balance(fecha_t: datetime) -> pd.DataFrame:
     # Filtro equivalente al HAVING del SQL original
     mask = (
         (df_rl['Cod_Sub_Pro'] == 'DAP')
-        | (df_rl['Cod_Sub_Pro'] == 'Cta. Corriente')
-        | (df_rl['Cod_Sub_Pro'] == 'Cta. vista')
-        | (df_rl['Cod_Pro'] == 'Cta. Ahorro')
+        | (df_rl['Cod_Sub_Pro'] == 'CTA. CORRIENTE')
+        | (df_rl['Cod_Sub_Pro'] == 'CTA. VISTA')
+        | (df_rl['Cod_Pro'] == 'CTA. AHORRO')
     )
     df_filtered = df_rl[mask]
 
