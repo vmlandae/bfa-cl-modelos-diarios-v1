@@ -80,6 +80,7 @@ logs/
 # Database
 *.db
 *.sqlite3
+data/*.version
 
 # MacOS
 .DS_Store
@@ -150,3 +151,4 @@ backups_historicos/
 # Mermaid JS local (regenerar con: python docs/javascripts/descargar_mermaid.py)
 # Ver docs/guia/mermaid-local.md para detalles
 docs/javascripts/mermaid.min.js
+

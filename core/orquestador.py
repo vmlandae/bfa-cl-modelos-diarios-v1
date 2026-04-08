@@ -317,18 +317,76 @@ class OrquestadorModelos:
         for key, cfg in self.modelos.items():
             if cfg.get("vuelta") == 2:
                 modelo_cfg = config_ext["modelos"].get(key, {})
+                # Formato multi-source (ml_inversiones)
                 for source in modelo_cfg.get("ms_access_sources", []):
                     rutas.add(source["path"])
+                # Formato single-source (NMD, LC, CMR)
+                single = modelo_cfg.get("ms_access_input")
+                if single:
+                    rutas.add(single)
         return list(rutas)
 
+    # Cache keys por modelo de segunda vuelta.
+    # Si el parquet existe para todas las keys de los modelos seleccionados,
+    # se omite la descarga de archivos Access de red (son pesados y lentos).
+    _CACHE_KEYS_MODELO_V2 = {
+        "mr_prepago_cmr": ["RF_BD_Gestion_RM"],
+        "ml_nmd": ["RF_BD_Gestion_RL"],
+        "ml_lc": ["RF_BD_Gestion_RL"],
+        "ml_inversiones": [
+            "RF_base_Completa_Hist", "RF_BD_Gestion_RM",
+            "RF_Cartera_RtaFija_Hist", "RF_Base_Diaria_Precios",
+        ],
+    }
+
     def _pre_ejecucion_segunda_vuelta(self, modelos_seleccionados: List[str], fecha: datetime) -> None:
-        """Hook pre-ejecución V2: copia archivos Access a disco local."""
+        """Hook pre-ejecucion V2: copia archivos Access a disco local.
+
+        Si todos los caches parquet necesarios para los modelos
+        seleccionados ya existen para la fecha, omite la descarga.
+        """
         modelos_v2 = [
             m for m in modelos_seleccionados
             if m in self.modelos and self.modelos[m].get("vuelta") == 2
         ]
         if not modelos_v2:
             return
+
+        # Verificar si el cache parquet ya cubre todos los modelos V2
+        import os
+        forzar = os.environ.get('CACHE_FORZAR_RECARGA', '') == '1'
+
+        if not forzar:
+            from procesamiento_datos_input.cache_tablas import CACHE_DIR_DEFAULT
+
+            fecha_str = fecha.strftime("%Y%m%d")
+            cache_keys_necesarias = set()
+            for modelo in modelos_v2:
+                cache_keys_necesarias.update(
+                    self._CACHE_KEYS_MODELO_V2.get(modelo, [])
+                )
+
+            if cache_keys_necesarias:
+                caches_faltantes = [
+                    key for key in cache_keys_necesarias
+                    if not (CACHE_DIR_DEFAULT / f"{key}_{fecha_str}.parquet").exists()
+                ]
+
+                if not caches_faltantes:
+                    logger.info(
+                        f"\n{'─'*60}\n"
+                        "PRE-EJECUCION V2: Cache parquet completo para "
+                        f"{', '.join(modelos_v2)}.\n"
+                        "Omitiendo descarga de archivos Access de red.\n"
+                        f"{'─'*60}"
+                    )
+                    return
+
+                logger.info(
+                    f"Cache parquet incompleto ({len(caches_faltantes)}"
+                    f"/{len(cache_keys_necesarias)}): "
+                    f"{', '.join(caches_faltantes)}"
+                )
 
         rutas_access = self._obtener_rutas_access_v2()
         if not rutas_access:
@@ -337,7 +395,7 @@ class OrquestadorModelos:
         from procesamiento_datos_input.cache_tablas import copiar_access_a_local
 
         logger.info(f"\n{'─'*60}")
-        logger.info("PRE-EJECUCIÓN V2: Copiando archivos Access a disco local...")
+        logger.info("PRE-EJECUCION V2: Copiando archivos Access a disco local...")
         logger.info(f"{'─'*60}")
 
         copiar_access_a_local(rutas_access)
@@ -358,6 +416,32 @@ class OrquestadorModelos:
         logger.info(f"{'─'*60}")
 
         limpiar_access_local()
+
+        # Actualizar base SQLite de precios historicos y exportar CSV TCRC
+        self._actualizar_precios_db(fecha)
+
+    def _actualizar_precios_db(self, fecha: datetime) -> None:
+        """Actualiza/sincroniza precios segun rol configurado.
+
+        - reader: sincroniza copia local desde DB maestra por version
+        - writer: actualiza DB maestra con parquet del dia
+        """
+        try:
+            from tools.build_precios_db import build_full
+
+            fecha_str = fecha.strftime("%Y%m%d")
+            with open(_CONFIG_EXT_YAML, "r", encoding="utf-8") as f:
+                config_ext = yaml.safe_load(f) or {}
+            precios_cfg = config_ext.get("precios_db", {})
+            role = str(precios_cfg.get("rol_orquestador", "reader")).strip().lower()
+
+            logger.info(f"\n{'─'*60}")
+            logger.info("POST-EJECUCION: Actualizando base de precios historicos...")
+            logger.info(f"{'─'*60}")
+
+            build_full(date_filter=fecha_str, role=role)
+        except Exception as e:
+            logger.warning(f"No se pudo actualizar base de precios: {e}")
 
     # -----------------------------------------------------------------
     # F13 — Pre-flight Checks

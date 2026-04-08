@@ -88,6 +88,16 @@ modelos:
     csv_output_dir: "RF_Modelo_Inversiones"
 
 # ============================================================================
+# DB de precios (opcion 2: maestra en red + copia local de lectura)
+# ============================================================================
+precios_db:
+  db_maestra_red: "\\\\vmdvorak\\Riesgo Financiero2\\RF_PROCESOS\\RF_Modelos\\db_precios.db"
+  version_maestra_red: "\\\\vmdvorak\\Riesgo Financiero2\\RF_PROCESOS\\RF_Modelos\\db_precios.version"
+  db_local: "data/precios_historico.db"
+  csv_tcrc_red: "\\\\vmdvorak\\Riesgo Financiero2\\RF_PROCESOS\\RF_Modelos\\precios_TCRC.csv"
+  rol_orquestador: "writer"   # "reader" = solo lectura, "writer" = puede actualizar db local y version
+
+# ============================================================================
 # Reporte de amortizacion por email (primera vuelta)
 # ============================================================================
 # Reportes de amortizacion por email -- Sistema multi-tipo (F26)
@@ -122,3 +132,112 @@ email_report:
     chequeo_interfaces:
       enabled: false       # pendiente de implementacion (F26 Fase 5)
       asunto_template: "Chequeo Interfaces PML -- {fecha}"
+
+# ============================================================================
+# Control exploratorio de interfaces PML (F26 Fase 5)
+# ============================================================================
+#
+# Analiza archivos ProductosMercadoLiquidez (GCP y CMR) comparando t vs t-1:
+#   - Sumas de AMORTIZACION (Capital) e INTERES por producto/moneda
+#   - Conteo de registros por grupo
+#   - Evaluacion de umbrales de tolerancia por producto
+#   - Envio de reporte HTML via Outlook
+#
+# Reemplaza completamente el proceso legacy de PROCESOS_DIARIOS_MODELOS/main.py.
+# ============================================================================
+control_interfaces:
+  enabled: true
+  ruta_unc_base: "\\\\vmdvorak\\Riesgo Financiero Folder\\RRFF-GCP\\Cartera\\input"
+
+  # Email
+  destinatarios:
+    - "riesgofinanciero@bancofalabella.cl"
+  modo: "send"                       # "send" = envio directo | "display" = abre en Outlook
+  auto_con_primera_vuelta: true      # ejecutar automaticamente con primera_vuelta
+
+  # Horarios esperados de llegada de archivos
+  horario_esperado_cmr: "09:00"
+  horario_esperado_gcp: "10:00"
+
+  # Polling / Watcher (modo automatico)
+  watcher:
+    enabled: false                   # activar para modo automatico
+    polling_intervalo_segundos: 300
+    timeout_alerta_minutos: 90       # alerta si no llegan a hora + 90min
+    timeout_abortar_minutos: 180     # dejar de intentar tras 3h
+
+  # Backup management (legacy, desactivable)
+  backup:
+    enabled: true
+    gcp:
+      ruta_destino: "\\\\vmdvorak\\Riesgo Financiero Folder\\RRFF-GCP\\Cartera\\input"
+      sufijo_backup: "_Backup.TXT"
+    cmr:
+      enabled: false                 # CMR no hace backup actualmente
+
+  # Interfaces: configuracion por tipo de archivo PML
+  interfaces:
+    gcp:
+      patron_archivo: "ProductosMercadoLiquidezGCP{fecha}.txt"
+      patron_archivo_t1: "ProductosMercadoLiquidezGCP{fecha}_Backup.txt"
+      columnas:
+        - "FECHA_PROCESO"
+        - "SISTEMA"
+        - "CODIGO_SUBPRODUCTO"
+        - "MONEDA_ORIGEN"
+        - "AMORTIZACION"
+        - "INTERES"
+        - "FECHA_VENCIMIENTO_CUOTA"
+      tipos_datos:
+        SISTEMA: str
+        CODIGO_SUBPRODUCTO: str
+        MONEDA_ORIGEN: str
+        AMORTIZACION: float
+        INTERES: float
+        FECHA_VENCIMIENTO_CUOTA: str
+      agrupacion: ["SISTEMA", "MONEDA_ORIGEN"]
+      sistemas_vistas: ["CCT", "CVI"]
+      asunto_template: "Comparacion Interfaz de Datos al {fecha}"
+    cmr:
+      patron_archivo: "ProductosMercadoLiquidezCMR{fecha}.txt"
+      patron_archivo_t1: "ProductosMercadoLiquidezCMR{fecha}.txt"
+      columnas:
+        - "FECHA_PROCESO"
+        - "CODIGO_PRODUCTO"
+        - "CODIGO_SUBPRODUCTO"
+        - "AMORTIZACION"
+        - "INTERES"
+        - "FECHA_VENCIMIENTO_CUOTA"
+      tipos_datos:
+        CODIGO_PRODUCTO: str
+        CODIGO_SUBPRODUCTO: str
+        AMORTIZACION: float
+        INTERES: float
+        FECHA_VENCIMIENTO_CUOTA: str
+      agrupacion: ["CODIGO_SUBPRODUCTO"]
+      asunto_template: "Comparacion Interfaz de Datos CMR al {fecha}"
+
+  # Umbrales de tolerancia por producto
+  # |delta%| > warning -> amarillo, |delta%| > critical -> rojo
+  umbrales:
+    default:
+      capital_warning_pct: 5.0
+      capital_critical_pct: 15.0
+      interes_warning_pct: 5.0
+      interes_critical_pct: 15.0
+      registros_warning_pct: 5.0
+      registros_critical_pct: 20.0
+    gcp:
+      DAP:
+        capital_warning_pct: 2.0
+        capital_critical_pct: 5.0
+      DAPM:
+        capital_warning_pct: 10.0
+        capital_critical_pct: 30.0
+      BONOS:
+        capital_warning_pct: 1.0
+        capital_critical_pct: 5.0
+      CCT:
+        capital_warning_pct: 3.0
+        capital_critical_pct: 10.0
+    cmr: {}   # completar iterativamente con el equipo

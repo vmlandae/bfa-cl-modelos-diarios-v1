@@ -217,19 +217,28 @@ def lectura_interfaz_de_datos(fecha_t: datetime.datetime) -> pd.DataFrame:
         pd.DataFrame: DataFrame con los datos de tarjetas de crédito CMR filtrados y renombrados
     """
     
-    query="""
-        SELECT  
-            RF_BD_Gestion_RM.Fec_Pro,
-            RF_BD_Gestion_RM.Fec_Vcto,
-            RF_BD_Gestion_RM.Cod_Sub_Pro,
-            RF_BD_Gestion_RM.Cap_Amort,
-            RF_BD_Gestion_RM.Int_Total_Cont
-        FROM RF_BD_Gestion_RM
-        WHERE Cod_Pro = 'TARJETA DE CREDITO'
-        AND RF_BD_Gestion_RM.Fec_Pro = #{}#;
-    """.format(fecha_t.strftime('%Y-%m-%d'))
+    from procesamiento_datos_input.cache_tablas import leer_tabla_con_cache
 
-    interfaz_t = ut.lectura_datos_ms_access(ruta=ARCHIVO_INPUT, query=query)
+    # Leer tabla completa RM desde cache compartido (mismo que inversiones)
+    fecha_access = fecha_t.strftime('%Y-%m-%d')
+    query_rm = (
+        f"SELECT * FROM [RF_BD_Gestion_RM] "
+        f"WHERE [Fec_Pro] = #{fecha_access}#"
+    )
+
+    df_rm = leer_tabla_con_cache(
+        access_path=ARCHIVO_INPUT,
+        nombre_tabla='RF_BD_Gestion_RM',
+        fecha_proceso=fecha_t.strftime('%Y%m%d'),
+        query=query_rm,
+    )
+
+    # Filtrar para TARJETA DE CREDITO y seleccionar columnas necesarias
+    interfaz_t = df_rm.loc[
+        df_rm['Cod_Pro'] == 'TARJETA DE CREDITO',
+        ['Fec_Pro', 'Fec_Vcto', 'Cod_Sub_Pro', 'Cap_Amort', 'Int_Total_Cont'],
+    ].copy()
+
     interfaz_t = interfaz_t.rename(columns={
                                             'Fec_Pro': 'FECHA_PROCESO',
                                             'Fec_Vcto': 'FECHA_VENCIMIENTO_CUOTA',

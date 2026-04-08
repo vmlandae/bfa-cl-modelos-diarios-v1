@@ -220,6 +220,25 @@ def ejecutar_modo_consola(args):
             print(f"[{estado}] {key}: {config['nombre']} | Carga GCP: {carga_gcp}")
         return
 
+    # Modo: Control de interfaces PML
+    if args.control_interfaces is not None:
+        from core.control_interfaces import ejecutar_control_interfaces
+        tipos = None if "todos" in args.control_interfaces else args.control_interfaces
+        print(f"\n{'='*60}")
+        print("MODO: CONTROL DE INTERFACES PML")
+        print(f"Fecha: {fecha.strftime('%Y-%m-%d')}")
+        print(f"Tipos: {', '.join(t.upper() for t in tipos) if tipos else 'TODOS'}")
+        print(f"{'='*60}")
+
+        resultados = ejecutar_control_interfaces(fecha.date(), tipos=tipos)
+
+        for tipo, res in resultados.items():
+            n_crit = sum(1 for a in res.alertas if a.severidad == "CRITICAL")
+            n_warn = sum(1 for a in res.alertas if a.severidad == "WARNING")
+            print(f"\n  {tipo.upper()}: {len(res.comparacion)} grupos, "
+                  f"{n_crit} CRITICAL, {n_warn} WARNING")
+        return
+
     # Modo: Solo carga a GCP
     if args.solo_carga_gcp:
         print(f"\n{'='*60}")
@@ -359,6 +378,11 @@ Ejemplos de uso:
   # Aliases disponibles: todos, primera_vuelta, segunda_vuelta
   # Funcionan en --modelos, --solo-carga-gcp y --consolidar-historico
   
+  # Control de interfaces PML (comparacion sumas t vs t-1)
+  python main.py --fecha 2026-03-27 --control-interfaces
+  python main.py --fecha 2026-03-27 --control-interfaces gcp
+  python main.py --fecha 2026-03-27 --control-interfaces gcp cmr
+  
   # Modo GUI
   python main.py --gui
   
@@ -378,7 +402,9 @@ Ejemplos de uso:
     parser.add_argument('--force-historico', action='store_true',
                        help='Permitir re-inserción en históricos: backup CSV + DELETE + INSERT')
     parser.add_argument('--forzar-recarga', action='store_true',
-                       help='Ignorar caché parquet y leer directamente de Access')
+                       help='Ignorar cache parquet y leer directamente de Access')
+    parser.add_argument('--control-interfaces', type=str, nargs='+', metavar='TIPO',
+                       help='Ejecutar control de interfaces PML (gcp, cmr, o "todos").')
     parser.add_argument('--check-env', action='store_true',
                        help='Ejecutar diagnóstico del entorno y salir')
     args = parser.parse_args()

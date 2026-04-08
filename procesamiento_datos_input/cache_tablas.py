@@ -697,6 +697,12 @@ def leer_tabla_con_cache(
 
     # --- Leer desde Access (pyodbc directo, sin SQLAlchemy) ---
     access_path = Path(access_path)
+
+    # F22: usar copia local si el orquestador la descargo
+    _local = _ACCESS_LOCAL_MAP.get(str(access_path))
+    if _local and Path(_local).exists():
+        access_path = Path(_local)
+
     if not access_path.exists():
         raise FileNotFoundError(f"Archivo Access no encontrado: {access_path}")
 
@@ -715,18 +721,28 @@ def leer_tabla_con_cache(
     dt_access = time.perf_counter() - t0
 
     if verbose:
-        logger.info(f"     → {len(df):,} filas en {dt_access:.1f}s")
+        logger.info(f"     -> {len(df):,} filas en {dt_access:.1f}s")
 
-    # --- Guardar caché ---
+    # No cachear resultados vacios: podria ser dato faltante en origen
+    # (ej: Access ya no tiene data para esa fecha). Dejarlo sin cache
+    # permite que la proxima ejecucion reintente desde Access.
+    if len(df) == 0:
+        logger.warning(
+            f"  !! Query retorno 0 filas para {nombre_tabla}. "
+            "Resultado NO cacheado (posible dato faltante en origen)."
+        )
+        return df
+
+    # --- Guardar cache ---
     try:
         t0 = time.perf_counter()
         df.to_parquet(ruta_cache, index=False, engine='pyarrow')
         dt_save = time.perf_counter() - t0
         size_mb = ruta_cache.stat().st_size / (1024 * 1024)
         if verbose:
-            logger.info(f"  💾 Guardado: {nombre_archivo} ({size_mb:.1f} MB, {dt_save:.1f}s)")
+            logger.info(f"  Guardado: {nombre_archivo} ({size_mb:.1f} MB, {dt_save:.1f}s)")
     except Exception as e:
-        warnings.warn(f"No se pudo guardar caché {nombre_archivo}: {e}")
+        warnings.warn(f"No se pudo guardar cache {nombre_archivo}: {e}")
 
     return df
 
@@ -774,6 +790,12 @@ def leer_multiples_tablas_con_cache(
     cache_dir.mkdir(parents=True, exist_ok=True)
 
     access_path = Path(access_path)
+
+    # F22: usar copia local si el orquestador la descargo
+    _local = _ACCESS_LOCAL_MAP.get(str(access_path))
+    if _local and Path(_local).exists():
+        access_path = Path(_local)
+
     fecha_str = str(fecha_proceso)
     forzar_recarga = forzar_recarga or os.environ.get(ENV_FORZAR_RECARGA, '') == '1'
 
@@ -840,7 +862,15 @@ def leer_multiples_tablas_con_cache(
 
                 resultado[nombre_destino] = df
 
-                # Guardar caché
+                # No cachear resultados vacios
+                if len(df) == 0:
+                    logger.warning(
+                        f"  !! Query retorno 0 filas para {nombre_fuente}. "
+                        "Resultado NO cacheado."
+                    )
+                    continue
+
+                # Guardar cache
                 ruta_cache = cache_dir / f"{nombre_fuente}_{fecha_str}.parquet"
                 try:
                     t0 = time.perf_counter()
@@ -848,11 +878,11 @@ def leer_multiples_tablas_con_cache(
                     dt_save = time.perf_counter() - t0
                     size_mb = ruta_cache.stat().st_size / (1024 * 1024)
                     if verbose:
-                        logger.info(f"  💾 Guardado: {ruta_cache.name} "
+                        logger.info(f"  Guardado: {ruta_cache.name} "
                                     f"({size_mb:.1f} MB, {dt_save:.1f}s)")
                 except Exception as e:
                     warnings.warn(
-                        f"No se pudo guardar caché {ruta_cache.name}: {e}"
+                        f"No se pudo guardar cache {ruta_cache.name}: {e}"
                     )
         finally:
             conn.close()

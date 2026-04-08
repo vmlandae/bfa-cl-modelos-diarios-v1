@@ -31,43 +31,50 @@ RUTA_OUTPUT_MODELO = cr.resolver_ruta(config_ext['modelos']['ml_nmd']['excel_out
 
 def cargar_datos_balance(fecha_t: datetime) -> pd.DataFrame:
     """
-    Carga los datos de balance desde la base de datos de gestión.
+    Carga los datos de balance desde la base de datos de gestion.
     Incluye productos: DAP, Cuenta Corriente, Cuenta Vista y Cuentas de Ahorro.
+    Usa cache parquet compartido (RF_BD_Gestion_RL) para evitar lecturas
+    repetidas de Access y compartir datos con otros modelos (ej: LC).
     """
-    print("      • Ejecutando consulta de datos de balance...")
-    
-    query = """
-    SELECT
-        RF_BD_Gestion_RL.Fec_Pro,
-        RF_BD_Gestion_RL.Cod_A_P,
-        RF_BD_Gestion_RL.Moneda,
-        RF_BD_Gestion_RL.Cod_Pro,
-        RF_BD_Gestion_RL.Cod_Sub_Pro,
-        SUM(RF_BD_Gestion_RL.Cap_Amort + RF_BD_Gestion_RL.Int_Total_Cont) AS FLUJO_MO,
-        SUM(RF_BD_Gestion_RL.Cap_Amort) AS AMORTIZACION_MO,
-        SUM(RF_BD_Gestion_RL.Int_Total_Cont) AS INTERES_MO
-    FROM
-        RF_BD_Gestion_RL
-    WHERE
-        1 = 1
-        AND RF_BD_Gestion_RL.Fec_Pro = #{}#
-    GROUP BY
-        RF_BD_Gestion_RL.Fec_Pro,
-        RF_BD_Gestion_RL.Cod_A_P,
-        RF_BD_Gestion_RL.Moneda,
-        RF_BD_Gestion_RL.Cod_Pro,
-        RF_BD_Gestion_RL.Cod_Sub_Pro
-    HAVING
-        1 = 1
-        AND RF_BD_Gestion_RL.Cod_Sub_Pro = 'DAP'
-        OR RF_BD_Gestion_RL.Cod_Sub_Pro = 'Cta. Corriente'
-        OR RF_BD_Gestion_RL.Cod_Sub_Pro = 'Cta. vista'
-        OR RF_BD_Gestion_RL.Cod_Pro = 'Cta. Ahorro'
-    ORDER BY
-        RF_BD_Gestion_RL.Cod_Sub_Pro DESC
-    """.format(fecha_t.strftime('%Y-%m-%d'))
+    from procesamiento_datos_input.cache_tablas import leer_tabla_con_cache
 
-    data = ut.lectura_datos_ms_access(ARCHIVO_INPUT, query)
+    print("      * Ejecutando consulta de datos de balance...")
+
+    # Leer tabla completa RL desde cache compartido
+    fecha_access = fecha_t.strftime('%Y-%m-%d')
+    query_rl = (
+        f"SELECT * FROM [RF_BD_Gestion_RL] "
+        f"WHERE [Fec_Pro] = #{fecha_access}#"
+    )
+    df_rl = leer_tabla_con_cache(
+        access_path=ARCHIVO_INPUT,
+        nombre_tabla='RF_BD_Gestion_RL',
+        fecha_proceso=fecha_t.strftime('%Y%m%d'),
+        query=query_rl,
+    )
+
+    # Filtro equivalente al HAVING del SQL original
+    mask = (
+        (df_rl['Cod_Sub_Pro'] == 'DAP')
+        | (df_rl['Cod_Sub_Pro'] == 'CTA. CORRIENTE')
+        | (df_rl['Cod_Sub_Pro'] == 'CTA. VISTA')
+        | (df_rl['Cod_Pro'] == 'CTA. AHORRO')
+    )
+    df_filtered = df_rl[mask]
+
+    # GROUP BY + SUM equivalente
+    data = df_filtered.groupby(
+        ['Fec_Pro', 'Cod_A_P', 'Moneda', 'Cod_Pro', 'Cod_Sub_Pro'],
+        as_index=False,
+    ).agg(
+        AMORTIZACION_MO=('Cap_Amort', 'sum'),
+        INTERES_MO=('Int_Total_Cont', 'sum'),
+    )
+    data['FLUJO_MO'] = data['AMORTIZACION_MO'] + data['INTERES_MO']
+
+    # ORDER BY Cod_Sub_Pro DESC
+    data = data.sort_values('Cod_Sub_Pro', ascending=False).reset_index(drop=True)
+
     data = ut.estandariza_nombre_columnas_dataframe(data)
 
     # Mapear códigos de producto del modelo
@@ -93,42 +100,58 @@ def cargar_datos_balance(fecha_t: datetime) -> pd.DataFrame:
 
 def cargar_dap_contractual(fecha_t: datetime) -> pd.DataFrame:
     """
-    Carga los datos contractuales de DAP con información detallada de flujos.
-    Incluye amortización, intereses y fechas de pago programadas.
+    Carga los datos contractuales de DAP con informacion detallada de flujos.
+    Incluye amortizacion, intereses y fechas de pago programadas.
+    Usa cache parquet compartido (RF_BD_Gestion_RL).
     """
-    print("      • Ejecutando consulta de datos contractuales DAP...")
-    
-    query = """
-    SELECT 
-        RF_BD_Gestion_RL.Fec_Pro, 
-        RF_BD_Gestion_RL.Cod_Emp, 
-        RF_BD_Gestion_RL.Moneda, 
-        RF_BD_Gestion_RL.Cod_A_P, 
-        RF_BD_Gestion_RL.Cod_Pro, 
-        RF_BD_Gestion_RL.Cod_Sub_Pro, 
-        RF_BD_Gestion_RL.Fec_Pago, 
-        RF_BD_Gestion_RL.Dias_Pago, 
-        RF_BD_Gestion_RL.Cap_Amort AS AMORTIZACION_MO, 
-        RF_BD_Gestion_RL.Int_Total_Cont AS INTERES_MO,
-        (RF_BD_Gestion_RL.Cap_Amort  + RF_BD_Gestion_RL.Int_Total_Cont) AS FLUJO_MO,  
-        RF_BD_Gestion_RL.Int_Devengado AS INT_DEVENGADO_MO, 
-        RF_BD_Gestion_RL.VP_Cap_Amort AS VP_AMORTIZACION_MO, 
-        RF_BD_Gestion_RL.VP_Int_Total_Cont AS VP_INTERES_MO, 
-        (RF_BD_Gestion_RL.VP_Cap_Amort + RF_BD_Gestion_RL.VP_Int_Total_Cont) AS VP_FLUJO_MO,
-        RF_BD_Gestion_RL.Cod_Estrategia, 
-        RF_BD_Gestion_RL.Clasificacion_Contable, 
-        RF_BD_Gestion_RL.Empresa_Relacionada, 
-        RF_BD_Gestion_RL.Pais
-    FROM RF_BD_Gestion_RL
-    WHERE 
-        (1=1)
-        AND (RF_BD_Gestion_RL.Fec_Pro = #{}#)
-        AND (RF_BD_Gestion_RL.Moneda IN ('CLP','CLF','USD')) 
-        AND (RF_BD_Gestion_RL.Cod_Pro='DAP') 
-        AND (RF_BD_Gestion_RL.Cod_Sub_Pro='DAP')
-    """.format(fecha_t.strftime('%Y-%m-%d'))
+    from procesamiento_datos_input.cache_tablas import leer_tabla_con_cache
 
-    data = ut.lectura_datos_ms_access(ARCHIVO_DAP, query)
+    print("      * Ejecutando consulta de datos contractuales DAP...")
+
+    # Leer tabla completa RL desde cache compartido (reutiliza si ya fue cacheada)
+    fecha_access = fecha_t.strftime('%Y-%m-%d')
+    query_rl = (
+        f"SELECT * FROM [RF_BD_Gestion_RL] "
+        f"WHERE [Fec_Pro] = #{fecha_access}#"
+    )
+    df_rl = leer_tabla_con_cache(
+        access_path=ARCHIVO_DAP,
+        nombre_tabla='RF_BD_Gestion_RL',
+        fecha_proceso=fecha_t.strftime('%Y%m%d'),
+        query=query_rl,
+    )
+
+    # Filtro equivalente al WHERE del SQL original
+    mask = (
+        df_rl['Moneda'].isin(['CLP', 'CLF', 'USD'])
+        & (df_rl['Cod_Pro'] == 'DAP')
+        & (df_rl['Cod_Sub_Pro'] == 'DAP')
+    )
+    data = df_rl.loc[mask].copy()
+
+    # Renombrar columnas (equivalente a los alias AS del SQL)
+    data = data.rename(columns={
+        'Cap_Amort': 'AMORTIZACION_MO',
+        'Int_Total_Cont': 'INTERES_MO',
+        'Int_Devengado': 'INT_DEVENGADO_MO',
+        'VP_Cap_Amort': 'VP_AMORTIZACION_MO',
+        'VP_Int_Total_Cont': 'VP_INTERES_MO',
+    })
+
+    # Columnas calculadas
+    data['FLUJO_MO'] = data['AMORTIZACION_MO'] + data['INTERES_MO']
+    data['VP_FLUJO_MO'] = data['VP_AMORTIZACION_MO'] + data['VP_INTERES_MO']
+
+    # Seleccionar solo las columnas del SQL original
+    output_columns = [
+        'Fec_Pro', 'Cod_Emp', 'Moneda', 'Cod_A_P', 'Cod_Pro', 'Cod_Sub_Pro',
+        'Fec_Pago', 'Dias_Pago',
+        'AMORTIZACION_MO', 'INTERES_MO', 'FLUJO_MO',
+        'INT_DEVENGADO_MO', 'VP_AMORTIZACION_MO', 'VP_INTERES_MO', 'VP_FLUJO_MO',
+        'Cod_Estrategia', 'Clasificacion_Contable', 'Empresa_Relacionada', 'Pais',
+    ]
+    data = data[output_columns]
+
     data = ut.estandariza_nombre_columnas_dataframe(data)
 
     # Mapear códigos de producto DAP por moneda

@@ -51,6 +51,7 @@ core/                           # Nucleo del sistema
 ├── logger.py                   # Logging estructurado (JSONL + consola)
 ├── excel_output.py             # Escritura Excel con xlsxwriter (F23)
 ├── email_report.py             # Reportes email multi-tipo via Outlook COM (F26)
+├── control_interfaces.py       # Control exploratorio interfaces PML GCP/CMR (F26 Fase 5)
 ├── reporte_ejecucion.py        # Reportes de ejecucion + benchmark (F25)
 ├── sync_reportes.py            # Sincronizacion de reportes a BigQuery (F25)
 └── __init__.py
@@ -192,18 +193,20 @@ dashboard/                      # Dashboard Streamlit multi-pagina
 
 ### 📁 Documentación
 ```
-docs/                           # Documentación del proyecto (MkDocs)
+docs/                           # Documentacion del proyecto (MkDocs)
 ├── CHANGELOG.md                # Registro de cambios
 ├── roadmap/                    # Roadmap visual, plan de sprints y workflow
 ├── feats/dashboard-quick-wins/ # Brainstorm y spec del dashboard
-├── modelos/                    # Documentación técnica de cada modelo
-├── guia/                       # Guías de uso, instalación y troubleshooting
+├── feats/control-interfaces/   # Plan tecnico control interfaces PML (F26 Fase 5)
+├── modelos/                    # Documentacion tecnica de cada modelo
+├── guia/                       # Guias de uso, instalacion y troubleshooting
 └── desarrollo/                 # Benchmarks y notas de desarrollo
 
 tools/                          # Scripts de utilidad
 ├── check_env.py                # Health check del entorno (14 verificaciones)
-├── test_gcp_permisos.py        # Diagnóstico de permisos GCP
-└── excel_a_json.py             # Migración Excel → JSON de parámetros
+├── test_gcp_permisos.py        # Diagnostico de permisos GCP
+├── build_precios_db.py         # Construccion/sync base SQLite precios historicos
+└── excel_a_json.py             # Migracion Excel -> JSON de parametros
 ```
 
 ## Arquitectura del Sistema
