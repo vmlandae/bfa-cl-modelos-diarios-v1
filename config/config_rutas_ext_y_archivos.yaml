@@ -95,7 +95,7 @@ precios_db:
   version_maestra_red: "\\\\vmdvorak\\Riesgo Financiero2\\RF_PROCESOS\\RF_Modelos\\db_precios.version"
   db_local: "data/precios_historico.db"
   csv_tcrc_red: "\\\\vmdvorak\\Riesgo Financiero2\\RF_PROCESOS\\RF_Modelos\\precios_TCRC.csv"
-  rol_orquestador: "reader"
+  rol_orquestador: "writer"   # "reader" = solo lectura, "writer" = puede actualizar db local y version
 
 # ============================================================================
 # Reporte de amortizacion por email (primera vuelta)
