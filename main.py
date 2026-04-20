@@ -69,6 +69,7 @@ def mostrar_tabla_resumen(orquestador, resultados_ejecucion: dict, resultados_ca
         'ml_nmd': ['report_ml_nmd_dly'],
         'ml_lc': ['report_ml_lc_dly'],
         'ml_inversiones': ['report_ml_inversiones_dly'],
+        'mr_ssv': ['report_mr_ssv_dly'],
     }
     
     print("\n")

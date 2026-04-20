@@ -300,6 +300,15 @@ def cargar_modelos_a_bigquery(fecha_proceso: datetime, modelos_a_cargar: list = 
             'tipo_carga': "TRUNCATE",
             'modelo_origen': 'ml_inversiones'
         },
+        'mr_ssv': {
+            'fecha_t': fecha_proceso,
+            'ruta_archivo': Path(config_ext['modelos']['mr_ssv']['excel_output']),
+            'hoja_archivo': "DESARROLLO",
+            'tabla_respaldo': "report_mr_ssv_dly",
+            'esquema_tabla': crear_esquema_base(),
+            'tipo_carga': "TRUNCATE",
+            'modelo_origen': 'mr_ssv',
+        },
     }
 
     # Filtrar tareas según los modelos solicitados

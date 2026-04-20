@@ -110,6 +110,15 @@ class OrquestadorModelos:
                 "vuelta": 2,
                 "tiene_carga_gcp": True,
                 "tiene_carga_gcp_historica": True
+            },
+            "mr_ssv": {
+                "nombre": "Modelo SSV (Saldos Sin Vencimiento)",
+                "modulo": "RF_Modelo_MR_SSV.mr_ssv",
+                "activado": True,
+                "orden": 10,
+                "vuelta": 2,
+                "tiene_carga_gcp": True,
+                "tiene_carga_gcp_historica": True
             }
         }
 

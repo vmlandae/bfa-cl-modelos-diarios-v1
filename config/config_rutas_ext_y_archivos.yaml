@@ -54,6 +54,13 @@ modelos:
     excel_parametros_modelo_input: "RF_Modelo_Linea_de_Credito/parametros/parametros_ml_lc.xlsx"
     excel_output: "RF_Modelo_Linea_de_Credito/ml_lc.xlsx"
 
+  mr_ssv:
+    ms_access_input: "\\\\vmdvorak\\Riesgo Financiero2\\RF_PROCESOS\\RF_Carteras\\INTERFAZ_DATOS\\RF_Base_Carteras_Completa.accdb"
+    ms_access_tabla_input: "RF_BD_Gestion_RL"
+    excel_parametros_modelo_input: "RF_Modelo_MR_SSV/parametros/parametros_mr_ssv.xlsx"
+    excel_parametros_core_input: "\\\\vmdvorak\\Riesgo Financiero2\\RF_PROCESOS\\RF_Resultados\\Precios de Transferencia\\saldos_core.xlsx"
+    excel_output: "RF_Modelo_MR_SSV/mr_ssv.xlsx"
+
   ml_inversiones:
     # --- Fuentes Access ---
     ms_access_sources:

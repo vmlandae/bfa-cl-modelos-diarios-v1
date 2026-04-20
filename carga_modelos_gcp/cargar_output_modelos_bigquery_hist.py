@@ -129,8 +129,13 @@ CONFIGURACION_CONSOLIDACION = [
         "DESTINO_TABLA": "report_ml_inversiones_hist",
         "COLUMNA_FECHA_PARTICION": "FECHA_PROCESO"
     },
-    
-    
+    {
+        "ORIGEN_DATASET": "bfa_cl_prd_financial_risk_dly_proc_models",
+        "ORIGEN_TABLA": "report_mr_ssv_dly",
+        "DESTINO_DATASET": "bfa_cl_prd_financial_risk_dly_proc_models_hist",
+        "DESTINO_TABLA": "report_mr_ssv_hist",
+        "COLUMNA_FECHA_PARTICION": "FECHA_PROCESO"
+    },
 ]
 
 
@@ -402,6 +407,7 @@ def consolidar_historico_bigquery(fecha_proceso: datetime.datetime,
         'ml_nmd': ['report_ml_nmd_dly'],
         'ml_lc': ['report_ml_lc_dly'],
         'ml_inversiones': ['report_ml_inversiones_dly'],
+        'mr_ssv': ['report_mr_ssv_dly'],
     }
 
     # Filtrar configuraciones según los modelos solicitados
