@@ -50,10 +50,12 @@ TODOs futuros:
     que las re-ejecuciones del mismo día no dependan de la red.
 """
 
-import os
+import getpass
 import hashlib
 import json
+import os
 import shutil
+import socket
 import threading
 import time
 import warnings
@@ -503,6 +505,99 @@ def leer_interfaz_con_cache(
 _lock_copia_access = threading.Lock()
 
 
+def _ruta_metadata_access(ruta_local: Path) -> Path:
+    """Ruta del sidecar JSON con metadata de la copia local de Access."""
+    return ruta_local.with_suffix(ruta_local.suffix + ".meta.json")
+
+
+def _guardar_metadata_access(
+    ruta_local: Path,
+    ruta_origen: Path,
+    stat_origen: os.stat_result,
+    duracion_s: float,
+) -> None:
+    """Persiste metadata humana sobre la copia local de un .accdb.
+
+    Registra cuando se hizo la copia, quien la hizo y los stats del archivo
+    de origen al momento de copiar. Util para auditar ejecuciones stale o
+    diferencias entre maquinas.
+    """
+    try:
+        usuario = getpass.getuser()
+    except Exception:
+        usuario = os.environ.get("USERNAME") or os.environ.get("USER") or "desconocido"
+    try:
+        host = socket.gethostname()
+    except Exception:
+        host = "desconocido"
+
+    meta = {
+        "timestamp_copia": datetime.now().isoformat(timespec="seconds"),
+        "usuario": usuario,
+        "host": host,
+        "ruta_origen": str(ruta_origen),
+        "size_origen_bytes": int(stat_origen.st_size),
+        "mtime_origen_epoch": float(stat_origen.st_mtime),
+        "mtime_origen_iso": datetime.fromtimestamp(stat_origen.st_mtime).isoformat(timespec="seconds"),
+        "duracion_copia_s": round(float(duracion_s), 3),
+    }
+    try:
+        _ruta_metadata_access(ruta_local).write_text(
+            json.dumps(meta, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+    except OSError as exc:
+        logger.warning(f"  [WARN] No se pudo guardar metadata de {ruta_local.name}: {exc}")
+
+
+def _backup_access_local(ruta_local: Path) -> Optional[Path]:
+    """Renombra la copia local previa a .pre_{YYYYMMDD_HHMMSS}.accdb.
+
+    Tambien mueve el sidecar de metadata si existe. Si la operacion falla,
+    devuelve None y deja la copia original en su lugar (la sobreescritura
+    posterior decidira que hacer).
+    """
+    if not ruta_local.exists():
+        return None
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    # Mantener la extension original al final para que limpiar_access_local()
+    # siga capturando los backups con su glob('*.accdb').
+    ruta_backup = ruta_local.with_name(f"{ruta_local.stem}.pre_{ts}{ruta_local.suffix}")
+    try:
+        shutil.move(str(ruta_local), str(ruta_backup))
+    except OSError as exc:
+        logger.warning(f"  [WARN] No se pudo crear backup de {ruta_local.name}: {exc}")
+        return None
+    # Mover metadata vieja al lado del backup (si existe).
+    meta_old = _ruta_metadata_access(ruta_local)
+    if meta_old.exists():
+        try:
+            shutil.move(str(meta_old), str(_ruta_metadata_access(ruta_backup)))
+        except OSError:
+            pass
+    return ruta_backup
+
+
+def _copiar_y_registrar_access(ruta_red: Path, ruta_local: Path) -> None:
+    """Copia .accdb desde UNC a local y persiste metadata + log enriquecido."""
+    nombre = ruta_red.name
+    logger.info(f"  [COPY] Copiando {nombre} a local...")
+    t0 = time.perf_counter()
+    shutil.copy2(str(ruta_red), str(ruta_local))
+    dt = time.perf_counter() - t0
+    stat_origen = ruta_red.stat()
+    size_mb = ruta_local.stat().st_size / (1024 * 1024)
+    _guardar_metadata_access(ruta_local, ruta_red, stat_origen, dt)
+    try:
+        usuario = getpass.getuser()
+    except Exception:
+        usuario = os.environ.get("USERNAME", "?")
+    logger.info(
+        f"  [OK] {nombre}: {size_mb:.0f} MB copiado en {dt:.1f}s "
+        f"(por {usuario}@{socket.gethostname()})"
+    )
+
+
 def copiar_access_a_local(
     rutas_red: List[Union[str, Path]],
     cache_dir: Optional[Path] = None,
@@ -517,6 +612,13 @@ def copiar_access_a_local(
 
     Returns:
         Dict[ruta_red_str, ruta_local] con las rutas locales de las copias.
+
+    Notas:
+        - Cuando la red tiene una version mas nueva, la copia local previa
+          se preserva como ``{stem}.pre_{YYYYMMDD_HHMMSS}.accdb`` (con su
+          metadata) antes de sobreescribir.
+        - Cada copia escribe un sidecar ``{archivo}.accdb.meta.json`` con
+          timestamp, usuario, host y stats del origen.
     """
     forzar_recarga = forzar_recarga or os.environ.get(ENV_FORZAR_RECARGA, '') == '1'
 
@@ -534,26 +636,61 @@ def copiar_access_a_local(
             nombre = ruta_red.name
             ruta_local = access_dir / nombre
 
+            necesita_recopiar = forzar_recarga
+            motivo_recopia = "forzar_recarga=True" if forzar_recarga else None
+
             if ruta_local.exists() and not forzar_recarga:
-                size_mb = ruta_local.stat().st_size / (1024 * 1024)
-                logger.info(
-                    f"  ✓ Access local vigente: {nombre} ({size_mb:.0f} MB)"
-                )
-                resultado[str(ruta_red)] = ruta_local
-                continue
+                # Chequeo de vigencia: comparar mtime y tamano contra la copia
+                # en UNC. Si la red es mas nueva o cambio el tamano, recopiar.
+                try:
+                    stat_local = ruta_local.stat()
+                    if ruta_red.exists():
+                        stat_red = ruta_red.stat()
+                        mismo_size = stat_local.st_size == stat_red.st_size
+                        # Tolerancia de 2s para truncado de mtime entre FS.
+                        local_al_dia = stat_local.st_mtime >= (stat_red.st_mtime - 2)
+                        if mismo_size and local_al_dia:
+                            size_mb = stat_local.st_size / (1024 * 1024)
+                            logger.info(
+                                f"  [OK] Access local vigente: {nombre} ({size_mb:.0f} MB)"
+                            )
+                            resultado[str(ruta_red)] = ruta_local
+                            continue
+                        necesita_recopiar = True
+                        motivo_recopia = (
+                            f"local mtime={stat_local.st_mtime:.0f}/{stat_local.st_size}B, "
+                            f"red mtime={stat_red.st_mtime:.0f}/{stat_red.st_size}B"
+                        )
+                    else:
+                        # Sin acceso a la red: conservar copia local existente.
+                        size_mb = stat_local.st_size / (1024 * 1024)
+                        logger.warning(
+                            f"  [WARN] Access de red inaccesible, usando copia local: "
+                            f"{nombre} ({size_mb:.0f} MB)"
+                        )
+                        resultado[str(ruta_red)] = ruta_local
+                        continue
+                except OSError as exc:
+                    logger.warning(
+                        f"  [WARN] Error comparando vigencia de {nombre}: {exc}. Recopiando..."
+                    )
+                    necesita_recopiar = True
+                    motivo_recopia = f"OSError comparando vigencia: {exc}"
 
             if not ruta_red.exists():
-                logger.error(f"  ✗ Archivo Access no encontrado en red: {ruta_red}")
+                logger.error(f"  [ERROR] Archivo Access no encontrado en red: {ruta_red}")
                 continue
 
-            logger.info(f"  📥 Copiando {nombre} a local...")
-            t0 = time.perf_counter()
-            shutil.copy2(str(ruta_red), str(ruta_local))
-            dt = time.perf_counter() - t0
-            size_mb = ruta_local.stat().st_size / (1024 * 1024)
-            logger.info(
-                f"  ✓ {nombre}: {size_mb:.0f} MB copiado en {dt:.1f}s"
-            )
+            # Si ya hay copia local y vamos a sobreescribirla, preservarla.
+            if necesita_recopiar and ruta_local.exists():
+                ruta_backup = _backup_access_local(ruta_local)
+                if ruta_backup is not None:
+                    logger.info(
+                        f"  [UPDATE] Access local desactualizado ({motivo_recopia}). "
+                        f"Backup -> {ruta_backup.name}"
+                    )
+
+            _copiar_y_registrar_access(ruta_red, ruta_local)
             resultado[str(ruta_red)] = ruta_local
 
     # Actualizar mapa global para que data_sources.py pueda leerlo
@@ -583,7 +720,13 @@ def limpiar_access_local(cache_dir: Optional[Path] = None) -> None:
     for archivo in access_dir.glob('*.accdb'):
         size_mb = archivo.stat().st_size / (1024 * 1024)
         archivo.unlink()
-        logger.info(f"  🗑 Eliminado: {archivo.name} ({size_mb:.0f} MB)")
+        logger.info(f"  [DEL] Eliminado: {archivo.name} ({size_mb:.0f} MB)")
+    # Tambien barrer los sidecars de metadata generados por copiar_access_a_local.
+    for meta in access_dir.glob('*.accdb.meta.json'):
+        try:
+            meta.unlink()
+        except OSError:
+            pass
     # Limpiar mapa global
     _ACCESS_LOCAL_MAP.clear()
 
