@@ -134,6 +134,14 @@ RF_Modelo_Inversiones/dev/
 
 # archivos temporales de claude
 tmpclaude-*
+# scratchpads y scripts efimeros en la raiz del proyecto
+/check_nan.py
+/output.txt
+/script.py
+/temp_*.py
+/tmp_*.py
+/zz_*.txt
+/zz_*.py
 # sandboxes para probar código
 sandbox/
 RF_Modelo_TC_CMR/

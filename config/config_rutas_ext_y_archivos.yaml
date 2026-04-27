@@ -54,6 +54,17 @@ modelos:
     excel_parametros_modelo_input: "RF_Modelo_Linea_de_Credito/parametros/parametros_ml_lc.xlsx"
     excel_output: "RF_Modelo_Linea_de_Credito/ml_lc.xlsx"
 
+  mr_ssv:
+    # Fuente principal: misma tabla que usa MT_SSV.XLSM heredado (query ODBC en
+    # Data_Bce). Contiene Cap_Amort + Int_Total_Cont ya agregados por producto.
+    ms_access_input: "\\\\vmdvorak\\Riesgo Financiero2\\RF_PROCESOS\\RF_Carteras\\INTERFAZ_DATOS\\RF_Base_Carteras_Completa.accdb"
+    ms_access_tabla_input: "MOD_Saldos_para_Modelos"
+    # Tabla espejo: se lee tambien para verificar que el balance coincida con
+    # el que consumen ml_nmd / ml_lc. Warning si hay diferencia.
+    ms_access_tabla_check: "RF_BD_Gestion_RL"
+    excel_parametros_modelo_input: "RF_Modelo_MR_SSV/parametros/parametros_mr_ssv.xlsx"
+    excel_output: "RF_Modelo_MR_SSV/mr_ssv.xlsx"
+
   ml_inversiones:
     # --- Fuentes Access ---
     ms_access_sources:

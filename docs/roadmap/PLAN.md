@@ -1,8 +1,30 @@
 # Plan de Ejecución — Roadmap BFA-CL Modelos Diarios
 
 > **Fuente de verdad del roadmap:** [`roadmap.yaml`](roadmap.yaml)
-> **Ultima actualizacion:** 2026-03-17
+> **Ultima actualizacion:** 2026-04-24
 > **Equipo:** Victor Landaeta (`@vlandaetat`), Rodrigo Munoz (`@rmunozb`)
+
+---
+
+## ⚠️ DESTACADO — F27: Automatizar saldos CORE mensuales (MR SSV)
+
+> **Estado:** backlog · **Prioridad:** alta · **Responsable:** @vlandaetat
+
+Los saldos CORE mensuales que alimentan MR SSV se incorporan HOY **manualmente**
+mediante `RF_Modelo_MR_SSV/parametros/agregar_core_hardcode.py`, que hardcodea
+valores en `parametros_mr_ssv.xlsx/json`. La proxima actualizacion CORE (semana
+siguiente al merge de `feat/modelo-ssv`) debe usarse para:
+
+1. **Documentar paso a paso** el procedimiento manual actual en
+   `docs/modelos/ssv.md` (fuente oficial, como se extraen los saldos, como se
+   pegan en parametros, validacion visual).
+2. **Disenar la utilidad automatizada** que reemplace el hardcode leyendo la
+   fuente oficial CORE y actualizando `parametros_mr_ssv` sin intervencion.
+3. **Agregar validacion defensiva** en `mr_ssv.py`: si los CORE no estan
+   actualizados al corte EOM, abortar con mensaje claro.
+
+Riesgo actual: error humano alto si se olvida ejecutar el script o si cambia
+el layout de las planillas CORE.
 
 ---
 

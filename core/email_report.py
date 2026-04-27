@@ -58,6 +58,7 @@ TABLAS_SEGUNDA_VUELTA = [
     "report_ml_nmd_hist",
     "report_ml_lc_hist",
     "report_ml_inversiones_hist",
+    "report_mr_ssv_hist",
 ]
 
 _TABLAS_POR_TIPO = {

@@ -44,6 +44,7 @@ CATALOGO_PARAMETROS: Dict[str, str] = {
     "ml_mora_comercial": "RF_Modelo_Mora_Comercial/parametros/parametros_ml_mora_comercial.xlsx",
     "ml_nmd": "RF_Modelo_NMD/parametros/parametros_ml_nmd.xlsx",
     "ml_lc": "RF_Modelo_Linea_de_Credito/parametros/parametros_ml_lc.xlsx",
+    "mr_ssv": "RF_Modelo_MR_SSV/parametros/parametros_mr_ssv.xlsx",
 }
 
 
@@ -98,6 +99,14 @@ def excel_a_json(ruta_excel: Path, ruta_json: Optional[Path] = None) -> Path:
     hojas = {}
     for nombre_hoja in xls.sheet_names:
         df = pd.read_excel(ruta_excel, sheet_name=nombre_hoja)
+        # Normalizar columnas datetime → string ISO ('YYYY-MM-DD'); NaT → None.
+        # Usar el mismo formato que pandas .astype(str) de datetime64 para que
+        # la validación JSON↔Excel (cargador_parametros._comparar_hojas) matchee.
+        for col in df.columns:
+            if pd.api.types.is_datetime64_any_dtype(df[col]):
+                df[col] = df[col].dt.strftime("%Y-%m-%d")
+                # Reemplazar NaN (ex-NaT) por None para que json.dump emita null
+                df[col] = df[col].astype(object).where(df[col].notna(), None)
         hojas[nombre_hoja] = {
             "columns": list(df.columns),
             "data": df.values.tolist(),

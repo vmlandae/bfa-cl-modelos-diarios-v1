@@ -5,6 +5,68 @@ Registro de cambios y actualizaciones del proyecto BFA-CL Modelos Diarios.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.0-dev] - 2026-04-24 - Modelo MR SSV (port + carga BQ)
+
+### Agregado
+- **Modelo MR SSV** (`RF_Modelo_MR_SSV/mr_ssv.py`): port productivo a Python
+  de la herramienta heredada `MT_SSV.XLSM` (Simulacion de Stress de Valor de la
+  cartera comercial). Frecuencia mensual (EOM), se integra al orquestador V2.
+- **Parametros definitivos** (`RF_Modelo_MR_SSV/parametros/parametros_mr_ssv.xlsx` y `.json`):
+  set consolidado de parametros tras validacion contra outputs del XLSM.
+- **Utilitario de carga CORE** (`RF_Modelo_MR_SSV/parametros/agregar_core_hardcode.py`):
+  script auxiliar para inyectar manualmente los saldos CORE mensuales en los
+  parametros. Procedimiento manual pendiente de automatizar (ver roadmap).
+- **Carga BQ SSV**: tablas `report_mr_ssv_dly` (partition por `fecha_proceso`)
+  y `report_mr_ssv_hist` integradas en `cargar_output_modelos_bigquery_dly.py`
+  y `cargar_output_modelos_bigquery_hist.py`.
+- **Documentacion tecnica** (`docs/modelos/ssv.md`): alcance, input, algoritmo,
+  output y tablas BQ. Entrada en `mkdocs.yml`.
+
+### Corregido
+- **Literal `'nan'` en columnas STRING de BQ** (`cargar_output_modelos_bigquery_dly.py`):
+  el cast previo a `str` sobre `Series.where(notna, None)` de dtype float64
+  preservaba NaN (porque el dtype no puede contener None) y terminaba
+  escribiendo literal `'nan'` en BigQuery. Se fuerza `astype(object)` antes
+  del `where`, garantizando que los nulos lleguen como `None` en las columnas
+  STRING nullables (`FACTOR_DE_RIESGO`, `CODIGO_EJECUTIVO`, `INDEXADOR`).
+  Validado: 0 `'nan'` / 1037 NULL en dly y hist para la fecha EOM 20260228.
+- **Simplificacion de construccion de dataframes** (`mr_ssv.py`): broadcast de
+  `np.nan` en lugar de listas `[np.nan] * n` por fila; reduce ~400 lineas y
+  acelera la construccion de las filas template.
+
+### Cambiado
+- **`config/config_rutas_ext_y_archivos.yaml`**: la tabla Access fuente para
+  mr_ssv pasa a ser `MOD_Saldos_para_Modelos` (misma que el MT_SSV heredado,
+  con `Cap_Amort` e `Int_Total_Cont` ya agregados por producto). Se agrega
+  `ms_access_tabla_check: RF_BD_Gestion_RL` para verificar consistencia del
+  balance contra ml_nmd / ml_lc. Se elimina la dependencia de
+  `saldos_core.xlsx` externo (los CORE se inyectan en parametros via
+  `agregar_core_hardcode.py`).
+- **`core/orquestador.py`**: se deshabilita temporalmente la limpieza
+  post-ejecucion V2 de copias locales de Access (`limpiar_access_local`)
+  mientras se estabiliza el pipeline de mr_ssv, para evitar recopiar el
+  `.accdb` de 1.3 GB en cada corrida. Reactivar una vez el modelo este
+  consolidado.
+- **`.gitignore`**: ignorar scratchpads efimeros en la raiz
+  (`check_*.py`, `temp_*.py`, `tmp_*.py`, `zz_*.py/txt`, `output.txt`,
+  `script.py`).
+
+### Removido
+- **`MR_SSV/` y `MR_SSV.zip`** (codigo heredado): archivados a
+  `backups_historicos/20260424/ssv_port/MR_SSV_legacy/` una vez consolidado
+  `RF_Modelo_MR_SSV/`. El git history preserva el contenido original.
+- **`RF_Modelo_MR_SSV/mr_ssv_legacy.py`**: snapshot temporal del port inicial.
+  El git history preserva la version.
+- **Sandbox SSV** (`sandbox/{mt_ssv_heredado,mt_ssv_prod,ssv_saldos_core}`,
+  `sandbox/{compare,tmp_*,zz_*_ssv,extraer_factores_flujeador,...}`):
+  archivados a `backups_historicos/20260424/ssv_port/sandbox_ssv/`.
+
+### Nota de dependencia
+- Existe un fix relacionado (`fix(cache): revalidar vigencia de copia local
+  de Access contra mtime/tamano en red`) en la rama separada
+  `fix/access-cache-vigencia`. Es independiente del MR SSV pero tocado durante
+  este trabajo para destrabar iteraciones. Mergear por separado.
+
 ## [1.12.0-dev] - 2026-04-06 - Sprint S3: Cache Parquet Compartido + Control Interfaces
 
 ### Agregado
