@@ -73,7 +73,7 @@ sprints:
     inicio: null
     fin: null
     objetivo: "Features de largo plazo, priorizables según contexto"
-    features: [F05, F07, F08, F10, F18, F19]
+    features: [F05, F07, F08, F10, F18, F19, F27]
 
 # =============================================================================
 # FEATURES
@@ -735,3 +735,42 @@ features:
       Fase 5 (chequeo interfaces) pendiente de más detalle.
       Fase 6 (dashboard button) diferido hasta merge de ramas.
       Fase 7 (auto-send inteligente) solo planificación.
+
+  # ---------------------------------------------------------------------------
+  # MODELOS NUEVOS / MIGRADOS
+  # ---------------------------------------------------------------------------
+
+  - id: F27
+    titulo: "Automatizacion de saldos CORE mensuales para MR SSV"
+    descripcion: >
+      !!! DESTACADO !!! Hoy los saldos CORE mensuales que alimentan el modelo
+      MR SSV se incorporan manualmente via el script
+      RF_Modelo_MR_SSV/parametros/agregar_core_hardcode.py, que hardcodea los
+      valores directamente en parametros_mr_ssv.xlsx/json. Este procedimiento
+      manual debe documentarse en detalle la proxima semana (durante la
+      actualizacion CORE EOM) y luego reemplazarse por una utilidad que lea
+      la fuente oficial (CORE bancario) y actualice los parametros
+      automaticamente. Riesgo alto de error humano si se olvida ejecutar el
+      script o si cambian las planillas CORE.
+    estado: backlog
+    prioridad: alta
+    tamano: M
+    sprint: "backlog"
+    asignado: vlandaetat
+    etiquetas: [ssv, parametros, core, automatizacion, destacado]
+    dependencias: []
+    archivos_afectados:
+      - "RF_Modelo_MR_SSV/parametros/agregar_core_hardcode.py"
+      - "RF_Modelo_MR_SSV/parametros/parametros_mr_ssv.xlsx"
+      - "RF_Modelo_MR_SSV/parametros/parametros_mr_ssv.json"
+      - "config/config_rutas_ext_y_archivos.yaml"
+      - "docs/modelos/ssv.md"
+    criterios_aceptacion:
+      - "Procedimiento manual CORE documentado paso a paso en docs/modelos/ssv.md"
+      - "Utilidad automatica lee CORE oficial sin intervencion manual"
+      - "parametros_mr_ssv se regeneran consistentemente cada cierre EOM"
+      - "Validacion automatica: alerta si los saldos CORE no estan actualizados al correr mr_ssv"
+    notas: >
+      Pendiente destacado para cierre del MR del modelo SSV. La proxima
+      semana toca actualizacion manual CORE => buena ventana para levantar
+      el procedimiento completo y cerrar el loop.

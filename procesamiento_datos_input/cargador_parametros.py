@@ -48,6 +48,7 @@ _CATALOGO: Dict[str, str] = {
     "ml_mora_comercial": "RF_Modelo_Mora_Comercial/parametros/parametros_ml_mora_comercial.xlsx",
     "ml_nmd": "RF_Modelo_NMD/parametros/parametros_ml_nmd.xlsx",
     "ml_lc": "RF_Modelo_Linea_de_Credito/parametros/parametros_ml_lc.xlsx",
+    "mr_ssv": "RF_Modelo_MR_SSV/parametros/parametros_mr_ssv.xlsx",
 }
 
 

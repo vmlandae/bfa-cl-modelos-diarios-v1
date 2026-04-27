@@ -80,6 +80,7 @@ nav:
     - Mora Comercial: modelos/mora-comercial.md
     - NMD: modelos/nmd.md
     - Línea de Crédito: modelos/lc.md
+    - SSV: modelos/ssv.md
   - Roadmap:
     - Plan de Desarrollo: roadmap/index.md
     - Workflow Colaborativo: roadmap/workflow.md

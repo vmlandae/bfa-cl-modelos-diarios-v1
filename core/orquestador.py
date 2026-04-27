@@ -110,6 +110,15 @@ class OrquestadorModelos:
                 "vuelta": 2,
                 "tiene_carga_gcp": True,
                 "tiene_carga_gcp_historica": True
+            },
+            "mr_ssv": {
+                "nombre": "Modelo SSV (Saldos Sin Vencimiento)",
+                "modulo": "RF_Modelo_MR_SSV.mr_ssv",
+                "activado": True,
+                "orden": 10,
+                "vuelta": 2,
+                "tiene_carga_gcp": True,
+                "tiene_carga_gcp_historica": True
             }
         }
 
@@ -409,13 +418,12 @@ class OrquestadorModelos:
         if not modelos_v2:
             return
 
-        from procesamiento_datos_input.cache_tablas import limpiar_access_local
-
+        # NOTA: limpieza de Access local deshabilitada temporalmente durante el
+        # desarrollo del modelo mr_ssv para evitar recopiar el .accdb (1.3 GB)
+        # en cada corrida. Reactivar cuando el pipeline esté estabilizado.
         logger.info(f"\n{'─'*60}")
-        logger.info("POST-EJECUCIÓN V2: Limpiando copias locales de Access...")
+        logger.info("POST-EJECUCIÓN V2: (limpieza de Access local DESHABILITADA - dev mr_ssv)")
         logger.info(f"{'─'*60}")
-
-        limpiar_access_local()
 
         # Actualizar base SQLite de precios historicos y exportar CSV TCRC
         self._actualizar_precios_db(fecha)

@@ -26,6 +26,9 @@ Este proyecto contiene la implementación de múltiples modelos de riesgo financ
 ### Modelos de Inversiones
 - **ML Inversiones**: Pipeline modular para modelado de inversiones con capa de I/O, validaciones y generación de excels.
 
+### Modelos de Margen Relativo (MR)
+- **MR SSV**: Modelo de Simulación de Stress de Valor para la cartera comercial mensual (EOM). Port de la herramienta heredada `MT_SSV.XLSM` a Python, con carga a BigQuery (`report_mr_ssv_dly` / `report_mr_ssv_hist`).
+
 Los modelos están diseñados para procesar datos en lotes, generar predicciones y cargar los resultados a BigQuery para su posterior análisis y reporting.
 
 ## Estructura del Proyecto
@@ -147,6 +150,14 @@ RF_Modelo_Inversiones/          # Modelo de inversiones (pipeline modular)
 ├── parametros/                 # Parámetros específicos del modelo
 ├── tests/                      # Tests unitarios
 └── dev/                        # Scripts de desarrollo y documentación GCP
+```
+
+#### Modelo MR SSV (mensual, EOM)
+```
+RF_Modelo_MR_SSV/               # Modelo Simulacion de Stress de Valor
+├── mr_ssv.py                   # Implementacion del modelo (port de MT_SSV.XLSM)
+├── mr_ssv.xlsx                 # Output Excel (control + carga a BQ)
+└── parametros/                 # Parametros JSON + Excel + agregar_core_hardcode.py
 ```
 
 ### 📁 Datos, Reportes y Logs

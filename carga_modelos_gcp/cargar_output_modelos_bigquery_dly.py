@@ -136,13 +136,30 @@ def cargar_tablas_bigquery(fecha_t, ruta_archivo, hoja_archivo, tabla_respaldo, 
             # Reemplazar cadenas vacías por NaN para que la conversión de tipos funcione
             import numpy as np
             df = df.replace('', np.nan)
-            # Ahora re-castear a los tipos esperados
+            # Ahora re-castear a los tipos esperados.
+            # Nota: para columnas STRING se usa una conversion manual que
+            # preserva los NaN como None (en lugar de astype('str'), que
+            # convierte NaN al literal 'nan' y acaba cargado como texto en BQ).
             for col, tipo in dtype_excel.items():
                 if col in df.columns:
                     try:
-                        df[col] = pd.to_numeric(df[col], errors='coerce') \
-                            if tipo in ('Int64', 'float') \
-                            else df[col].astype(tipo)
+                        if tipo in ('Int64', 'float'):
+                            df[col] = pd.to_numeric(df[col], errors='coerce')
+                        elif tipo == 'str':
+                            # Nota: si toda la columna es NaN, el dtype
+                            # llega como float64.  where(..., None) sobre
+                            # float preserva NaN en vez de convertirlo a
+                            # None, y str(nan) = 'nan'.  Forzamos object
+                            # primero y, como seguro adicional, mapeamos
+                            # los floats NaN residuales a None.
+                            s = df[col].astype(object).where(df[col].notna(), None)
+                            df[col] = s.map(
+                                lambda v: None if v is None or (
+                                    isinstance(v, float) and pd.isna(v)
+                                ) else str(v)
+                            )
+                        else:
+                            df[col] = df[col].astype(tipo)
                     except (ValueError, TypeError):
                         pass  # Dejar tipo inferido si no convierte
         else:
@@ -299,6 +316,15 @@ def cargar_modelos_a_bigquery(fecha_proceso: datetime, modelos_a_cargar: list = 
             'esquema_tabla': crear_esquema_base(),
             'tipo_carga': "TRUNCATE",
             'modelo_origen': 'ml_inversiones'
+        },
+        'mr_ssv': {
+            'fecha_t': fecha_proceso,
+            'ruta_archivo': Path(config_ext['modelos']['mr_ssv']['excel_output']),
+            'hoja_archivo': "DESARROLLO",
+            'tabla_respaldo': "report_mr_ssv_dly",
+            'esquema_tabla': crear_esquema_base(),
+            'tipo_carga': "TRUNCATE",
+            'modelo_origen': 'mr_ssv',
         },
     }
 

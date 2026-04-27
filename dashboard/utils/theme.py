@@ -27,6 +27,7 @@ MODELOS_CANONICOS = {
     "ml_nmd":                 {"nombre": "NMD",                  "vuelta": 2},
     "ml_lc":                  {"nombre": "Línea de Crédito",     "vuelta": 2},
     "ml_inversiones":         {"nombre": "Inversiones",          "vuelta": 2},
+    "mr_ssv":                 {"nombre": "SSV (EOM)",            "vuelta": 2},
 }
 
 # Niveles de log con colores
