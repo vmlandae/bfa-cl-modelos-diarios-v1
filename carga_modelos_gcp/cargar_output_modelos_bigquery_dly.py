@@ -195,10 +195,10 @@ def cargar_tablas_bigquery(fecha_t, ruta_archivo, hoja_archivo, tabla_respaldo, 
             tipo_escritura=tipo_carga
         )
         
-        return f"[{pid}] ✓ Carga exitosa: {tabla_respaldo}"
+        return f"[{pid}] OK Carga exitosa: {tabla_respaldo}"
 
     except Exception as e:
-        return f"[{pid}] ✗ ERROR al procesar {ruta_archivo} (hoja: {hoja_archivo}). Error: {e}"
+        return f"[{pid}] ERROR al procesar {ruta_archivo} (hoja: {hoja_archivo}). Error: {e}"
 
 def cargar_modelos_a_bigquery(fecha_proceso: datetime, modelos_a_cargar: list = None) -> dict:
     """
@@ -372,7 +372,7 @@ def cargar_modelos_a_bigquery(fecha_proceso: datetime, modelos_a_cargar: list = 
                 print(result)
                 resultados[task_info['tabla_respaldo']] = True
             except Exception as exc:
-                error_msg = f"✗ ERROR en {task_info['tabla_respaldo']}: {exc}"
+                error_msg = f"ERROR en {task_info['tabla_respaldo']}: {exc}"
                 print(error_msg)
                 resultados[task_info['tabla_respaldo']] = False
 

@@ -5,7 +5,60 @@ Registro de cambios y actualizaciones del proyecto BFA-CL Modelos Diarios.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.13.0-dev] - 2026-04-24 - Modelo MR SSV (port + carga BQ)
+## [1.14.0-dev] - 2026-04-27 - Prepago CMR replica notebook + cuadre
+
+### Agregado
+- **Modelo Prepago CMR -- replica fiel del notebook productivo**
+  (`RF_Modelo_Prepago_CMR/mr_prepago_cmr.py`): reemplaza la implementacion
+  anterior por una traduccion 1:1 del notebook
+  `Generador_Prepago_TC_CMR_Productivo.ipynb` (corre en conda env `rf` en
+  produccion), adaptada al repositorio: lectura via `leer_tabla_con_cache`,
+  rutas via `config_rutas`, output via `core.excel_output.guardar_excel`,
+  snapshot historico en `Prepago_CMR_Historia/{YYYYMMDD}_Prepago_TC_CMR.xlsx`.
+  Validado para 2026-04-24: 2.697 filas en ambos archivos, diferencia total
+  AMORTIZACION e INTERES = 0 vs el productivo. Comportamiento clave:
+  `Dia_F.replace({28:30, 29:30})` siempre, MORA con vencimiento pasado se
+  incluye en NO_SAV, calendario directo (sin vector 200 meses), `SMM/100`,
+  escenarios hardcoded `[1.0, 0.8, 1.2]`, `CODIGO_EMPRESA = 3`.
+- **Script dev** (`RF_Modelo_Prepago_CMR/mr_prepago_cmr_dev.py`): version
+  anterior parametrizada via Excel preservada como base para retomar las
+  mejoras (parametrizacion, escenarios desde config) en una rama de
+  desarrollo. NO usado por el orquestador.
+- **Cuadre BQ vs xlsm productivo** (`tools/cuadre_v2.py`): herramienta
+  generica de comparacion fila a fila entre tablas `report_*_dly` de
+  BigQuery y los archivos productivos xlsm (Inversiones, SSV, NMD, LC,
+  Prepago CMR), con tres niveles (totales, por `CODIGO_PRODUCTO/MONEDA`,
+  fila a fila con tolerancia 0.005 absoluta). Maneja correctamente
+  duplicados (claves no unicas) via ordinal `_seq` y casteo de claves.
+- **Carga manual Prepago CMR** (`tools/cargar_prepago_cmr_productivo.py`):
+  parche temporal para cargar el xlsm productivo a `report_mr_prepago_cmr_dly`
+  con TRUNCATE. Usado mientras se valida la replica del notebook. Default
+  template: `Z:\\RF_PROCESOS\\RF_Modelos\\RF_Modelo_Prepago_CMR\\Prepago_CMR_Historia\\{fecha}_Prepago_TC_CMR.xlsx`.
+- **Documentacion de cuadre** (`docs/feats/cuadre-mr-prepago-cmr/hallazgos.md`):
+  analisis comparativo entre el notebook productivo y la implementacion
+  parametrizada anterior. Identifica el nucleo matematico equivalente y
+  documenta 5 divergencias funcionales en preparacion de inputs (mapeo
+  28/29 dia, calendario 200 meses, MORA vencidas, unidad SMM,
+  CODIGO_EMPRESA), 6 hipotesis ordenadas por probabilidad y 4 caminos
+  posibles. Base de discusion con metodologias.
+- **README tools** (`tools/README.md`): catalogo de herramientas auxiliares
+  del repo (cuadre, carga manual, migracion parametros, build precios DB,
+  etc.).
+
+### Corregido
+- **Emojis en stdout `cargar_output_modelos_bigquery_dly.py`**: reemplazados
+  los caracteres `OK`/`ERROR` (antes con simbolo unicode tick/cruz) por
+  texto plano para evitar `UnicodeEncodeError` cuando el stdout esta en
+  cp1252 (Windows). Misma motivacion que la regla anti-emojis del
+  `copilot-instructions.md`.
+
+### Cambiado
+- **Refresh parametros productivos LC** (`RF_Modelo_Linea_de_Credito/parametros/parametros_ml_lc.{xlsx,json}`):
+  actualizacion rutinaria de valores. JSON regenerado desde el xlsx con
+  `python -m tools.excel_a_json ml_lc` para mantener consistencia entre
+  ambos formatos.
+
+
 
 ### Agregado
 - **Modelo MR SSV** (`RF_Modelo_MR_SSV/mr_ssv.py`): port productivo a Python
