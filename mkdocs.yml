@@ -100,6 +100,7 @@ nav:
       - Plan: feats/reestructura-parametros/PLAN.md
   - Desarrollo:
     - Arquitectura: desarrollo/arquitectura.md
+    - Vista BQ Modelos: desarrollo/vista_modelos_bigquery.md
     - Contribuir: desarrollo/contribuir.md
     - Changelog: CHANGELOG.md
 

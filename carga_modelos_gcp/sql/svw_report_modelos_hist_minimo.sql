@@ -1,0 +1,236 @@
+-- =====================================================================
+-- Vista: svw_report_modelos_hist  (Opción A — cambio mínimo)
+-- =====================================================================
+-- Mismo diseño que la vista original (UNION ALL + dos pares de CASE para
+-- BANDA_R13_CMF/glosa y BANDA_C46_CMF/glosa), con dos cambios:
+--   1. Las 32 columnas explícitas por rama se reemplazan por SELECT *,
+--      válido porque todas las tablas comparten el esquema base
+--      (verificado: 32 cols, mismos nombres y tipos).
+--   2. Se agregan 4 modelos de segunda vuelta:
+--        - report_ml_nmd_hist          → C46
+--        - report_ml_inversiones_hist  → C46
+--        - report_ml_lc_hist           → C46
+--        - report_mr_ssv_hist          → R13
+--
+-- Total tablas en la vista: 12 (4 R13 + 8 C46).
+-- Dataset: bfa_cl_prd_financial_risk_dly_proc_models_hist
+-- =====================================================================
+
+CREATE OR REPLACE VIEW `bfa-cl-trade-price-report-dev.bfa_cl_prd_financial_risk_dly_proc_models_hist.svw_report_modelos_hist` AS
+WITH
+base_union AS (
+  SELECT *, 'report_ml_mora_cae_hist' AS ORIGEN
+    FROM `bfa-cl-trade-price-report-dev.bfa_cl_prd_financial_risk_dly_proc_models_hist.report_ml_mora_cae_hist`
+  UNION ALL
+  SELECT *, 'report_ml_mora_comercial_hist' AS ORIGEN
+    FROM `bfa-cl-trade-price-report-dev.bfa_cl_prd_financial_risk_dly_proc_models_hist.report_ml_mora_comercial_hist`
+  UNION ALL
+  SELECT *, 'report_ml_mora_consumo_hist' AS ORIGEN
+    FROM `bfa-cl-trade-price-report-dev.bfa_cl_prd_financial_risk_dly_proc_models_hist.report_ml_mora_consumo_hist`
+  UNION ALL
+  SELECT *, 'report_ml_mora_consumo_renegociado_hist' AS ORIGEN
+    FROM `bfa-cl-trade-price-report-dev.bfa_cl_prd_financial_risk_dly_proc_models_hist.report_ml_mora_consumo_renegociado_hist`
+  UNION ALL
+  SELECT *, 'report_ml_mora_hipotecario_hist' AS ORIGEN
+    FROM `bfa-cl-trade-price-report-dev.bfa_cl_prd_financial_risk_dly_proc_models_hist.report_ml_mora_hipotecario_hist`
+  UNION ALL
+  SELECT *, 'report_ml_nmd_hist' AS ORIGEN
+    FROM `bfa-cl-trade-price-report-dev.bfa_cl_prd_financial_risk_dly_proc_models_hist.report_ml_nmd_hist`
+  UNION ALL
+  SELECT *, 'report_ml_inversiones_hist' AS ORIGEN
+    FROM `bfa-cl-trade-price-report-dev.bfa_cl_prd_financial_risk_dly_proc_models_hist.report_ml_inversiones_hist`
+  UNION ALL
+  SELECT *, 'report_ml_lc_hist' AS ORIGEN
+    FROM `bfa-cl-trade-price-report-dev.bfa_cl_prd_financial_risk_dly_proc_models_hist.report_ml_lc_hist`
+  UNION ALL
+  SELECT *, 'report_mr_prepago_cmr_hist' AS ORIGEN
+    FROM `bfa-cl-trade-price-report-dev.bfa_cl_prd_financial_risk_dly_proc_models_hist.report_mr_prepago_cmr_hist`
+  UNION ALL
+  SELECT *, 'report_mr_prepago_consumo_hist' AS ORIGEN
+    FROM `bfa-cl-trade-price-report-dev.bfa_cl_prd_financial_risk_dly_proc_models_hist.report_mr_prepago_consumo_hist`
+  UNION ALL
+  SELECT *, 'report_mr_prepago_hipotecario_hist' AS ORIGEN
+    FROM `bfa-cl-trade-price-report-dev.bfa_cl_prd_financial_risk_dly_proc_models_hist.report_mr_prepago_hipotecario_hist`
+  UNION ALL
+  SELECT *, 'report_mr_ssv_hist' AS ORIGEN
+    FROM `bfa-cl-trade-price-report-dev.bfa_cl_prd_financial_risk_dly_proc_models_hist.report_mr_ssv_hist`
+),
+base_agregando_dias_vencimiento AS (
+  SELECT
+    *,
+    DATE_DIFF(FECHA_VENCIMIENTO_CUOTA, FECHA_PROCESO, DAY) AS DIAS_VENCIMIENTO
+  FROM base_union
+)
+SELECT
+  d.FECHA_PROCESO,
+  d.CODIGO_EMPRESA,
+  d.OPERACION,
+  d.COD_ACT_PAS,
+  d.MONEDA_ORIGEN,
+  d.MONEDA_COMPENSACION,
+  d.COMPENSACION,
+  d.CODIGO_PRODUCTO,
+  d.CODIGO_SUBPRODUCTO,
+  d.FECHA_CREACION,
+  d.NUMERO_CUOTA,
+  d.FECHA_INICIO_CUOTA,
+  d.FECHA_VENCIMIENTO_CUOTA,
+  d.FECHA_PAGO,
+  d.FECHA_REPRICING,
+  d.AMORTIZACION,
+  d.INTERES,
+  d.INTERES_DEVENGADO,
+  d.VP_AMORTIZACION,
+  d.VP_INTERES,
+  d.FACTOR_DE_RIESGO,
+  d.TIPO_CUOTA,
+  d.AREA_NEGOCIO,
+  d.CODIGO_EJECUTIVO,
+  d.CODIGO_ESTRATEGIA,
+  d.CLASIFICACION_CONTABLE,
+  d.TIPO_TASA,
+  d.INDEXADOR,
+  d.TASA,
+  d.TASA_CF,
+  d.SPREAD,
+  d.FECHA_ACTUALIZACION,
+  d.ORIGEN,
+  d.DIAS_VENCIMIENTO,
+
+  /* =========================
+     R13: Bandas y Glosa
+     ========================= */
+  CASE
+    WHEN d.ORIGEN IN (
+      'report_mr_prepago_consumo_hist',
+      'report_mr_prepago_hipotecario_hist',
+      'report_mr_prepago_cmr_hist',
+      'report_mr_ssv_hist'
+    )
+    THEN
+      CASE
+        WHEN d.DIAS_VENCIMIENTO >= 0    AND d.DIAS_VENCIMIENTO < 1    THEN 1
+        WHEN d.DIAS_VENCIMIENTO >= 1    AND d.DIAS_VENCIMIENTO < 30   THEN 2
+        WHEN d.DIAS_VENCIMIENTO >= 30   AND d.DIAS_VENCIMIENTO < 90   THEN 3
+        WHEN d.DIAS_VENCIMIENTO >= 90   AND d.DIAS_VENCIMIENTO < 180  THEN 4
+        WHEN d.DIAS_VENCIMIENTO >= 180  AND d.DIAS_VENCIMIENTO < 270  THEN 5
+        WHEN d.DIAS_VENCIMIENTO >= 270  AND d.DIAS_VENCIMIENTO < 360  THEN 6
+        WHEN d.DIAS_VENCIMIENTO >= 360  AND d.DIAS_VENCIMIENTO < 540  THEN 7
+        WHEN d.DIAS_VENCIMIENTO >= 540  AND d.DIAS_VENCIMIENTO < 720  THEN 8
+        WHEN d.DIAS_VENCIMIENTO >= 720  AND d.DIAS_VENCIMIENTO < 1080 THEN 9
+        WHEN d.DIAS_VENCIMIENTO >= 1080 AND d.DIAS_VENCIMIENTO < 1440 THEN 10
+        WHEN d.DIAS_VENCIMIENTO >= 1440 AND d.DIAS_VENCIMIENTO < 1800 THEN 11
+        WHEN d.DIAS_VENCIMIENTO >= 1800 AND d.DIAS_VENCIMIENTO < 2160 THEN 12
+        WHEN d.DIAS_VENCIMIENTO >= 2160 AND d.DIAS_VENCIMIENTO < 2520 THEN 13
+        WHEN d.DIAS_VENCIMIENTO >= 2520 AND d.DIAS_VENCIMIENTO < 2880 THEN 14
+        WHEN d.DIAS_VENCIMIENTO >= 2880 AND d.DIAS_VENCIMIENTO < 3240 THEN 15
+        WHEN d.DIAS_VENCIMIENTO >= 3240 AND d.DIAS_VENCIMIENTO < 3600 THEN 16
+        WHEN d.DIAS_VENCIMIENTO >= 3600 AND d.DIAS_VENCIMIENTO < 5400 THEN 17
+        WHEN d.DIAS_VENCIMIENTO >= 5400 AND d.DIAS_VENCIMIENTO < 7200 THEN 18
+        WHEN d.DIAS_VENCIMIENTO >= 7200                               THEN 19
+        ELSE NULL
+      END
+    ELSE NULL
+  END AS BANDA_R13_CMF,
+
+  CASE
+    WHEN d.ORIGEN IN (
+      'report_mr_prepago_consumo_hist',
+      'report_mr_prepago_hipotecario_hist',
+      'report_mr_prepago_cmr_hist',
+      'report_mr_ssv_hist'
+    )
+    THEN
+      CASE
+        WHEN d.DIAS_VENCIMIENTO >= 0    AND d.DIAS_VENCIMIENTO < 1    THEN 'Overnight'
+        WHEN d.DIAS_VENCIMIENTO >= 1    AND d.DIAS_VENCIMIENTO < 30   THEN 'Overnight < t ≤ 1M'
+        WHEN d.DIAS_VENCIMIENTO >= 30   AND d.DIAS_VENCIMIENTO < 90   THEN '1M < t ≤ 3M'
+        WHEN d.DIAS_VENCIMIENTO >= 90   AND d.DIAS_VENCIMIENTO < 180  THEN '3M < t ≤ 6M'
+        WHEN d.DIAS_VENCIMIENTO >= 180  AND d.DIAS_VENCIMIENTO < 270  THEN '6M < t ≤ 9M'
+        WHEN d.DIAS_VENCIMIENTO >= 270  AND d.DIAS_VENCIMIENTO < 360  THEN '9M < t ≤ 1A'
+        WHEN d.DIAS_VENCIMIENTO >= 360  AND d.DIAS_VENCIMIENTO < 540  THEN '1A < t ≤ 1,5A'
+        WHEN d.DIAS_VENCIMIENTO >= 540  AND d.DIAS_VENCIMIENTO < 720  THEN '1,5A < t ≤ 2A'
+        WHEN d.DIAS_VENCIMIENTO >= 720  AND d.DIAS_VENCIMIENTO < 1080 THEN '2A < t ≤ 3A'
+        WHEN d.DIAS_VENCIMIENTO >= 1080 AND d.DIAS_VENCIMIENTO < 1440 THEN '3A < t ≤ 4A'
+        WHEN d.DIAS_VENCIMIENTO >= 1440 AND d.DIAS_VENCIMIENTO < 1800 THEN '4A < t ≤ 5A'
+        WHEN d.DIAS_VENCIMIENTO >= 1800 AND d.DIAS_VENCIMIENTO < 2160 THEN '5A < t ≤ 6A'
+        WHEN d.DIAS_VENCIMIENTO >= 2160 AND d.DIAS_VENCIMIENTO < 2520 THEN '6A < t ≤ 7A'
+        WHEN d.DIAS_VENCIMIENTO >= 2520 AND d.DIAS_VENCIMIENTO < 2880 THEN '7A < t ≤ 8A'
+        WHEN d.DIAS_VENCIMIENTO >= 2880 AND d.DIAS_VENCIMIENTO < 3240 THEN '8A < t ≤ 9A'
+        WHEN d.DIAS_VENCIMIENTO >= 3240 AND d.DIAS_VENCIMIENTO < 3600 THEN '9A < t ≤ 10A'
+        WHEN d.DIAS_VENCIMIENTO >= 3600 AND d.DIAS_VENCIMIENTO < 5400 THEN '10A < t ≤ 15A'
+        WHEN d.DIAS_VENCIMIENTO >= 5400 AND d.DIAS_VENCIMIENTO < 7200 THEN '15A < t ≤ 20A'
+        WHEN d.DIAS_VENCIMIENTO >= 7200                               THEN 't > 20A'
+        ELSE NULL
+      END
+    ELSE 'NO_APLICA'
+  END AS GLOSA_BANDA_R13_CMF,
+
+  /* =========================
+     C46: Bandas y Glosa
+     ========================= */
+  CASE
+    WHEN d.ORIGEN IN (
+      'report_ml_mora_cae_hist',
+      'report_ml_mora_comercial_hist',
+      'report_ml_mora_consumo_hist',
+      'report_ml_mora_consumo_renegociado_hist',
+      'report_ml_mora_hipotecario_hist',
+      'report_ml_nmd_hist',
+      'report_ml_inversiones_hist',
+      'report_ml_lc_hist'
+    )
+    THEN
+      CASE
+        WHEN d.DIAS_VENCIMIENTO BETWEEN 0 AND 1     THEN 101
+        WHEN d.DIAS_VENCIMIENTO = 2                 THEN 102
+        WHEN d.DIAS_VENCIMIENTO = 3                 THEN 103
+        WHEN d.DIAS_VENCIMIENTO = 4                 THEN 104
+        WHEN d.DIAS_VENCIMIENTO = 5                 THEN 105
+        WHEN d.DIAS_VENCIMIENTO = 6                 THEN 106
+        WHEN d.DIAS_VENCIMIENTO = 7                 THEN 107
+        WHEN d.DIAS_VENCIMIENTO BETWEEN 8 AND 15    THEN 205
+        WHEN d.DIAS_VENCIMIENTO BETWEEN 16 AND 30   THEN 310
+        WHEN d.DIAS_VENCIMIENTO BETWEEN 31 AND 60   THEN 415
+        WHEN d.DIAS_VENCIMIENTO BETWEEN 61 AND 90   THEN 520
+        WHEN d.DIAS_VENCIMIENTO BETWEEN 91 AND 180  THEN 625
+        WHEN d.DIAS_VENCIMIENTO BETWEEN 181 AND 365 THEN 730
+        WHEN d.DIAS_VENCIMIENTO >= 366              THEN 831
+        ELSE NULL
+      END
+    ELSE NULL
+  END AS BANDA_C46_CMF,
+
+  CASE
+    WHEN d.ORIGEN IN (
+      'report_ml_mora_cae_hist',
+      'report_ml_mora_comercial_hist',
+      'report_ml_mora_consumo_hist',
+      'report_ml_mora_consumo_renegociado_hist',
+      'report_ml_mora_hipotecario_hist',
+      'report_ml_nmd_hist',
+      'report_ml_inversiones_hist',
+      'report_ml_lc_hist'
+    )
+    THEN
+      CASE
+        WHEN d.DIAS_VENCIMIENTO BETWEEN 0 AND 1     THEN 'Primer día'
+        WHEN d.DIAS_VENCIMIENTO = 2                 THEN 'Segundo día'
+        WHEN d.DIAS_VENCIMIENTO = 3                 THEN 'Tercer día'
+        WHEN d.DIAS_VENCIMIENTO = 4                 THEN 'Cuarto día'
+        WHEN d.DIAS_VENCIMIENTO = 5                 THEN 'Quinto día'
+        WHEN d.DIAS_VENCIMIENTO = 6                 THEN 'Sexto día'
+        WHEN d.DIAS_VENCIMIENTO = 7                 THEN 'Séptimo día'
+        WHEN d.DIAS_VENCIMIENTO BETWEEN 8 AND 15    THEN 'Desde 8 hasta 15 días.'
+        WHEN d.DIAS_VENCIMIENTO BETWEEN 16 AND 30   THEN 'Desde 16 hasta 30 días.'
+        WHEN d.DIAS_VENCIMIENTO BETWEEN 31 AND 60   THEN 'Desde 31 hasta 60 días.'
+        WHEN d.DIAS_VENCIMIENTO BETWEEN 61 AND 90   THEN 'Desde 61 hasta 90 días.'
+        WHEN d.DIAS_VENCIMIENTO BETWEEN 91 AND 180  THEN 'Desde 91 hasta 180 días.'
+        WHEN d.DIAS_VENCIMIENTO BETWEEN 181 AND 365 THEN 'Desde 181 días hasta un año.'
+        WHEN d.DIAS_VENCIMIENTO >= 366              THEN 'Mayor a 1 año'
+        ELSE NULL
+      END
+    ELSE 'NO_APLICA'
+  END AS GLOSA_BANDA_C46_CMF
+
+FROM base_agregando_dias_vencimiento AS d

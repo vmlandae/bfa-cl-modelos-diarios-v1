@@ -5,6 +5,29 @@ Registro de cambios y actualizaciones del proyecto BFA-CL Modelos Diarios.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 y este proyecto adhiere a [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.0-dev] - 2026-04-29 - Vista hist extendida con modelos de 2ª vuelta
+
+### Agregado
+- **Vista `svw_report_modelos_hist` extendida** (dataset
+  `bfa_cl_prd_financial_risk_dly_proc_models_hist`): se suman 4 modelos de
+  segunda vuelta — `report_ml_nmd_hist`, `report_ml_inversiones_hist`,
+  `report_ml_lc_hist` (banda C46) y `report_mr_ssv_hist` (banda R13). La
+  vista pasa de 8 a **12 tablas** unificadas. Validado: las 12 ORIGEN
+  retornan filas y el mapeo R13/C46 es mutuamente excluyente.
+- **SQL versionado en `carga_modelos_gcp/sql/`**: el SQL de la vista deja
+  de vivir solo en BigQuery y queda en git. Tres archivos:
+  - `svw_report_modelos_hist_minimo.sql` — versión desplegada (UNION ALL +
+    CASE, con `SELECT *` por rama colapsando ~300 líneas redundantes).
+  - `svw_report_modelos_hist_modular.sql` — refactor alternativo con
+    catálogos R13/C46 (`UNNEST` de `STRUCT`s) y mapa ORIGEN→tipo de banda.
+    Mismo resultado, agregar un modelo es 1 línea.
+  - `validacion_paridad_minimo_vs_modular.sql` — script `EXCEPT DISTINCT`
+    cruzado para validar paridad entre ambas opciones antes de migrar.
+- **Documentación** (`docs/desarrollo/vista_modelos_bigquery.md`,
+  `carga_modelos_gcp/sql/README.md`): proceso de despliegue, validación
+  post-deploy, y receta para agregar nuevos modelos. Entrada en
+  `mkdocs.yml`.
+
 ## [1.13.0-dev] - 2026-04-24 - Modelo MR SSV (port + carga BQ)
 
 ### Agregado
