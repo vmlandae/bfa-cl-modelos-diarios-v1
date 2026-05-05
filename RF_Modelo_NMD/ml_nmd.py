@@ -196,7 +196,9 @@ def cargar_parametros() -> tuple[pd.DataFrame, dict, pd.DataFrame, pd.DataFrame]
     )
     parametros_core = parametros_core[['FECHA','COD_PRO_MODELO','CORE_VIGENTE','FECHA_ACTUALIZACION']]
     print(f"        - Parámetros de core vigente cargados: {len(parametros_core)} registros")
+    print(f"Saldos core por producto:\n{parametros_core.groupby('COD_PRO_MODELO')['CORE_VIGENTE'].sum().to_string()}")
     print("          ✓ Parámetros del modelo cargados exitosamente")
+
 
     return parametros_modelo, parametros_core
 
