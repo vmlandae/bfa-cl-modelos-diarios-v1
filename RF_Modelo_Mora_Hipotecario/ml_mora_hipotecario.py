@@ -197,7 +197,8 @@ def procesamiento_y_guardado(fecha_t: datetime.datetime,
 
     tabla_desarrollo_tmp = {
         "FECHA_PROCESO": [fecha_t] * registros,
-        "CODIGO_EMPRESA": [np.nan] * registros,
+        # CODIGO_EMPRESA: Banco Falabella = 1 (requerido por consumidores downstream)
+        "CODIGO_EMPRESA": [1] * registros,
         "OPERACION": [np.nan] * registros,
         "COD_ACT/PAS": ["ACT"] * registros,
         "MONEDA_ORIGEN": ["CLF"] * registros,

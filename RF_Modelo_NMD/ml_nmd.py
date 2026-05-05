@@ -481,7 +481,7 @@ def crea_tabla_desarrollo(tabla_final_flujos: pd.DataFrame) -> pd.DataFrame:
             "OPERACION": [np.nan] * num_registros,
             "COD_ACT/PAS": ["PAS"] * num_registros,
             "MONEDA_ORIGEN": tabla_producto['MONEDA'],
-            "MONEDA_COMPENSACION": ["CLP"] * num_registros,
+            "MONEDA_COMPENSACION": tabla_producto['MONEDA'],
             "COMPENSACION": [np.nan] * num_registros,
             "CODIGO_PRODUCTO": tabla_producto["CODIGO_PRODUCTO"],
             "CODIGO_SUBPRODUCTO": tabla_producto["CODIGO_SUBPRODUCTO"],
