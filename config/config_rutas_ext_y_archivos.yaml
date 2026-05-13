@@ -252,3 +252,62 @@ control_interfaces:
         capital_warning_pct: 3.0
         capital_critical_pct: 10.0
     cmr: {}   # completar iterativamente con el equipo
+
+# ============================================================================
+# Controles diarios de outputs (F29 — sprint S6-2026)
+# ============================================================================
+# Motor: core/controles_outputs.py + core/controles_cuadratura.py.
+# Resultados persistidos en BQ `controles_diarios`.
+# Política CRITICAL: no degrada status_global (decisión 2026-05-13).
+controles:
+  enabled: true
+  version_motor: "1.0"
+
+  # Defaults aplicables a todos los modelos.
+  defaults:
+    cuadratura:
+      tolerancia_pct: { warning: 0.1, critical: 1.0 }
+    nulls_required:
+      campos: ["FECHA_PROCESO", "CODIGO_PRODUCTO", "CODIGO_SUBPRODUCTO"]
+      nivel: "CRITICAL"
+    invariantes:
+      codigo_empresa: [1]
+      monedas_validas: ["CLP", "CLF", "USD"]
+      # Algunos modelos guardan códigos numéricos en MONEDA_ORIGEN
+      # (999=CLP, 998=CLF, 13=USD). Validar ambos sets.
+      monedas_origen_numericas_validas: ["999", "998", "13"]
+    n_filas:
+      warning_ratio: [0.5, 2.0]
+      critical_ratio: [0.3, 3.0]
+    delta:
+      warning_pct: 5.0
+      critical_pct: 15.0
+
+  # Override por modelo (deep merge sobre defaults).
+  por_modelo:
+    ml_inversiones:
+      delta: { warning_pct: 10.0, critical_pct: 30.0 }
+    ml_mora_consumo:
+      delta: { critical_pct: 8.0 }
+    mr_ssv:
+      # SSV es mensual (EOM); ratio diario de filas no aplica igual.
+      n_filas:
+        warning_ratio: [0.7, 1.5]
+        critical_ratio: [0.5, 2.0]
+
+  # Configuración de cuadratura input ↔ output por modelo.
+  # `tipo: manual` desactiva cuadratura (mantiene resto de controles).
+  # Modelos con `pml_gcp` / `pml_cmr` / `access` los habilita cuando
+  # core/controles_cuadratura.py implemente el lector correspondiente.
+  cuadratura_inputs:
+    ml_mora_consumo:        { tipo: "pml_gcp", columna_capital: "CAPITAL", columna_interes: "INTERES" }
+    ml_mora_cae:            { tipo: "pml_gcp", columna_capital: "CAPITAL", columna_interes: "INTERES" }
+    ml_mora_hipotecario:    { tipo: "pml_gcp", columna_capital: "CAPITAL", columna_interes: "INTERES" }
+    ml_mora_comercial:      { tipo: "pml_gcp", columna_capital: "CAPITAL", columna_interes: "INTERES" }
+    mr_prepago_consumo:     { tipo: "pml_gcp", columna_capital: "CAPITAL", columna_interes: "INTERES" }
+    mr_prepago_hipotecario: { tipo: "pml_gcp", columna_capital: "CAPITAL", columna_interes: "INTERES" }
+    ml_nmd:                 { tipo: "access",  ruta_tabla: "Balance_NMD", columna_capital: "SALDO_CAPITAL" }
+    ml_lc:                  { tipo: "access",  ruta_tabla: "Balance_LC",  columna_capital: "SALDO_CAPITAL" }
+    ml_inversiones:         { tipo: "access",  ruta_tabla: "Balance_INV", columna_capital: "SALDO_CAPITAL" }
+    mr_ssv:                 { tipo: "manual",  nota: "EOM, input subido desde Excel hardcoded (F27)" }
+    mr_prepago_cmr:         { tipo: "manual",  nota: "Notebook productivo subido a BQ — ver docs/feats/cuadre-mr-prepago-cmr/hallazgos.md" }

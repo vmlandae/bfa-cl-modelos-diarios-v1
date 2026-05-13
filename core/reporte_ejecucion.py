@@ -50,6 +50,8 @@ class ReporteEjecucion:
         self._modelos: Dict[str, Dict[str, Any]] = {}
         self._carga_gcp: Dict[str, bool] = {}
         self._alertas: List[str] = []
+        # F29: resultado de controles post-carga. None hasta que se registre.
+        self._controles: Optional[Dict[str, Any]] = None
 
     # ------------------------------------------------------------------
     # Registro de eventos
@@ -89,6 +91,40 @@ class ReporteEjecucion:
         self._fin = time.time()
         if resultados_carga_gcp:
             self._carga_gcp = resultados_carga_gcp
+
+    def registrar_controles(self, resultado_controles: Any) -> None:
+        """Agrega resultado del motor de controles (F29).
+
+        Política decidida 2026-05-13: los CRITICAL aparecen en alertas y
+        en el dict ``controles`` del reporte, pero **NO degradan
+        ``status_global``**. La inspección queda en el email y en la
+        página 7_Controles del dashboard.
+        """
+        if resultado_controles is None:
+            return
+        try:
+            checks = resultado_controles.todos
+        except AttributeError:
+            return
+        # Serializar a forma plana para el JSON
+        from dataclasses import asdict
+        self._controles = {
+            "fecha_proceso": resultado_controles.fecha_proceso,
+            "nivel_global": resultado_controles.nivel_global,
+            "n_por_nivel": resultado_controles.n_por_nivel,
+            "modelos_criticos": resultado_controles.modelos_criticos,
+            "checks": [asdict(c) for c in checks],
+        }
+        # Alertas visibles en el dashboard / email (no degrada status)
+        for c in checks:
+            if c.nivel == "CRITICAL":
+                self._alertas.append(
+                    f"[CONTROL CRITICO] {c.modelo}.{c.check_id}: {c.mensaje}"
+                )
+            elif c.nivel == "WARNING":
+                self._alertas.append(
+                    f"[CONTROL WARN] {c.modelo}.{c.check_id}: {c.mensaje}"
+                )
 
     # ------------------------------------------------------------------
     # Benchmark
@@ -240,6 +276,8 @@ class ReporteEjecucion:
             "carga_gcp": self._carga_gcp,
             "benchmark": benchmark,
             "alertas": self._alertas,
+            # F29: resultado del motor de controles. None si no se ejecutó.
+            "controles": self._controles,
         }
 
     # ------------------------------------------------------------------

@@ -294,26 +294,50 @@ def ejecutar_modo_consola(args):
     
     # Inicializar resultados de carga (vacío si no se carga a GCP)
     resultados_carga = {}
-    
+
     # Cargar a GCP si se solicitó y hubo ejecuciones exitosas
+    modelos_exitosos: list[str] = []
     if args.cargar_gcp:
         modelos_exitosos = [modelo for modelo, exito in resultados.items() if exito]
-        
+
         if modelos_exitosos:
             print(f"\n{'='*60}")
             print("Iniciando carga a GCP de modelos exitosos...")
             print(f"{'='*60}")
-            
+
             resultados_carga = orquestador.cargar_modelos_gcp(modelos_exitosos, fecha)
         else:
             print("\nNo hay modelos exitosos para cargar a GCP")
-    
+
+    # F29: Ejecutar motor de controles sobre los modelos cargados.
+    # El resultado se anexa al reporte (sin degradar status_global por
+    # decisión 2026-05-13).
+    resultado_controles = None
+    if args.cargar_gcp and modelos_exitosos and orquestador.reporte:
+        try:
+            print(f"\n{'='*60}")
+            print("Ejecutando controles post-carga...")
+            print(f"{'='*60}")
+            resultado_controles = orquestador.ejecutar_controles_post_carga(
+                modelos_exitosos, fecha
+            )
+            print(
+                f"  → nivel global: {resultado_controles.nivel_global}  "
+                f"| {resultado_controles.n_por_nivel}"
+            )
+            if resultado_controles.modelos_criticos:
+                print(f"  → modelos con CRITICAL: {resultado_controles.modelos_criticos}")
+        except Exception as exc:
+            print(f"  ⚠️ Controles fallaron (no bloquea ejecución): {exc}")
+
     # Mostrar tabla resumen final
     mostrar_tabla_resumen(orquestador, resultados, resultados_carga, args.cargar_gcp)
 
     # F25: Generar reporte de ejecución y sincronizar a BigQuery
     if orquestador.reporte:
         orquestador.reporte.registrar_fin(resultados_carga_gcp=resultados_carga)
+        if resultado_controles is not None:
+            orquestador.reporte.registrar_controles(resultado_controles)
         json_path = orquestador.reporte.guardar()
 
         # Sincronizar a BigQuery (con fallback local si falla)

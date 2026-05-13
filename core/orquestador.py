@@ -451,6 +451,27 @@ class OrquestadorModelos:
             logger.error(f"Detalles del error: {traceback.format_exc()}")
             return {}
 
+    def ejecutar_controles_post_carga(self, modelos_a_validar: List[str],
+                                       fecha: datetime):
+        """Corre el motor de controles F29 sobre los modelos cargados.
+
+        Valida cuadratura input↔output, invariantes, delta intermensual, etc.
+        Persiste en BQ ``controles_diarios``. **No degrada status_global**
+        (decisión 2026-05-13): los CRITICAL se reportan pero no detienen.
+
+        Args:
+            modelos_a_validar: claves de modelos sobre los cuales correr controles.
+            fecha: fecha de proceso (datetime).
+
+        Returns:
+            ResultadoControles del motor.
+        """
+        from core.controles_outputs import ejecutar_controles
+        fecha_iso = fecha.strftime("%Y-%m-%d")
+        logger.info("Ejecutando controles post-carga para %s (%d modelos)",
+                    fecha_iso, len(modelos_a_validar))
+        return ejecutar_controles(fecha=fecha_iso, modelos=modelos_a_validar, persistir=True)
+
     def consolidar_historico_gcp(self, modelos_a_consolidar: List[str], fecha: datetime,
                                   force: bool = False) -> Dict[str, bool]:
         """
