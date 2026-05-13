@@ -337,6 +337,14 @@ if timestamps:
 _render_semaforo(status_global, fecha_iso, info_extra)
 st.caption(f"Fuente: {fuente}")
 
+# --- Banner de controles (F31) ---
+try:
+    from dashboard.utils.controles_helpers import cargar_controles_bq, render_banner_salud
+    df_ctrl = cargar_controles_bq(fecha_iso)
+    render_banner_salud(df_ctrl, fecha_iso, link_a="/Controles")
+except Exception:
+    pass  # no bloquea el Home si controles_diarios no está disponible aún
+
 # --- Métricas principales ---
 col1, col2, col3, col4 = st.columns(4)
 with col1:

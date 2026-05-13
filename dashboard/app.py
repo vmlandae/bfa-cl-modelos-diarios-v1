@@ -55,6 +55,7 @@ comparacion = st.Page("pages/3_Comparacion.py", title="Comparación Outputs", ic
 benchmark = st.Page("pages/4_Benchmark.py", title="Benchmark", icon="📈")
 parametros = st.Page("pages/5_Parametros.py", title="Parámetros", icon="⚙️")
 email = st.Page("pages/6_Email.py", title="Email Report", icon="📧")
+controles = st.Page("pages/7_Controles.py", title="Controles", icon="🛡️")
 
-pg = st.navigation([home, logs, comparacion, benchmark, parametros, email])
+pg = st.navigation([home, logs, comparacion, benchmark, parametros, email, controles])
 pg.run()
