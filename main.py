@@ -57,19 +57,11 @@ def mostrar_tabla_resumen(orquestador, resultados_ejecucion: dict, resultados_ca
         resultados_carga: Dict con resultados de carga {tabla: bool}
         incluir_carga: Si se debe mostrar la columna de carga GCP
     """
-    # Mapeo de modelos a sus tablas (para relacionar resultados de carga)
+    # Mapeo modelo → tablas dly derivado del registry (F28). Incluye principal
+    # más extras (ej: report_ml_mora_consumo_renegociado_dly).
+    from core.modelos_registry import listar_modelos, tabla_dly, tablas_extra_dly
     MODELO_A_TABLAS = {
-        'mr_prepago_hipotecario': ['report_mr_prepago_hipotecario_dly'],
-        'mr_prepago_consumo': ['report_mr_prepago_consumo_dly'],
-        'mr_prepago_cmr': ['report_mr_prepago_cmr_dly'],
-        'ml_mora_consumo': ['report_ml_mora_consumo_dly', 'report_ml_mora_consumo_renegociado_dly'],
-        'ml_mora_cae': ['report_ml_mora_cae_dly'],
-        'ml_mora_hipotecario': ['report_ml_mora_hipotecario_dly'],
-        'ml_mora_comercial': ['report_ml_mora_comercial_dly'],
-        'ml_nmd': ['report_ml_nmd_dly'],
-        'ml_lc': ['report_ml_lc_dly'],
-        'ml_inversiones': ['report_ml_inversiones_dly'],
-        'mr_ssv': ['report_mr_ssv_dly'],
+        m: [tabla_dly(m), *tablas_extra_dly(m)] for m in listar_modelos()
     }
     
     print("\n")

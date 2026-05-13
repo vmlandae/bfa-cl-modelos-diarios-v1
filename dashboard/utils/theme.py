@@ -15,19 +15,13 @@ STATUS_EMOJI = {
     "SIN_MODELOS": "⚪",
 }
 
-# Lista canónica de modelos (orden de ejecución)
+# Lista canónica de modelos (orden de ejecución). Derivada de core.modelos_registry
+# para evitar drift. Cuando se agregue un modelo solo se toca el registry.
+from core.modelos_registry import listar_modelos, nombre_legible, vuelta as _vuelta
+
 MODELOS_CANONICOS = {
-    "mr_prepago_consumo":     {"nombre": "Prepago Consumo",      "vuelta": 1},
-    "mr_prepago_hipotecario": {"nombre": "Prepago Hipotecario",  "vuelta": 1},
-    "mr_prepago_cmr":         {"nombre": "Prepago CMR",          "vuelta": 2},
-    "ml_mora_consumo":        {"nombre": "Mora Consumo",         "vuelta": 1},
-    "ml_mora_cae":            {"nombre": "Mora CAE",             "vuelta": 1},
-    "ml_mora_hipotecario":    {"nombre": "Mora Hipotecario",     "vuelta": 1},
-    "ml_mora_comercial":      {"nombre": "Mora Comercial",       "vuelta": 1},
-    "ml_nmd":                 {"nombre": "NMD",                  "vuelta": 2},
-    "ml_lc":                  {"nombre": "Línea de Crédito",     "vuelta": 2},
-    "ml_inversiones":         {"nombre": "Inversiones",          "vuelta": 2},
-    "mr_ssv":                 {"nombre": "SSV (EOM)",            "vuelta": 2},
+    m: {"nombre": nombre_legible(m), "vuelta": _vuelta(m)}
+    for m in listar_modelos()
 }
 
 # Niveles de log con colores

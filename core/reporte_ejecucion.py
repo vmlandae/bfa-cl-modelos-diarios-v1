@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from core.logger import get_logger
+from core.modelos_registry import listar_modelos as _listar_modelos_registry
 
 logger = get_logger(__name__)
 
@@ -93,15 +94,9 @@ class ReporteEjecucion:
     # Benchmark
     # ------------------------------------------------------------------
 
-    # Modelos por vuelta (debe coincidir con theme.MODELOS_CANONICOS)
-    _VUELTA_1 = frozenset([
-        "mr_prepago_consumo", "mr_prepago_hipotecario",
-        "ml_mora_consumo", "ml_mora_cae",
-        "ml_mora_hipotecario", "ml_mora_comercial",
-    ])
-    _VUELTA_2 = frozenset([
-        "mr_prepago_cmr", "ml_nmd", "ml_lc", "ml_inversiones",
-    ])
+    # Modelos por vuelta — derivado de core.modelos_registry (F28).
+    _VUELTA_1 = frozenset(_listar_modelos_registry(vuelta=1))
+    _VUELTA_2 = frozenset(_listar_modelos_registry(vuelta=2))
 
     @staticmethod
     def _clasificar_fase(modelos_keys: set[str]) -> str:

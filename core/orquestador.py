@@ -10,6 +10,7 @@ import traceback
 import yaml
 
 from core.logger import get_logger, contexto_modelo
+from core.modelos_registry import _MODELOS as _REGISTRY_MODELOS
 from core.reporte_ejecucion import ReporteEjecucion
 
 logger = get_logger(__name__)
@@ -20,107 +21,10 @@ _CONFIG_EXT_YAML = Path(__file__).resolve().parent.parent / "config" / "config_r
 class OrquestadorModelos:
     def __init__(self):
         self.reporte: ReporteEjecucion | None = None
-        self.modelos = {
-            "mr_prepago_consumo": {
-                "nombre": "Modelo Prepago Consumo",
-                "modulo": "RF_Modelo_Prepago_Consumo.mr_prepago_consumo",
-                "activado": True,
-                "orden": 1,
-                "vuelta": 1,
-                "tiene_carga_gcp": True,
-                "tiene_carga_gcp_historica": True
-            },
-            "mr_prepago_hipotecario": {
-                "nombre": "Modelo Prepago Hipotecario",
-                "modulo": "RF_Modelo_Prepago_Hipotecario.mr_prepago_hipotecario",
-                "activado": True,
-                "orden": 2,
-                "vuelta": 1,
-                "tiene_carga_gcp": True,
-                "tiene_carga_gcp_historica": True
-            },
-            "mr_prepago_cmr": {
-                "nombre": "Modelo Prepago CMR",
-                "modulo": "RF_Modelo_Prepago_CMR.mr_prepago_cmr",
-                "activado": True,
-                "orden": 3,
-                "vuelta": 2,
-                "tiene_carga_gcp": True,
-                "tiene_carga_gcp_historica": True
-            },
-            "ml_mora_consumo": {
-                "nombre": "Modelo Mora Consumo",
-                "modulo": "RF_Modelo_Mora_Consumo.ml_mora_consumo",
-                "activado": True,
-                "orden": 4,
-                "vuelta": 1,
-                "tiene_carga_gcp": True,
-                "tiene_carga_gcp_historica": True
-            },
-            "ml_mora_cae": {
-                "nombre": "Modelo Mora CAE",
-                "modulo": "RF_Modelo_Mora_CAE.ml_mora_cae",
-                "activado": True,
-                "orden": 5,
-                "vuelta": 1,
-                "tiene_carga_gcp": True,
-                "tiene_carga_gcp_historica": True
-            },
-            "ml_mora_hipotecario": {
-                "nombre": "Modelo Mora Hipotecario",
-                "modulo": "RF_Modelo_Mora_Hipotecario.ml_mora_hipotecario",
-                "activado": True,
-                "orden": 6,
-                "vuelta": 1,
-                "tiene_carga_gcp": True,
-                "tiene_carga_gcp_historica": True
-            },
-            "ml_mora_comercial": {
-                "nombre": "Modelo Mora Comercial",
-                "modulo": "RF_Modelo_Mora_Comercial.ml_mora_comercial",
-                "activado": True,
-                "orden": 7,
-                "vuelta": 1,
-                "tiene_carga_gcp": True,
-                "tiene_carga_gcp_historica": True
-            },
-            "ml_nmd": {
-                "nombre": "Modelo NMD",
-                "modulo": "RF_Modelo_NMD.ml_nmd",
-                "activado": True,
-                "orden": 8,
-                "vuelta": 2,
-                "tiene_carga_gcp": True,
-                "tiene_carga_gcp_historica": True
-            },
-            "ml_lc": {
-                "nombre": "Modelo Linea de Credito",
-                "modulo": "RF_Modelo_Linea_de_Credito.ml_lc",
-                "activado": True,
-                "orden": 8,
-                "vuelta": 2,
-                "tiene_carga_gcp": True,
-                "tiene_carga_gcp_historica": True
-            },
-            "ml_inversiones": {
-                "nombre": "Modelo Inversiones",
-                "modulo": "RF_Modelo_Inversiones.ml_inversiones",
-                "activado": True,
-                "orden": 9,
-                "vuelta": 2,
-                "tiene_carga_gcp": True,
-                "tiene_carga_gcp_historica": True
-            },
-            "mr_ssv": {
-                "nombre": "Modelo SSV (Saldos Sin Vencimiento)",
-                "modulo": "RF_Modelo_MR_SSV.mr_ssv",
-                "activado": True,
-                "orden": 10,
-                "vuelta": 2,
-                "tiene_carga_gcp": True,
-                "tiene_carga_gcp_historica": True
-            }
-        }
+        # Catálogo canónico de modelos. Se consume desde core.modelos_registry
+        # para mantener una única fuente de verdad compartida con dashboard,
+        # email_report y carga BQ. Ver docs/feats/controles-outputs/PLAN.md (F28).
+        self.modelos = {k: dict(v) for k, v in _REGISTRY_MODELOS.items()}
 
     # -----------------------------------------------------------------
     # F02 — Máquina del Tiempo: Snapshots de parámetros

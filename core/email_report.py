@@ -33,6 +33,7 @@ import yaml
 from google.cloud import bigquery
 
 from config.config_rutas import BASE_DIR
+from core.modelos_registry import todas_las_tablas_hist
 
 logger = logging.getLogger("bfa_modelos.email_report")
 
@@ -43,23 +44,10 @@ logger = logging.getLogger("bfa_modelos.email_report")
 _PROJECT_ID = "bfa-cl-trade-price-report-dev"
 _DATASET_HIST = "bfa_cl_prd_financial_risk_dly_proc_models_hist"
 
-TABLAS_PRIMERA_VUELTA = [
-    "report_mr_prepago_hipotecario_hist",
-    "report_mr_prepago_consumo_hist",
-    "report_ml_mora_consumo_hist",
-    "report_ml_mora_consumo_renegociado_hist",
-    "report_ml_mora_cae_hist",
-    "report_ml_mora_hipotecario_hist",
-    "report_ml_mora_comercial_hist",
-]
-
-TABLAS_SEGUNDA_VUELTA = [
-    "report_mr_prepago_cmr_hist",
-    "report_ml_nmd_hist",
-    "report_ml_lc_hist",
-    "report_ml_inversiones_hist",
-    "report_mr_ssv_hist",
-]
+# Derivado del registry (F28). Antes de F28 las listas estaban hardcoded y
+# se desincronizaron varias veces con el orquestador.
+TABLAS_PRIMERA_VUELTA = todas_las_tablas_hist(vuelta=1)
+TABLAS_SEGUNDA_VUELTA = todas_las_tablas_hist(vuelta=2)
 
 _TABLAS_POR_TIPO = {
     "primera_vuelta": TABLAS_PRIMERA_VUELTA,
@@ -71,16 +59,9 @@ _TITULO_POR_TIPO = {
     "segunda_vuelta": "Segunda Vuelta",
 }
 
-CODIGO_PRODUCTOS = [
-    "ML_C46_MORA_CREDITO_CONSUMO",
-    "ML_C46_MORA_CREDITO_RENEGOCIADO",
-    "ML_SCSA_Contingente_Derivados",
-    "ML_C46_MORA_CREDITO_COMERCIAL",
-    "ML_C46_MORA_CREDITO_HIPOTECARIO",
-    "ML_Contingente_Derivados",
-    "MT_R13_HIPOTECARIO_BASE",
-    "MT_R13_CONSUMO_BASE",
-]
+# CODIGO_PRODUCTOS eliminado (F28): la comparativa pasa de 8 productos
+# hardcoded a TODOS los productos presentes en BQ por modelo×moneda.
+# La query agrupa por MODELO también para no perder cobertura.
 
 MONEDAS = ["CLP", "CLF", "USD"]
 
@@ -163,7 +144,11 @@ def obtener_amortizacion(
     fecha: str,
     tablas: list[str] | None = None,
 ) -> pd.DataFrame:
-    """SUM(AMORTIZACION) agrupado por MONEDA_ORIGEN × CODIGO_PRODUCTO."""
+    """SUM(AMORTIZACION) agrupado por MONEDA_ORIGEN × CODIGO_PRODUCTO.
+
+    F28: sin filtro de CODIGO_PRODUCTOS hardcoded. Cubre todos los productos
+    presentes en BQ por modelo×moneda.
+    """
     sql = f"""
         SELECT
             CAST(MONEDA_ORIGEN AS STRING) AS MONEDA_ORIGEN,
@@ -171,7 +156,6 @@ def obtener_amortizacion(
             SUM(AMORTIZACION) AS TOTAL_AMORTIZACION
         FROM ({_union_all(tablas)})
         WHERE FECHA_PROCESO = @fecha
-          AND CODIGO_PRODUCTO IN UNNEST(@productos)
           AND CAST(MONEDA_ORIGEN AS STRING) IN UNNEST(@monedas)
         GROUP BY MONEDA_ORIGEN, CODIGO_PRODUCTO
         ORDER BY MONEDA_ORIGEN, CODIGO_PRODUCTO
@@ -179,7 +163,6 @@ def obtener_amortizacion(
     job_config = bigquery.QueryJobConfig(
         query_parameters=[
             bigquery.ScalarQueryParameter("fecha", "DATE", fecha),
-            bigquery.ArrayQueryParameter("productos", "STRING", CODIGO_PRODUCTOS),
             bigquery.ArrayQueryParameter("monedas", "STRING", MONEDAS),
         ]
     )
