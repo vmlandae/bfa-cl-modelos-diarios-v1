@@ -48,15 +48,19 @@ _DATASET_HIST = "bfa_cl_prd_financial_risk_dly_proc_models_hist"
 # se desincronizaron varias veces con el orquestador.
 TABLAS_PRIMERA_VUELTA = todas_las_tablas_hist(vuelta=1)
 TABLAS_SEGUNDA_VUELTA = todas_las_tablas_hist(vuelta=2)
+# F30: tipo unificado = todas las tablas (V1 + V2).
+TABLAS_UNIFICADO = TABLAS_PRIMERA_VUELTA + TABLAS_SEGUNDA_VUELTA
 
 _TABLAS_POR_TIPO = {
     "primera_vuelta": TABLAS_PRIMERA_VUELTA,
     "segunda_vuelta": TABLAS_SEGUNDA_VUELTA,
+    "unificado": TABLAS_UNIFICADO,
 }
 
 _TITULO_POR_TIPO = {
     "primera_vuelta": "Primera Vuelta",
     "segunda_vuelta": "Segunda Vuelta",
+    "unificado": "Unificado (V1 + V2)",
 }
 
 # CODIGO_PRODUCTOS eliminado (F28): la comparativa pasa de 8 productos
@@ -413,12 +417,106 @@ def _generar_excel(
 # Cuerpo HTML del email
 # ---------------------------------------------------------------------------
 
+def _leer_controles_dia(client: bigquery.Client, fecha: str) -> pd.DataFrame:
+    """Lee controles_diarios para una fecha. Vacío si tabla no existe (F30)."""
+    sql = f"""
+        SELECT modelo, tabla, check_id, nivel, mensaje, evidencia_json
+        FROM `{_PROJECT_ID}.bfa_cl_prd_financial_risk_dly_proc_models.controles_diarios`
+        WHERE fecha_proceso = @fecha
+        ORDER BY modelo, nivel DESC, check_id
+    """
+    job_config = bigquery.QueryJobConfig(
+        query_parameters=[bigquery.ScalarQueryParameter("fecha", "DATE", fecha)]
+    )
+    try:
+        return client.query(sql, job_config=job_config).to_dataframe(
+            create_bqstorage_client=False
+        )
+    except Exception as exc:
+        logger.warning("No se pudieron leer controles del día: %s", exc)
+        return pd.DataFrame()
+
+
+def _construir_seccion_salud(df_ctrl: pd.DataFrame, fecha: str) -> tuple[str, str]:
+    """Construye sección de salud (banner + anexo CRITICAL) y devuelve nivel_global.
+
+    Returns:
+        (html_seccion, nivel_global) — nivel_global es 'OK', 'WARNING' o 'CRITICAL'.
+    """
+    if df_ctrl.empty:
+        return (
+            f'<div style="padding:10px 14px;border-radius:6px;background:#f0f0f0;'
+            f'border-left:4px solid #999;margin-bottom:16px;font-size:13px;color:#555">'
+            f'<b>ℹ️ Controles del día</b><br>'
+            f'No hay registros en <code>controles_diarios</code> para {fecha} todavía.'
+            f'</div>',
+            "OK",
+        )
+
+    counts = df_ctrl["nivel"].value_counts().to_dict()
+    n_crit = int(counts.get("CRITICAL", 0))
+    n_warn = int(counts.get("WARNING", 0))
+    n_ok = int(counts.get("OK", 0))
+    n_info = int(counts.get("INFO", 0))
+
+    if n_crit:
+        color, label, nivel_global = "#dc3545", "🔴 CRITICAL", "CRITICAL"
+    elif n_warn:
+        color, label, nivel_global = "#ffc107", "🟡 WARNING", "WARNING"
+    else:
+        color, label, nivel_global = "#28a745", "🟢 OK", "OK"
+
+    banner = (
+        f'<div style="padding:12px 16px;border-radius:6px;background:{color}22;'
+        f'border-left:4px solid {color};margin-bottom:16px;">'
+        f'<div style="font-size:16px;font-weight:600;color:#1a1a2e">'
+        f'Salud de los modelos &mdash; {fecha}: {label}</div>'
+        f'<div style="font-size:13px;color:#555;margin-top:4px">'
+        f'CRITICAL = <b>{n_crit}</b> · WARNING = <b>{n_warn}</b> · '
+        f'OK = <b>{n_ok}</b> · INFO = <b>{n_info}</b></div>'
+        f'</div>'
+    )
+
+    if n_crit == 0:
+        return banner, nivel_global
+
+    # Anexo de CRITICAL
+    criticos = df_ctrl[df_ctrl["nivel"] == "CRITICAL"]
+    filas = []
+    for _, r in criticos.iterrows():
+        filas.append(
+            f'<tr style="background:#fff5f5">'
+            f'<td style="padding:6px 10px;border-bottom:1px solid #f0d0d0">'
+            f'<b>{r["modelo"]}</b></td>'
+            f'<td style="padding:6px 10px;border-bottom:1px solid #f0d0d0">'
+            f'<code>{r["check_id"]}</code></td>'
+            f'<td style="padding:6px 10px;border-bottom:1px solid #f0d0d0">'
+            f'{r["mensaje"]}</td>'
+            f'</tr>'
+        )
+    anexo = (
+        f'<div style="margin-bottom:20px;">'
+        f'<h3 style="color:#dc3545;margin-bottom:8px;font-size:15px">'
+        f'⚠️ Anexo: alertas CRITICAL</h3>'
+        f'<table style="border-collapse:collapse;width:100%;font-size:12px;'
+        f'border:1px solid #f0d0d0">'
+        f'<tr style="background:#dc3545;color:#fff">'
+        f'<th style="padding:6px 10px;text-align:left">Modelo</th>'
+        f'<th style="padding:6px 10px;text-align:left">Check</th>'
+        f'<th style="padding:6px 10px;text-align:left">Mensaje</th></tr>'
+        f'{"".join(filas)}</table></div>'
+    )
+
+    return banner + anexo, nivel_global
+
+
 def _construir_html(
     df_comp: pd.DataFrame,
     fecha: str,
     fecha_anterior: Optional[str],
     chart_cids: dict[str, str],
     titulo_vuelta: str = "Primera Vuelta",
+    seccion_salud_html: str = "",
 ) -> str:
     """Construye el HTML del email con tabla resumen por modelo e imagenes CID."""
 
@@ -501,6 +599,7 @@ def _construir_html(
   <h2 style="color:#1a1a2e;border-bottom:2px solid #4CAF50;padding-bottom:8px">
     Reporte Amortizacion {titulo_vuelta} &mdash; {fecha}
   </h2>
+  {seccion_salud_html}
   <p>Comparacion: <b>{fecha}</b> vs <b>{fecha_ant_str}</b></p>
 
   <table style="border-collapse:collapse;margin:10px 0" border="1" cellpadding="5">
@@ -591,32 +690,40 @@ def generar_y_enviar_reporte(
     tipo_reporte: str = "primera_vuelta",
     modo: Optional[str] = None,
     destinatarios: Optional[list[str]] = None,
-) -> None:
+    preview_html: bool = False,
+) -> Optional[Path]:
     """
     Genera el reporte completo y lo envía por email.
 
     Args:
         fecha: fecha de proceso en formato YYYY-MM-DD.
-        tipo_reporte: "primera_vuelta" o "segunda_vuelta".
-        modo: "send" o "display". Si None, lee del YAML.
+        tipo_reporte: ``primera_vuelta``, ``segunda_vuelta`` o ``unificado``.
+        modo: ``send`` o ``display``. Si None, lee del YAML.
         destinatarios: override de destinatarios. Si None, lee del YAML.
+        preview_html: si True, no envía nada y vuelca el HTML + adjuntos a
+            ``reports/{YYYYMMDD}/email_preview_{tipo}/`` para revisión local
+            (F30). Las imágenes CID se reemplazan por rutas relativas en el
+            preview standalone.
+
+    Returns:
+        Ruta al directorio del preview si ``preview_html=True``, else None.
     """
     tablas = _TABLAS_POR_TIPO.get(tipo_reporte)
     if tablas is None:
         logger.error("Tipo de reporte no soportado: %s", tipo_reporte)
-        return
+        return None
 
     titulo_vuelta = _TITULO_POR_TIPO.get(tipo_reporte, tipo_reporte)
     cfg = _cargar_config_email(tipo_reporte)
 
-    if not cfg.get("enabled", True):
+    if not preview_html and not cfg.get("enabled", True):
         logger.info("Reporte '%s' deshabilitado en configuración.", tipo_reporte)
-        return
+        return None
 
     destinatarios = destinatarios or cfg.get("destinatarios", [])
-    if not destinatarios:
+    if not preview_html and not destinatarios:
         logger.warning("Sin destinatarios configurados. Abortando envío.")
-        return
+        return None
 
     modo = modo or cfg.get("modo", "send")
 
@@ -628,23 +735,37 @@ def generar_y_enviar_reporte(
 
     if df_comp.empty:
         logger.warning("Sin datos de amortizacion para %s. No se envia email.", fecha)
-        return
+        return None
 
-    # Resolver asunto con fechas reales
+    # 1b. Leer controles (F30) y construir sección de salud
+    df_ctrl = _leer_controles_dia(client, fecha)
+    seccion_salud_html, nivel_global_ctrl = _construir_seccion_salud(df_ctrl, fecha)
+
+    # Resolver asunto con fechas reales + prefijo [CRITICO] si aplica
     asunto_template = cfg.get("asunto_template", "Reporte Amortizacion -- {fecha}")
     asunto = asunto_template.format(
         fecha=fecha,
         fecha_anterior=fecha_anterior or "N/A",
     )
+    if nivel_global_ctrl == "CRITICAL" and not asunto.startswith("[CRITICO]"):
+        asunto = f"[CRITICO] {asunto}"
 
-    # 2. Generar artefactos en directorio temporal
-    with tempfile.TemporaryDirectory(prefix="email_report_") as tmpdir:
-        tmpdir_path = Path(tmpdir)
+    # Directorio de trabajo: temporal si envío real, persistente si preview
+    if preview_html:
+        fecha_compact = fecha.replace("-", "")
+        preview_dir = BASE_DIR / "reports" / fecha_compact / f"email_preview_{tipo_reporte}"
+        preview_dir.mkdir(parents=True, exist_ok=True)
+        tmpdir_path = preview_dir
+        cleanup = lambda: None
+    else:
+        import tempfile as _tempfile
+        _ctx = _tempfile.TemporaryDirectory(prefix="email_report_")
+        tmpdir_path = Path(_ctx.name)
+        cleanup = _ctx.cleanup
 
-        # Charts PNG
+    try:
+        # 2. Generar artefactos
         chart_rutas = _exportar_charts(df_comp, fecha, fecha_anterior, tmpdir_path)
-
-        # Excel
         ruta_excel = _generar_excel(
             df_comp, fecha, fecha_anterior, tmpdir_path,
             tipo_reporte=tipo_reporte,
@@ -662,9 +783,25 @@ def generar_y_enviar_reporte(
         cuerpo_html = _construir_html(
             df_comp, fecha, fecha_anterior, chart_cids,
             titulo_vuelta=titulo_vuelta,
+            seccion_salud_html=seccion_salud_html,
         )
 
-        # 3. Enviar
+        # 3. Enviar o generar preview standalone
+        if preview_html:
+            # Reemplazar `cid:chart_*` por rutas relativas a los PNG
+            html_standalone = cuerpo_html
+            for cid_val, ruta_png in imagenes_cid.items():
+                html_standalone = html_standalone.replace(
+                    f"cid:{cid_val}", ruta_png.name
+                )
+            (tmpdir_path / "index.html").write_text(html_standalone, encoding="utf-8")
+            (tmpdir_path / "subject.txt").write_text(asunto, encoding="utf-8")
+            logger.info(
+                "Preview HTML generado en %s (subject: %s, nivel_ctrl: %s).",
+                tmpdir_path, asunto, nivel_global_ctrl,
+            )
+            return tmpdir_path
+
         _enviar_outlook(
             destinatarios=destinatarios,
             asunto=asunto,
@@ -673,8 +810,11 @@ def generar_y_enviar_reporte(
             imagenes_cid=imagenes_cid,
             modo=modo,
         )
+    finally:
+        cleanup()
 
     logger.info("Reporte de amortizacion %s (%s) completado.", titulo_vuelta, fecha)
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -708,6 +848,12 @@ def main():
         default=None,
         help="Override de destinatarios (separados por espacio).",
     )
+    parser.add_argument(
+        "--preview-html",
+        action="store_true",
+        help="No envía nada; genera HTML+adjuntos en "
+             "reports/{YYYYMMDD}/email_preview_{tipo}/ (F30).",
+    )
     args = parser.parse_args()
 
     # Setup logging básico si se ejecuta standalone
@@ -716,12 +862,16 @@ def main():
         format="%(asctime)s [%(levelname)s] %(name)s -- %(message)s",
     )
 
-    generar_y_enviar_reporte(
+    salida = generar_y_enviar_reporte(
         fecha=args.fecha,
         tipo_reporte=args.tipo,
         modo=args.modo,
         destinatarios=args.destinatarios,
+        preview_html=args.preview_html,
     )
+    if args.preview_html and salida is not None:
+        print(f"Preview generado en: {salida}")
+        print(f"Abrir: file://{salida}/index.html")
 
 
 if __name__ == "__main__":
