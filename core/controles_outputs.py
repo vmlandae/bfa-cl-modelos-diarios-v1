@@ -613,7 +613,7 @@ def ejecutar_controles(
         if incluir_cuadratura:
             try:
                 from core.controles_cuadratura import check_cuadratura
-                checks.extend(check_cuadratura(modelo, fecha_str, cfg))
+                checks.extend(check_cuadratura(modelo, fecha_str, cfg, bq_client=client))
             except ImportError:
                 pass
             except Exception as exc:

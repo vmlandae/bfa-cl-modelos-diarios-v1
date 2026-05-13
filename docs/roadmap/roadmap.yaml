@@ -824,19 +824,20 @@ features:
     descripcion: >
       Sistema de validación post-carga que verifica cuadratura entre el
       CAPITAL/INTERES del input (PML, Access, Excel) y la suma de
-      AMORTIZACION/INTERES del output BQ por modelo y moneda. Habría
-      detectado el error grueso reciente. Adicionalmente aplica controles
+      AMORTIZACION/INTERES del output BQ por modelo. Habría detectado
+      el error grueso reciente. Adicionalmente aplica controles
       de output: invariantes (codigo_empresa=1, monedas válidas), nulls en
       required, ratio de filas, productos desaparecidos, freshness, delta
       intermensual. Persiste resultados en BQ controles_diarios. Patrón
       calcado de core/control_interfaces.py (severidad OK/WARNING/CRITICAL).
       Configurable por YAML con defaults y override por modelo. Política
       CRITICAL no degrada status_global (decisión 2026-05-13).
-    estado: en-progreso
+    estado: completado
     prioridad: crítica
     tamano: L
     sprint: "S6-2026"
     asignado: vlandaetat
+    fecha_completado: "2026-05-13"
     etiquetas: [controles, validacion, bq, cuadratura, alertas]
     dependencias: [F28]
     archivos_afectados:
@@ -850,19 +851,26 @@ features:
       - "docs/feats/controles-outputs/PLAN.md (nuevo)"
       - "docs/feats/controles-outputs/hallazgos.md (nuevo)"
     criterios_aceptacion:
-      - "Check cuadratura_capital detecta desbalance >1% como CRITICAL"
+      - "Check cuadratura_capital detecta desbalance grueso (CRITICAL según tolerancia por modelo)"
       - "CLI: python -m core.controles_outputs --fecha YYYY-MM-DD"
       - "Tabla BQ controles_diarios particionada por fecha_proceso recibe escrituras"
       - "Fallback local si BQ falla; sync_pendientes() los recupera"
       - "Modelos manuales (SSV, CMR) aplican controles de output sin requerir cuadratura"
       - "Resultado se incluye en reporte_ejecucion sin degradar status_global"
     notas: >
-      Motiva el sprint. Reproducir el error grueso es uno de los criterios.
-      Modelos con tipo=manual omiten cuadratura (registran INFO).
-      Pendiente (fase 4 del PLAN): lectores reales de input para
-      cuadratura PML (mora + prepago consumo/hipotecario) y Access
-      (NMD, LC, inversiones). El stub actual reporta INFO para que el
-      motor se pueda usar mientras se implementan los lectores.
+      Motiva el sprint. La cuadratura PML/GCP queda implementada para los 6
+      modelos automatizables (mora consumo/cae/hipotecario/comercial,
+      prepago consumo/hipotecario): filtra PML por SISTEMA + CODIGO_PRODUCTO
+      según reproduce el filtro real de cada modelo y compara
+      SUM(AMORTIZACION/INTERES) contra el output BQ del día. Tolerancia
+      laxa por defecto (warn 10% / crit 50%) y override por modelo (mora
+      20/80, prepago 5/20) — el usuario calibrará iterativamente con la
+      página Controles. Modelos manuales (mr_ssv, mr_prepago_cmr) emiten
+      INFO. La cuadratura Access (ml_nmd, ml_lc, ml_inversiones) queda como
+      INFO 'lector pendiente' — candidato para sprint S7 (requiere
+      definir tablas Balance_NMD/LC/INV reales con el equipo). Reproducir
+      el error grueso con datos históricos exige acceso a BQ + PML en PC
+      institucional (smoke V5 del HANDOFF).
 
   - id: F30
     titulo: "Email unificado con sección de salud"

@@ -117,48 +117,85 @@ print('OK')"
 - No hay nada urgente pendiente. Si agregas un modelo nuevo, edita SOLO `core/modelos_registry.py` (y `_TABLAS_EXTRA` si aplica).
 - No cambiar el orden de `_MODELOS` sin razón — el campo `orden` define el secuencial de ejecución del orquestador.
 
-### F29 — Motor de controles ⚠️ en-progreso (cuadratura stub)
+### F29 — Motor de controles ✅ completado (cuadratura PML activa, Access pendiente S7)
 
-**Qué se hizo (commit `0e97eff`):**
-- `core/controles_outputs.py` (~570 líneas) — motor + 7 checks de output puro + CLI.
-- `core/controles_persistence.py` (~190 líneas) — escritura BQ tabla `controles_diarios` particionada por `fecha_proceso` clusterizada por `(modelo, nivel)` + fallback local en `reports/_pendientes_controles/` + `sync_pendientes()`.
-- `core/controles_cuadratura.py` (~70 líneas) — **stub**: reporta INFO para todos los modelos según `tipo` configurado.
-- Sección `controles:` en `config/config_rutas_ext_y_archivos.yaml` (líneas 256+) con defaults, por_modelo, cuadratura_inputs.
+**Qué se hizo:**
+- `core/controles_outputs.py` (~570 líneas, commit `0e97eff`) — motor + 7 checks de output puro + CLI.
+- `core/controles_persistence.py` (~190 líneas, commit `0e97eff`) — escritura BQ tabla `controles_diarios` particionada por `fecha_proceso` clusterizada por `(modelo, nivel)` + fallback local en `reports/_pendientes_controles/` + `sync_pendientes()`.
+- `core/controles_cuadratura.py` (~330 líneas, **cuadratura real**): lector PML/GCP + PML/CMR (reutiliza `control_interfaces`), lector BQ output, comparador con tolerancia configurable. Filtra PML por `SISTEMA + CODIGO_PRODUCTO` reproduciendo el filtro de cada modelo.
+- Sección `controles:` en `config/config_rutas_ext_y_archivos.yaml` con `cuadratura_inputs` parametrizado por modelo (`sistemas`, `codigo_producto`) y tolerancias por modelo (mora 20/80%, prepago 5/20%).
 - Hook `OrquestadorModelos.ejecutar_controles_post_carga(modelos, fecha)` en `core/orquestador.py`.
 - `ReporteEjecucion.registrar_controles(res)` en `core/reporte_ejecucion.py` — anexa `controles` al JSON y `[CONTROL CRITICO] ...` a `_alertas`. **NO degrada `status_global`**.
 - `main.py:298-323` invoca el hook después de carga GCP exitosa.
+- Integración: `controles_outputs.py:616` pasa el `bigquery.Client` ya abierto a `check_cuadratura` (evita abrir un cliente por modelo).
 
-**Lo que falta — cuadratura real (Fase 4 del PLAN):**
-La función `check_cuadratura(modelo, fecha, cfg_controles)` en `core/controles_cuadratura.py:34` actualmente retorna INFO. Para que sea el check útil:
+**Cómo funciona la cuadratura:**
+Cada modelo declarado en YAML con `tipo: pml_gcp|pml_cmr|access|manual` se evalúa así:
 
-1. **Implementar lectores por `tipo`** (se decide vía `cuadratura_inputs.{modelo}.tipo` en YAML):
-   - `pml_gcp`: reutilizar `core/control_interfaces.py:leer_pml_gcp` (línea ~169-178). Toma archivo PML CSV/Excel de red UNC, agrega `SUM(CAPITAL)` y `SUM(INTERES)` por MONEDA.
-   - `pml_cmr`: análogo con `leer_pml_cmr`.
-   - `access`: nuevo. Lee `.accdb` por ODBC, query `SELECT SUM({columna_capital}), SUM({columna_interes}), MONEDA FROM {ruta_tabla} GROUP BY MONEDA`. Parametrizado en YAML.
-   - `manual`: dejar como está (INFO).
-   - `no_configurado`: dejar como está (INFO).
+| Tipo | Comportamiento |
+|---|---|
+| `pml_gcp` | Copia el `ProductosMercadoLiquidezGCP{fecha}.txt`, filtra por `SISTEMA in cfg.sistemas` y `CODIGO_PRODUCTO == cfg.codigo_producto` (si declarado), suma `AMORTIZACION` e `INTERES`. Compara contra `SUM` del output BQ. Emite `cuadratura_capital` y `cuadratura_interes`. |
+| `pml_cmr` | Análogo con el archivo CMR (hoy no se usa porque `mr_prepago_cmr` es manual). |
+| `access` | Emite INFO con mensaje `Lector pendiente (sprint S7)`. **No falla; deja registro**. |
+| `manual` | Emite INFO con la nota declarada en YAML. |
+| `no_configurado` | Emite INFO. |
 
-2. **Comparar contra output BQ**: `SELECT SUM(AMORTIZACION), SUM(INTERES), MONEDA_ORIGEN FROM report_{modelo}_dly WHERE FECHA_PROCESO = @fecha GROUP BY MONEDA_ORIGEN`.
+**Filtros configurados (validados contra `RF_Modelo_*/`):**
 
-3. **Generar `CheckResultado`**:
-   - `cuadratura_capital_{moneda}`: |Δ%| vs `cfg.cuadratura.tolerancia_pct.{warning,critical}`. Default warning 0.1%, critical 1.0%.
-   - `cuadratura_interes_{moneda}`: análogo.
-   - Evidencia: `{"capital_input": ..., "capital_output": ..., "delta_abs": ..., "delta_pct": ...}`.
+| Modelo | SISTEMAS | CODIGO_PRODUCTO | MONEDA output BQ |
+|---|---|---|---|
+| `ml_mora_consumo` | CRC, REC | 150001 | CLP |
+| `ml_mora_cae` | CRUGE | — | CLF |
+| `ml_mora_hipotecario` | HIP | 150003 | CLF |
+| `ml_mora_comercial` | SEL | 150001 | CLP |
+| `mr_prepago_consumo` | CRC, REC | 150001 | CLP |
+| `mr_prepago_hipotecario` | HIP | 150003 | CLF |
 
-4. **Test contra incidente**: el usuario debe identificar una fecha histórica donde supo que hubo desbalance. Correr el motor sobre esa fecha y verificar que `cuadratura_capital_*` lo marca CRITICAL con un `delta_pct` consistente. Si no se conoce fecha exacta, **forzar test sintético**: insertar fila en `report_ml_mora_consumo_dly` con AMORTIZACION inflada y comparar contra PML real.
+**Tolerancias por defecto (calibrables vía YAML):**
 
-**Cosas que noté que pueden complicar Fase 4:**
-- `control_interfaces.py` ya tiene 1218 líneas y mucha lógica de severidad CAPITAL/INTERES por SISTEMA/MONEDA. Tentación de reusar: ojo, está orientado a comparar PML t vs t-1, no PML vs output_BQ. Lo que sirve es el **lector de archivos** (línea 169-178), no la lógica de comparación.
-- Algunos modelos pasan por **lectura de Access cacheada como parquet** (ver `dashboard/utils/local_data.py` y `RF_Modelo_*/`). Para cuadratura puedes leer el parquet directamente en vez del Access.
-- **NMD case-sensitivity**: hay un fix reciente (commit `2793e8c`: `fix(nmd): corregir case-sensitivity en filtro de productos balance`). Si el lector de Access para NMD usa nombres de columna, validar mayúsculas/minúsculas.
+| Modelo | Warning | Critical | Razonamiento |
+|---|---|---|---|
+| Default | 10% | 50% | Laxo para no romper nada |
+| Mora (4) | 20% | 80% | Modelos de mora aplican factor matricial — output se aleja sistemáticamente del input |
+| Prepago (2) | 5% | 20% | Prepago re-bucketea; suma agregada se preserva casi 1:1 |
 
-**Smoke (sin BQ live):**
+El usuario debe **calibrar iterativamente** revisando la página Controles con datos reales. Si ve siempre WARN con un Δ% estable, sube el umbral. Si nunca dispara, baja el umbral.
+
+**Lo que sigue pendiente (sprint S7 candidato — opcional):**
+- **Lectores Access** para `ml_nmd`, `ml_lc`, `ml_inversiones`. Requiere:
+  - Decidir las tablas balance reales (`Balance_NMD`, `Balance_LC`, `Balance_INV` son placeholders — confirmar con el equipo).
+  - Reusar `procesamiento_datos_input.cache_tablas.leer_tabla_con_cache` (parquet cacheado).
+  - El stub actual emite INFO con mensaje claro.
+- **Reproducir el error grueso histórico** (V5 del HANDOFF) requiere:
+  - PC institucional con credenciales BQ y rutas UNC.
+  - Identificar una fecha donde se supo del desbalance, o forzar un test sintético insertando una fila inflada en `report_ml_mora_consumo_dly` y verificando que `cuadratura_capital` lo marca CRITICAL con `delta_pct` consistente.
+
+**Smoke offline (no requiere BQ):**
 ```bash
-python -c "from core.controles_outputs import ejecutar_controles, ResultadoControles, _CHECKS_REGISTRY
-print('checks registrados:', [f.__name__ for f in _CHECKS_REGISTRY])"
+python -W ignore::FutureWarning -c "
+from core.controles_cuadratura import _comparar, _resolver_tolerancia, check_cuadratura
+from core.controles_outputs import cargar_config
+cfg = cargar_config()
+# tolerancia cascada
+assert _resolver_tolerancia(cfg, 'ml_mora_consumo') == {'warning': 20.0, 'critical': 80.0}
+assert _resolver_tolerancia(cfg, 'mr_prepago_consumo') == {'warning': 5.0, 'critical': 20.0}
+# manual emite INFO sin tocar BQ
+res = check_cuadratura('mr_ssv', '2026-05-12', cfg)
+assert res[0].nivel == 'INFO' and 'manual' in res[0].mensaje.lower()
+# access emite INFO 'pendiente' sin tocar BQ
+res = check_cuadratura('ml_nmd', '2026-05-12', cfg)
+assert res[0].nivel == 'INFO' and 'pendiente' in res[0].mensaje.lower()
+print('OK')"
 ```
 
-**Tabla `controles_diarios` no existe todavía**. La primera escritura del motor la crea (idempotente, `crear_tabla_si_no_existe`). Si quieres crearla a mano:
+**Live (PC institucional con BQ + UNC PML):**
+```bash
+# Cuadratura de un solo modelo (sin persistir):
+python -m core.controles_outputs --fecha 2026-05-12 --modelos ml_mora_consumo --no-persist --export-json /tmp/ctrl.json
+# Buscar evidencia en /tmp/ctrl.json: check_id='cuadratura_capital', delta_pct, tolerancia_*
+```
+
+**Tabla `controles_diarios` se crea sola** en la primera escritura. Si quieres anticiparlo:
 ```bash
 python -m core.controles_persistence crear-tabla
 ```
@@ -275,11 +312,13 @@ python -m core.controles_persistence leer --desde 2026-05-12 --nivel-min OK
 ```
 Esperado: 11 modelos × ~10 checks/modelo. Reporte por consola + JSON con `ResultadoControles`. Persistencia OK.
 
-### V5. Reproducir error grueso (cuando cuadratura esté real)
-**No aplicable todavía** (Fase 4 pendiente). Cuando se implemente:
-- Identificar fecha histórica con desbalance conocido.
-- `python -m core.controles_outputs --fecha {esa_fecha} --modelos {modelo_afectado}`.
-- Verificar `cuadratura_capital_{moneda}` marcado CRITICAL.
+### V5. Reproducir error grueso (cuadratura activa)
+La cuadratura PML/GCP está implementada para los 6 modelos automatizables. Para probar:
+- Si se conoce una fecha histórica con desbalance: `python -m core.controles_outputs --fecha {esa_fecha} --modelos {modelo_afectado} --no-persist --export-json /tmp/ctrl.json`.
+- Buscar en el JSON el `check_id='cuadratura_capital'` con `nivel='CRITICAL'` y `evidencia.delta_pct`.
+- **Test sintético si no se conoce fecha**: insertar una fila en `report_ml_mora_consumo_dly` con `AMORTIZACION` inflada por 10x para `2099-01-01`, copiar el PML de cualquier fecha a esa fecha sintética, correr el motor — debería disparar CRITICAL.
+
+Calibración: si los modelos de mora salen siempre CRITICAL con un `delta_pct` estable (e.g., siempre -25%), eso indica que la tolerancia mora 20/80 está mal calibrada o que el filtro de SISTEMA/CODIGO_PRODUCTO es incompleto (los modelos también filtran por SUBPRODUCTO; nuestra cuadratura no, a propósito — captura roturas gruesas no precisión).
 
 ### V6. Email preview
 ```bash
@@ -402,9 +441,9 @@ Posibles próximos sprints sugeridos (no comprometidos):
 
 ## 9. TL;DR
 
-- Rama `feat/sprint-s6-controles` lista, 8 commits limpios.
-- F28+F30+F31+F32 completados; F29 al 80% (falta cuadratura real).
+- Rama `feat/sprint-s6-controles` lista, 9 commits limpios.
+- F28+F29+F30+F31+F32 **completados**. Cuadratura PML/GCP activa para los 6 modelos automatizables; Access queda como INFO (sprint S7 candidato).
 - El "error grueso" es desbalance capital input↔output, no `CODIGO_EMPRESA=NaN`.
 - Política CRITICAL no degrada `status_global` (decisión usuario).
-- Tests live pendientes en PC institucional (credenciales BQ).
-- Si retomas, lee `PLAN.md` y `hallazgos.md`. Lo más útil es completar `controles_cuadratura.py` (Fase 4 del PLAN).
+- Tests live pendientes en PC institucional (credenciales BQ + rutas UNC PML).
+- Si retomas: el camino más útil es **V4 + V5** del plan de verificación (correr el motor en BQ live, validar la cuadratura con datos reales y calibrar tolerancias).

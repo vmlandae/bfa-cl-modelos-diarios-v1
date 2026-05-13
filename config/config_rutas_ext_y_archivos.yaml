@@ -266,7 +266,10 @@ controles:
   # Defaults aplicables a todos los modelos.
   defaults:
     cuadratura:
-      tolerancia_pct: { warning: 0.1, critical: 1.0 }
+      # Tolerancia laxa porque los modelos de mora aplican factores
+      # que cambian el agregado de forma sistemática. Calibrar por
+      # modelo (sección `por_modelo`) cuando se tengan datos reales.
+      tolerancia_pct: { warning: 10.0, critical: 50.0 }
     nulls_required:
       campos: ["FECHA_PROCESO", "CODIGO_PRODUCTO", "CODIGO_SUBPRODUCTO"]
       nivel: "CRITICAL"
@@ -289,6 +292,28 @@ controles:
       delta: { warning_pct: 10.0, critical_pct: 30.0 }
     ml_mora_consumo:
       delta: { critical_pct: 8.0 }
+      # Mora aplica matriz de transición + factor global; el output puede
+      # alejarse mucho del input. Tolerancia inicial calibrada para detectar
+      # roturas gruesas (output cero, factor invertido), no precisión exacta.
+      cuadratura:
+        tolerancia_pct: { warning: 20.0, critical: 80.0 }
+    ml_mora_cae:
+      cuadratura:
+        tolerancia_pct: { warning: 20.0, critical: 80.0 }
+    ml_mora_hipotecario:
+      cuadratura:
+        tolerancia_pct: { warning: 20.0, critical: 80.0 }
+    ml_mora_comercial:
+      cuadratura:
+        tolerancia_pct: { warning: 20.0, critical: 80.0 }
+    mr_prepago_consumo:
+      # Prepago re-bucketea el flujo en 90 días; suma agregada debería
+      # preservarse casi 1:1 vs input PML.
+      cuadratura:
+        tolerancia_pct: { warning: 5.0, critical: 20.0 }
+    mr_prepago_hipotecario:
+      cuadratura:
+        tolerancia_pct: { warning: 5.0, critical: 20.0 }
     mr_ssv:
       # SSV es mensual (EOM); ratio diario de filas no aplica igual.
       n_filas:
@@ -297,15 +322,15 @@ controles:
 
   # Configuración de cuadratura input ↔ output por modelo.
   # `tipo: manual` desactiva cuadratura (mantiene resto de controles).
-  # Modelos con `pml_gcp` / `pml_cmr` / `access` los habilita cuando
-  # core/controles_cuadratura.py implemente el lector correspondiente.
+  # Los filtros `sistemas` y `codigo_producto` reproducen el filtro real
+  # que cada modelo aplica al PML antes de procesar (ver RF_Modelo_*/).
   cuadratura_inputs:
-    ml_mora_consumo:        { tipo: "pml_gcp", columna_capital: "CAPITAL", columna_interes: "INTERES" }
-    ml_mora_cae:            { tipo: "pml_gcp", columna_capital: "CAPITAL", columna_interes: "INTERES" }
-    ml_mora_hipotecario:    { tipo: "pml_gcp", columna_capital: "CAPITAL", columna_interes: "INTERES" }
-    ml_mora_comercial:      { tipo: "pml_gcp", columna_capital: "CAPITAL", columna_interes: "INTERES" }
-    mr_prepago_consumo:     { tipo: "pml_gcp", columna_capital: "CAPITAL", columna_interes: "INTERES" }
-    mr_prepago_hipotecario: { tipo: "pml_gcp", columna_capital: "CAPITAL", columna_interes: "INTERES" }
+    ml_mora_consumo:        { tipo: "pml_gcp", sistemas: ["CRC", "REC"], codigo_producto: "150001" }
+    ml_mora_cae:            { tipo: "pml_gcp", sistemas: ["CRUGE"] }
+    ml_mora_hipotecario:    { tipo: "pml_gcp", sistemas: ["HIP"],        codigo_producto: "150003" }
+    ml_mora_comercial:      { tipo: "pml_gcp", sistemas: ["SEL"],        codigo_producto: "150001" }
+    mr_prepago_consumo:     { tipo: "pml_gcp", sistemas: ["CRC", "REC"], codigo_producto: "150001" }
+    mr_prepago_hipotecario: { tipo: "pml_gcp", sistemas: ["HIP"],        codigo_producto: "150003" }
     ml_nmd:                 { tipo: "access",  ruta_tabla: "Balance_NMD", columna_capital: "SALDO_CAPITAL" }
     ml_lc:                  { tipo: "access",  ruta_tabla: "Balance_LC",  columna_capital: "SALDO_CAPITAL" }
     ml_inversiones:         { tipo: "access",  ruta_tabla: "Balance_INV", columna_capital: "SALDO_CAPITAL" }

@@ -131,7 +131,7 @@ Solo checks que dependen del output BQ (sin cuadratura todavía).
 
 ## Estado de implementación (2026-05-13)
 
-Rama `feat/sprint-s6-controles` lleva 6 commits que implementan el sprint:
+Rama `feat/sprint-s6-controles` lleva 8 commits + 1 nuevo que cierran el sprint:
 
 | # | Commit | Cubre |
 |---|--------|-------|
@@ -139,18 +139,40 @@ Rama `feat/sprint-s6-controles` lleva 6 commits que implementan el sprint:
 | 2 | `feat(registry): fuente única` | F28 — `core/modelos_registry.py` con API completa + override `_TABLAS_EXTRA` |
 | 3 | `refactor(F28): consumir registry` | F28 — orquestador, theme, comparacion, email_report, main.py, reporte_ejecucion. SSV ahora aparece en comparativa; eliminado filtro hardcoded `CODIGO_PRODUCTOS`; columna `MODELO` sintética en UNION ALL |
 | 4 | `perf(F32): lazy imports y cache` | F32 — lazy plotly/deepdiff en app.py + 5 páginas, cache `_consolidar_dia` y `_comparar`, LIMIT en fechas, pipeline benchmark cacheado |
-| 5 | `feat(F29): motor de controles` | F29 — `controles_outputs.py` (7 checks), `controles_persistence.py` (tabla BQ + fallback), `controles_cuadratura.py` (stub), sección YAML, hook orquestador, integración `reporte_ejecucion` (sin degradar `status_global`) |
+| 5 | `feat(F29): motor de controles` | F29 fase 3+5 — `controles_outputs.py` (7 checks), `controles_persistence.py` (tabla BQ + fallback), `controles_cuadratura.py` (stub), sección YAML, hook orquestador, integración `reporte_ejecucion` (sin degradar `status_global`) |
 | 6 | `feat(F31): página Controles + banner Home` | F31 — `7_Controles.py` con matriz pivote+drill-down, `controles_helpers.py`, banner Home, registro en `app.py` |
 | 7 | `feat(F30): email unificado + sección salud` | F30 — tipo `unificado` (V1+V2), `_leer_controles_dia`, `_construir_seccion_salud`, prefijo `[CRITICO]`, CLI `--preview-html` |
+| 8 | `feat(F29): cuadratura PML real` | F29 fase 4 — `controles_cuadratura.py` con lectores PML/GCP+PML/CMR, comparador con tolerancia configurable por modelo, integración pasa `bq_client` desde el motor. Access queda como INFO 'pendiente' (S7). |
 
-### Lo que queda pendiente (fase 4 del plan original)
+### Cuadratura ahora activa para 6 modelos
 
-**F29 cuadratura — lectores reales de input**: el módulo `controles_cuadratura.py` está implementado como stub que reporta INFO según el `tipo` configurado en YAML. Para activar la cuadratura real:
+`controles_cuadratura.check_cuadratura()` ya no es stub. Por tipo de input:
 
-1. **PML GCP** (mora + prepago consumo/hipotecario): reutilizar lectores de `core/control_interfaces.py:169-178`. Comparar `SUM(CAPITAL_input)` vs `SUM(AMORTIZACION_output_BQ)` por moneda.
-2. **PML CMR** (prepago_cmr — **MANUAL hoy**): cuando se cierre `docs/feats/cuadre-mr-prepago-cmr/hallazgos.md`, pasar a `tipo: pml_cmr` y aplicar.
-3. **Access** (NMD, LC, inversiones): parametrizar lector con `ruta_tabla` y `columna_capital`/`columna_interes` del YAML.
-4. **Manual** (SSV — F27, CMR): mantener `tipo: manual` hasta que se automaticen.
+| Tipo | Comportamiento |
+|---|---|
+| `pml_gcp` (ml_mora_*, mr_prepago_*) | Copia el PML del día desde UNC (reutiliza `control_interfaces.copiar_archivos_a_local`), filtra por `SISTEMA + CODIGO_PRODUCTO` según declarado en YAML, suma `AMORTIZACION` e `INTERES`. Compara contra `SUM(...)` del output BQ. Emite `cuadratura_capital` + `cuadratura_interes`. |
+| `pml_cmr` | Análogo; hoy ningún modelo está en `tipo: pml_cmr` porque `mr_prepago_cmr` sigue manual. |
+| `access` (ml_nmd, ml_lc, ml_inversiones) | Emite INFO con mensaje "Lector pendiente (sprint S7)". No falla. |
+| `manual` (mr_ssv, mr_prepago_cmr) | Emite INFO con la nota declarada en YAML. |
+
+Filtros configurados (validados leyendo cada `RF_Modelo_*/*.py`):
+
+| Modelo | SISTEMAS | CODIGO_PRODUCTO |
+|---|---|---|
+| `ml_mora_consumo` | CRC, REC | 150001 |
+| `ml_mora_cae` | CRUGE | — |
+| `ml_mora_hipotecario` | HIP | 150003 |
+| `ml_mora_comercial` | SEL | 150001 |
+| `mr_prepago_consumo` | CRC, REC | 150001 |
+| `mr_prepago_hipotecario` | HIP | 150003 |
+
+Tolerancia inicial (calibrable en YAML): defaults 10/50%, mora 20/80%, prepago 5/20%. Mora aplica matriz de transición + factor global por lo que el output se aleja del input; la tolerancia laxa captura "roturas gruesas" (output cero, factor invertido), no precisión.
+
+### Lo que queda pendiente (post-sprint)
+
+- **Activación productiva de la cuadratura PML**: la cuadratura ya está conectada al motor, pero los smokes V4/V5 del HANDOFF requieren PC institucional para validar contra BQ real + UNC. El usuario tiene que correr y calibrar tolerancias con los primeros días de datos.
+- **Lectores Access** (`ml_nmd`, `ml_lc`, `ml_inversiones`): candidato para sprint S7. Requiere decidir tablas balance reales con el equipo + reusar `procesamiento_datos_input.cache_tablas.leer_tabla_con_cache` (parquet fallback).
+- **Modelos manuales** (SSV — F27, CMR — feat `cuadre-mr-prepago-cmr`): mantener `tipo: manual` hasta que se automaticen sus inputs.
 
 ### Verificación pendiente (PC institucional)
 
