@@ -129,6 +129,56 @@ Solo checks que dependen del output BQ (sin cuadratura todavía).
 
 ---
 
+## Estado de implementación (2026-05-13)
+
+Rama `feat/sprint-s6-controles` lleva 6 commits que implementan el sprint:
+
+| # | Commit | Cubre |
+|---|--------|-------|
+| 1 | `roadmap: planificar sprint S6` | Fase 1 — agrega S6 + F28-F32 al `roadmap.yaml`, crea `PLAN.md` + `hallazgos.md` |
+| 2 | `feat(registry): fuente única` | F28 — `core/modelos_registry.py` con API completa + override `_TABLAS_EXTRA` |
+| 3 | `refactor(F28): consumir registry` | F28 — orquestador, theme, comparacion, email_report, main.py, reporte_ejecucion. SSV ahora aparece en comparativa; eliminado filtro hardcoded `CODIGO_PRODUCTOS`; columna `MODELO` sintética en UNION ALL |
+| 4 | `perf(F32): lazy imports y cache` | F32 — lazy plotly/deepdiff en app.py + 5 páginas, cache `_consolidar_dia` y `_comparar`, LIMIT en fechas, pipeline benchmark cacheado |
+| 5 | `feat(F29): motor de controles` | F29 — `controles_outputs.py` (7 checks), `controles_persistence.py` (tabla BQ + fallback), `controles_cuadratura.py` (stub), sección YAML, hook orquestador, integración `reporte_ejecucion` (sin degradar `status_global`) |
+| 6 | `feat(F31): página Controles + banner Home` | F31 — `7_Controles.py` con matriz pivote+drill-down, `controles_helpers.py`, banner Home, registro en `app.py` |
+| 7 | `feat(F30): email unificado + sección salud` | F30 — tipo `unificado` (V1+V2), `_leer_controles_dia`, `_construir_seccion_salud`, prefijo `[CRITICO]`, CLI `--preview-html` |
+
+### Lo que queda pendiente (fase 4 del plan original)
+
+**F29 cuadratura — lectores reales de input**: el módulo `controles_cuadratura.py` está implementado como stub que reporta INFO según el `tipo` configurado en YAML. Para activar la cuadratura real:
+
+1. **PML GCP** (mora + prepago consumo/hipotecario): reutilizar lectores de `core/control_interfaces.py:169-178`. Comparar `SUM(CAPITAL_input)` vs `SUM(AMORTIZACION_output_BQ)` por moneda.
+2. **PML CMR** (prepago_cmr — **MANUAL hoy**): cuando se cierre `docs/feats/cuadre-mr-prepago-cmr/hallazgos.md`, pasar a `tipo: pml_cmr` y aplicar.
+3. **Access** (NMD, LC, inversiones): parametrizar lector con `ruta_tabla` y `columna_capital`/`columna_interes` del YAML.
+4. **Manual** (SSV — F27, CMR): mantener `tipo: manual` hasta que se automaticen.
+
+### Verificación pendiente (PC institucional)
+
+Las pruebas live requieren credenciales BQ (no disponibles en este entorno de desarrollo Linux):
+
+```bash
+# Smoke registry (sin BQ)
+python -c "from core.modelos_registry import listar_modelos, todas_las_tablas_hist; print(listar_modelos()); print(todas_las_tablas_hist(vuelta=2))"
+# Esperado: 11 modelos; V2 incluye report_mr_ssv_hist
+
+# Cold-start dashboard
+time streamlit run dashboard/app.py
+# Comparar contra baseline pre-sprint
+
+# Motor de controles
+python -m core.controles_outputs --fecha 2026-05-12 --no-persist --export-json /tmp/ctrl.json
+# Esperado: 11 modelos × N checks, resumen consola, JSON con ResultadoControles
+
+# Preview email
+python -m core.email_report --fecha 2026-05-12 --tipo unificado --preview-html
+# Esperado: reports/20260512/email_preview_unificado/index.html (no envía)
+
+# Página Controles
+streamlit run dashboard/app.py  # navegar a /Controles
+```
+
+---
+
 ## Plan de verificación (consolidado)
 
 ### V1. Smoke registry

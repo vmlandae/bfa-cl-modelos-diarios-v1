@@ -796,7 +796,7 @@ features:
       en core/modelos_registry.py con API: listar_modelos, tabla_dly,
       tabla_hist, tablas_extra_hist, nombre_legible, vuelta, metadata.
       Resto del código consume el registry, no más drift.
-    estado: planificado
+    estado: completado
     prioridad: alta
     tamano: S
     sprint: "S6-2026"
@@ -832,7 +832,7 @@ features:
       calcado de core/control_interfaces.py (severidad OK/WARNING/CRITICAL).
       Configurable por YAML con defaults y override por modelo. Política
       CRITICAL no degrada status_global (decisión 2026-05-13).
-    estado: planificado
+    estado: en-progreso
     prioridad: crítica
     tamano: L
     sprint: "S6-2026"
@@ -859,6 +859,10 @@ features:
     notas: >
       Motiva el sprint. Reproducir el error grueso es uno de los criterios.
       Modelos con tipo=manual omiten cuadratura (registran INFO).
+      Pendiente (fase 4 del PLAN): lectores reales de input para
+      cuadratura PML (mora + prepago consumo/hipotecario) y Access
+      (NMD, LC, inversiones). El stub actual reporta INFO para que el
+      motor se pueda usar mientras se implementan los lectores.
 
   - id: F30
     titulo: "Email unificado con sección de salud"
@@ -869,7 +873,7 @@ features:
       controles_diarios. Eliminar el filtro CODIGO_PRODUCTOS hardcoded
       (hoy excluye productos de V2). Modo --preview-html para validar
       visualmente sin tocar Outlook. Subject prefix [CRITICO] cuando aplique.
-    estado: planificado
+    estado: completado
     prioridad: alta
     tamano: M
     sprint: "S6-2026"
@@ -898,7 +902,7 @@ features:
       semáforos, drill-down a evidencia_json, botón re-ejecutar controles.
       Mini-banner en 1_Home.py que cuenta CRITICAL/WARNING del día y linkea.
       Helpers compartidos en dashboard/utils/controles_helpers.py.
-    estado: planificado
+    estado: completado
     prioridad: alta
     tamano: M
     sprint: "S6-2026"
@@ -929,7 +933,7 @@ features:
       pipeline benchmark), LIMIT explícito en queries de listado de fechas,
       eliminar UNION ALL sin LIMIT, agregar columna sintética MODELO a la
       comparativa para que cubra los 11 modelos (no solo 8 productos hardcoded).
-    estado: planificado
+    estado: completado
     prioridad: media
     tamano: S
     sprint: "S6-2026"
