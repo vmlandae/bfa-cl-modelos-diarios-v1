@@ -68,6 +68,13 @@ sprints:
     objetivo: "Reducir tiempo total de ejecución del pipeline (~18 min → ~12 min) via ejecución secuencial, optimización Access, xlsxwriter y parámetros JSON"
     features: [F21, F24, F22, F23, F20]
 
+  - id: "S6-2026"
+    nombre: "Controles & Cobertura Dashboard"
+    inicio: "2026-05-14"
+    fin: "2026-05-30"
+    objetivo: "Cerrar el gap de validaciones de output (cuadratura input↔output capital/interés y delta intermensual) y unificar la fuente de modelos para que dashboard y email cubran los 11 modelos sin drift. Motiva: error grueso reciente de desbalance input↔output que pasó sin detección."
+    features: [F28, F29, F30, F31, F32]
+
   - id: "backlog"
     nombre: "Backlog Estratégico"
     inicio: null
@@ -774,3 +781,174 @@ features:
       Pendiente destacado para cierre del MR del modelo SSV. La proxima
       semana toca actualizacion manual CORE => buena ventana para levantar
       el procedimiento completo y cerrar el loop.
+
+  # ---------------------------------------------------------------------------
+  # SPRINT 6: Controles & Cobertura Dashboard
+  # ---------------------------------------------------------------------------
+
+  - id: F28
+    titulo: "Fuente única de modelos (modelos_registry)"
+    descripcion: >
+      Hoy la lista canónica de modelos vive duplicada en core/orquestador.py,
+      dashboard/utils/theme.py, dashboard/pages/3_Comparacion.py y
+      core/email_report.py. Cuando se agregó mr_ssv solo se actualizaron 3 de
+      los 4 lugares y el modelo no apareció en la comparativa. Centralizar
+      en core/modelos_registry.py con API: listar_modelos, tabla_dly,
+      tabla_hist, tablas_extra_hist, nombre_legible, vuelta, metadata.
+      Resto del código consume el registry, no más drift.
+    estado: planificado
+    prioridad: alta
+    tamano: S
+    sprint: "S6-2026"
+    asignado: vlandaetat
+    etiquetas: [registry, refactor, dashboard, email, drift]
+    dependencias: []
+    archivos_afectados:
+      - "core/modelos_registry.py (nuevo)"
+      - "core/orquestador.py"
+      - "core/email_report.py"
+      - "core/reporte_ejecucion.py"
+      - "dashboard/utils/theme.py"
+      - "dashboard/pages/3_Comparacion.py"
+      - "main.py"
+    criterios_aceptacion:
+      - "Agregar un nuevo modelo solo requiere editar core/modelos_registry.py"
+      - "mr_ssv aparece automáticamente en la comparativa del dashboard"
+      - "Smoke: listar_modelos() retorna 11; todas_las_tablas_hist(vuelta=2) incluye report_mr_ssv_hist"
+      - "El override de tabla extra (ml_mora_consumo → renegociado) se preserva"
+    notas: >
+      Base del sprint S6. Bloquea F29, F30 y F31.
+
+  - id: F29
+    titulo: "Motor de controles de output con cuadratura input↔output"
+    descripcion: >
+      Sistema de validación post-carga que verifica cuadratura entre el
+      CAPITAL/INTERES del input (PML, Access, Excel) y la suma de
+      AMORTIZACION/INTERES del output BQ por modelo y moneda. Habría
+      detectado el error grueso reciente. Adicionalmente aplica controles
+      de output: invariantes (codigo_empresa=1, monedas válidas), nulls en
+      required, ratio de filas, productos desaparecidos, freshness, delta
+      intermensual. Persiste resultados en BQ controles_diarios. Patrón
+      calcado de core/control_interfaces.py (severidad OK/WARNING/CRITICAL).
+      Configurable por YAML con defaults y override por modelo. Política
+      CRITICAL no degrada status_global (decisión 2026-05-13).
+    estado: planificado
+    prioridad: crítica
+    tamano: L
+    sprint: "S6-2026"
+    asignado: vlandaetat
+    etiquetas: [controles, validacion, bq, cuadratura, alertas]
+    dependencias: [F28]
+    archivos_afectados:
+      - "core/controles_outputs.py (nuevo)"
+      - "core/controles_cuadratura.py (nuevo)"
+      - "core/controles_persistence.py (nuevo)"
+      - "core/orquestador.py"
+      - "core/reporte_ejecucion.py"
+      - "config/config_rutas_ext_y_archivos.yaml"
+      - "main.py"
+      - "docs/feats/controles-outputs/PLAN.md (nuevo)"
+      - "docs/feats/controles-outputs/hallazgos.md (nuevo)"
+    criterios_aceptacion:
+      - "Check cuadratura_capital detecta desbalance >1% como CRITICAL"
+      - "CLI: python -m core.controles_outputs --fecha YYYY-MM-DD"
+      - "Tabla BQ controles_diarios particionada por fecha_proceso recibe escrituras"
+      - "Fallback local si BQ falla; sync_pendientes() los recupera"
+      - "Modelos manuales (SSV, CMR) aplican controles de output sin requerir cuadratura"
+      - "Resultado se incluye en reporte_ejecucion sin degradar status_global"
+    notas: >
+      Motiva el sprint. Reproducir el error grueso es uno de los criterios.
+      Modelos con tipo=manual omiten cuadratura (registran INFO).
+
+  - id: F30
+    titulo: "Email unificado con sección de salud"
+    descripcion: >
+      Unificar primera_vuelta y segunda_vuelta en un solo email diario con
+      secciones por vuelta. Anteponer una sección de salud (banner
+      OK/WARNING/CRITICAL + anexo CRITICAL al inicio) leída de
+      controles_diarios. Eliminar el filtro CODIGO_PRODUCTOS hardcoded
+      (hoy excluye productos de V2). Modo --preview-html para validar
+      visualmente sin tocar Outlook. Subject prefix [CRITICO] cuando aplique.
+    estado: planificado
+    prioridad: alta
+    tamano: M
+    sprint: "S6-2026"
+    asignado: vlandaetat
+    etiquetas: [email, outlook, comunicacion, controles, ux]
+    dependencias: [F28, F29]
+    archivos_afectados:
+      - "core/email_report.py"
+      - "config/config_rutas_ext_y_archivos.yaml"
+    criterios_aceptacion:
+      - "Tipo nuevo 'unificado' generable vía --tipo unificado"
+      - "Email cubre los 11 modelos y todos sus productos (no solo 8)"
+      - "Sección de salud refleja conteos correctos OK/WARN/CRIT"
+      - "Subject lleva [CRITICO] cuando hay alertas críticas"
+      - "Modo --preview-html genera HTML local sin tocar Outlook"
+      - "Tipos primera_vuelta y segunda_vuelta siguen funcionando (compat)"
+    notas: >
+      Implementar 'unificado' como tipo NUEVO sin tocar primera/segunda.
+      Activar via flag YAML solo cuando se valide visualmente.
+
+  - id: F31
+    titulo: "Dashboard: página Controles + banner en Home"
+    descripcion: >
+      Nueva página dashboard/pages/7_Controles.py con: selector fecha,
+      filtros (modelo, nivel), KPI tiles, matriz pivote modelo×check con
+      semáforos, drill-down a evidencia_json, botón re-ejecutar controles.
+      Mini-banner en 1_Home.py que cuenta CRITICAL/WARNING del día y linkea.
+      Helpers compartidos en dashboard/utils/controles_helpers.py.
+    estado: planificado
+    prioridad: alta
+    tamano: M
+    sprint: "S6-2026"
+    asignado: vlandaetat
+    etiquetas: [dashboard, streamlit, ux, controles]
+    dependencias: [F28, F29]
+    archivos_afectados:
+      - "dashboard/pages/7_Controles.py (nuevo)"
+      - "dashboard/utils/controles_helpers.py (nuevo)"
+      - "dashboard/app.py"
+      - "dashboard/pages/1_Home.py"
+    criterios_aceptacion:
+      - "Página 7_Controles lista los 11 modelos con sus checks del día"
+      - "Click en alerta WARN/CRIT abre evidencia_json formateado"
+      - "Home muestra banner con conteo OK/WARN/CRIT y link a Controles"
+      - "Botón 'Re-ejecutar controles' invoca python -m core.controles_outputs"
+    notas: >
+      Reusa STATUS_COLORS y STATUS_EMOJI de theme.py. La nueva página debe
+      respetar el patrón de cache de las páginas existentes.
+
+  - id: F32
+    titulo: "Performance dashboard (quick wins)"
+    descripcion: >
+      Reducir tiempo de cold-start y de carga de datos del dashboard,
+      especialmente en el PC institucional Windows. Cambios concretos:
+      lazy imports de plotly/deepdiff/pandas (mover dentro de funciones),
+      cache de transformaciones (_consolidar_dia, merges de comparativa,
+      pipeline benchmark), LIMIT explícito en queries de listado de fechas,
+      eliminar UNION ALL sin LIMIT, agregar columna sintética MODELO a la
+      comparativa para que cubra los 11 modelos (no solo 8 productos hardcoded).
+    estado: planificado
+    prioridad: media
+    tamano: S
+    sprint: "S6-2026"
+    asignado: vlandaetat
+    etiquetas: [dashboard, performance, streamlit, comparativa]
+    dependencias: [F28]
+    archivos_afectados:
+      - "dashboard/app.py"
+      - "dashboard/pages/1_Home.py"
+      - "dashboard/pages/2_Logs.py"
+      - "dashboard/pages/3_Comparacion.py"
+      - "dashboard/pages/4_Benchmark.py"
+      - "dashboard/pages/5_Parametros.py"
+      - "dashboard/pages/6_Email.py"
+    criterios_aceptacion:
+      - "Cold-start del dashboard se reduce ≥30% vs baseline"
+      - "Navegación Home→Comparación→Home no re-ejecuta queries (cache hit)"
+      - "Comparativa muestra SSV (EOM) en selector y cubre productos de NMD/LC/Inversiones/SSV/Prepago"
+      - "_consolidar_dia(fecha_iso) es cacheable con @st.cache_data"
+    notas: >
+      No reescritura mayor: parches localizados. F32 se puede mergear
+      independiente de F29/F30/F31 una vez F28 esté listo.
