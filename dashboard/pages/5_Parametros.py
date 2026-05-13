@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
-from deepdiff import DeepDiff
+# F32: DeepDiff es pesado en boot. Se importa lazy en _deepdiff_json/_diff_a_tabla.
 
 from dashboard.utils.local_data import (
     listar_fechas_con_snapshot,
@@ -104,8 +104,9 @@ def _comparar_manifests(manifest_a: dict, manifest_b: dict) -> list[dict]:
     return resultados
 
 
-def _deepdiff_json(store_a: str, store_b: str) -> dict | None:
+def _deepdiff_json(store_a: str, store_b: str) -> "dict | None":
     """Ejecuta DeepDiff entre dos archivos JSON del store."""
+    from deepdiff import DeepDiff  # lazy F32
     json_a = _cargar_json_store(store_a)
     json_b = _cargar_json_store(store_b)
     if json_a is None or json_b is None:
@@ -114,7 +115,7 @@ def _deepdiff_json(store_a: str, store_b: str) -> dict | None:
     return diff
 
 
-def _diff_a_tabla(diff: DeepDiff) -> pd.DataFrame:
+def _diff_a_tabla(diff) -> pd.DataFrame:
     """Convierte un DeepDiff a tabla legible."""
     rows = []
 

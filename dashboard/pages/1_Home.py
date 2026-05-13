@@ -106,10 +106,11 @@ def _parse_reporte_json(raw: str | None) -> dict | None:
 # Consolidación: para cada modelo canónico, tomar la última ejecución
 # ---------------------------------------------------------------------------
 
-def _consolidar_dia(df: pd.DataFrame) -> dict:
-    """Consolida todas las ejecuciones de un día.
+@st.cache_data(ttl=120, show_spinner=False)
+def _consolidar_dia(fecha_iso: str) -> dict:
+    """Consolida todas las ejecuciones de un día. BQ primero, fallback local.
 
-    Retorna dict con claves:
+    Cacheable por fecha (F32). Retorna dict con claves:
         modelos        – dict {modelo_id: {status, duracion_seg, error_msg?, ejecucion_idx}}
         n_ejecuciones  – cantidad de ejecuciones del día
         duracion_total – suma de duracion_total_seg de todas las ejecuciones
@@ -117,7 +118,39 @@ def _consolidar_dia(df: pd.DataFrame) -> dict:
         carga_gcp      – merge de carga_gcp (última gana)
         benchmarks     – lista de benchmark dicts
         timestamps     – lista de timestamps (ASC)
+        fuente         – "BigQuery" | "Local" | "Sin datos"
     """
+    df = _cargar_reportes_fecha_bq(fecha_iso)
+    if not df.empty:
+        return _consolidar_desde_bq(df)
+
+    # Fallback local
+    reporte_local = _cargar_reporte_local(fecha_iso)
+    if reporte_local is None:
+        return {
+            "modelos": {},
+            "n_ejecuciones": 0,
+            "duracion_total": 0.0,
+            "alertas": [],
+            "carga_gcp": {},
+            "benchmarks": [],
+            "timestamps": [],
+            "fuente": "Sin datos",
+        }
+    return {
+        "modelos": reporte_local.get("modelos", {}),
+        "n_ejecuciones": 1,
+        "duracion_total": reporte_local.get("duracion_total_seg", 0),
+        "alertas": reporte_local.get("alertas", []),
+        "carga_gcp": reporte_local.get("carga_gcp", {}),
+        "benchmarks": [reporte_local["benchmark"]] if reporte_local.get("benchmark") else [],
+        "timestamps": [reporte_local.get("timestamp", "?")[:19]],
+        "fuente": "Local",
+    }
+
+
+def _consolidar_desde_bq(df: pd.DataFrame) -> dict:
+    """Lógica pura de consolidación a partir del DataFrame BQ."""
     modelos: dict[str, dict] = {}
     alertas_set: list[str] = []
     carga_gcp: dict = {}
@@ -163,6 +196,7 @@ def _consolidar_dia(df: pd.DataFrame) -> dict:
         "carga_gcp": carga_gcp,
         "benchmarks": benchmarks,
         "timestamps": timestamps,
+        "fuente": "BigQuery",
     }
 
 
@@ -273,32 +307,14 @@ with st.sidebar:
 fecha_iso = str(fecha_sel)
 
 # --- Cargar datos ---
-df_bq = _cargar_reportes_fecha_bq(fecha_iso)
-usando_bq = not df_bq.empty
-
-if usando_bq:
-    consolidado = _consolidar_dia(df_bq)
-    fuente = "BigQuery"
-else:
-    # Fallback local (un solo reporte)
-    reporte_local = _cargar_reporte_local(fecha_iso)
-    if reporte_local is None:
-        st.warning(
-            f"No se encontraron reportes para **{fecha_iso}** "
-            "(ni en BigQuery ni localmente)."
-        )
-        st.stop()
-    # Simular consolidado desde reporte local
-    consolidado = {
-        "modelos": reporte_local.get("modelos", {}),
-        "n_ejecuciones": 1,
-        "duracion_total": reporte_local.get("duracion_total_seg", 0),
-        "alertas": reporte_local.get("alertas", []),
-        "carga_gcp": reporte_local.get("carga_gcp", {}),
-        "benchmarks": [reporte_local["benchmark"]] if reporte_local.get("benchmark") else [],
-        "timestamps": [reporte_local.get("timestamp", "?")[:19]],
-    }
-    fuente = "Local"
+consolidado = _consolidar_dia(fecha_iso)
+fuente = consolidado.get("fuente", "Sin datos")
+if fuente == "Sin datos":
+    st.warning(
+        f"No se encontraron reportes para **{fecha_iso}** "
+        "(ni en BigQuery ni localmente)."
+    )
+    st.stop()
 
 modelos_consol = consolidado["modelos"]
 n_ejec = consolidado["n_ejecuciones"]

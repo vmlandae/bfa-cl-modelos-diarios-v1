@@ -13,21 +13,20 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
+import importlib.util
+
 _DEPS_FALTANTES = []
 try:
     import streamlit as st
 except ImportError:
     _DEPS_FALTANTES.append("streamlit")
 
-try:
-    import plotly.graph_objects as go  # noqa: F401
-except ImportError:
+# F32: chequeo liviano sin importar las libs en boot. plotly tarda ~1.5-2.5s
+# en cold-start y solo se usa en algunas páginas; cada page lo importa lazy.
+if importlib.util.find_spec("plotly") is None:
     _DEPS_FALTANTES.append("plotly")
 
-try:
-    from google.cloud import bigquery  # noqa: F401
-    from google.oauth2 import service_account  # noqa: F401
-except ImportError:
+if importlib.util.find_spec("google.cloud.bigquery") is None:
     _DEPS_FALTANTES.append("google-cloud-bigquery")
 
 if _DEPS_FALTANTES:

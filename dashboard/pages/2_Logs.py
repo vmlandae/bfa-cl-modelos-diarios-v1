@@ -11,9 +11,9 @@ import re
 from datetime import date
 
 import pandas as pd
-import plotly.express as px
 import streamlit as st
 from google.cloud import bigquery
+# F32: plotly.express se importa lazy donde se usa (sección pie chart).
 
 from dashboard.utils.bq_client import get_bq_client, PROJECT_ID, DATASET_DLY
 from dashboard.utils.local_data import listar_fechas_con_log, cargar_log_jsonl
@@ -309,6 +309,7 @@ if niveles_count:
         [{"Nivel": k, "Cantidad": v} for k, v in niveles_count.items()]
     )
     color_map = {k: v for k, v in LOG_LEVEL_COLORS.items() if k in niveles_count}
+    import plotly.express as px  # lazy F32
     fig_pie = px.pie(
         df_niveles, names="Nivel", values="Cantidad",
         color="Nivel", color_discrete_map=color_map,

@@ -9,10 +9,11 @@ import json
 from datetime import date, timedelta
 
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 import streamlit as st
 from google.cloud import bigquery
+
+# Lazy imports F32: plotly tarda ~2s en cold-start, se importa dentro de cada
+# sección donde se usa.
 
 from core.sync_benchmark import cargar_benchmark_desde_bq
 from dashboard.utils.bq_client import get_bq_client, PROJECT_ID, DATASET_DLY
@@ -88,6 +89,19 @@ def _cargar_datos() -> tuple[list[dict], str]:
     return [], "ninguna"
 
 
+@st.cache_data(ttl=300, show_spinner=False)
+def _benchmark_pipeline(dias: int = 90) -> tuple[list[dict], str, pd.DataFrame, pd.DataFrame]:
+    """Pipeline completo cacheado: carga + parse + agregación. (F32)"""
+    entries, fuente = _cargar_datos()
+    if not entries:
+        return [], fuente, pd.DataFrame(), pd.DataFrame()
+    df_raw = _entries_a_df(entries)
+    if df_raw.empty:
+        return entries, fuente, pd.DataFrame(), pd.DataFrame()
+    df_totales, df_modelos = _agregar_por_dia(df_raw)
+    return entries, fuente, df_totales, df_modelos
+
+
 def _entries_a_df(entries: list[dict]) -> pd.DataFrame:
     """Convierte entradas benchmark a DataFrame plano.
 
@@ -135,22 +149,20 @@ def _agregar_por_dia(df: pd.DataFrame) -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 st.title("📈 Benchmark de Performance")
 
-entries, fuente = _cargar_datos()
+entries, fuente, df_totales, df_modelos = _benchmark_pipeline()
 if not entries:
     st.warning("No hay datos de benchmark disponibles.")
+    st.stop()
+if df_totales.empty:
+    st.warning("No se pudieron parsear los datos de benchmark.")
     st.stop()
 
 st.caption(f"Fuente: {fuente} — {len(entries)} ejecuciones")
 
-df_raw = _entries_a_df(entries)
-if df_raw.empty:
-    st.warning("No se pudieron parsear los datos de benchmark.")
-    st.stop()
-
-df_totales, df_modelos = _agregar_por_dia(df_raw)
-
 # --- Duración total por día ---
 st.subheader("Duración total del pipeline por día")
+
+import plotly.express as px  # lazy F32
 
 fig_total = px.bar(
     df_totales.sort_values("fecha"),

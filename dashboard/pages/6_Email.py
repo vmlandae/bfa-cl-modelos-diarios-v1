@@ -7,7 +7,7 @@ via Outlook COM directamente desde el dashboard.
 
 import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go
+# F32: plotly se importa lazy donde se construyen los charts (loop).
 
 from dashboard.utils.bq_client import get_bq_client
 
@@ -170,6 +170,8 @@ def _escala_eje_dash(max_val: float) -> tuple[float, str]:
 
 
 # Charts por moneda (tabs) -- un chart + data card por modelo
+import plotly.graph_objects as go  # lazy F32 — solo en la sección de charts
+
 tabs = st.tabs(monedas_presentes)
 for tab, moneda in zip(tabs, monedas_presentes):
     with tab:
